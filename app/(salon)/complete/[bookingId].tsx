@@ -1,0 +1,356 @@
+import { useLocalSearchParams, useRouter } from 'expo-router';
+import { useEffect, useState } from 'react';
+import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
+
+import { Logo } from '@/components/Logo';
+import { Colors } from '@/constants/theme';
+import { supabase } from '@/services/supabase';
+import { chargeBooking } from '@/services/stripe';
+import { notify } from '@/utils/confirm';
+
+type LineItem = {
+  description: string;
+  amountCents: number;
+};
+
+export default function CompleteBookingScreen() {
+  const { bookingId } = useLocalSearchParams<{ bookingId: string }>();
+  const router = useRouter();
+
+  const [petName, setPetName] = useState('');
+  const [serviceName, setServiceName] = useState('');
+  const [lineItems, setLineItems] = useState<LineItem[]>([]);
+  const [newDescription, setNewDescription] = useState('');
+  const [newAmount, setNewAmount] = useState('');
+  const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
+  const [charging, setCharging] = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    async function load() {
+      const [bookingResult, existingItemsResult] = await Promise.all([
+        supabase
+          .from('bookings')
+          .select('pets(name), groomer_services(name, price_cents)')
+          .eq('id', bookingId)
+          .single(),
+        supabase.from('booking_line_items').select('description, amount_cents').eq('booking_id', bookingId),
+      ]);
+
+      if (cancelled) return;
+
+      if (bookingResult.error || !bookingResult.data) {
+        setLoadError(bookingResult.error?.message ?? 'Booking not found');
+        setLoading(false);
+        return;
+      }
+
+      const pet = bookingResult.data.pets as unknown as { name: string };
+      const service = bookingResult.data.groomer_services as unknown as {
+        name: string;
+        price_cents: number;
+      };
+      setPetName(pet?.name ?? 'Pet');
+      setServiceName(service?.name ?? 'Service');
+
+      if (existingItemsResult.data && existingItemsResult.data.length > 0) {
+        setLineItems(
+          existingItemsResult.data.map((item) => ({
+            description: item.description,
+            amountCents: item.amount_cents,
+          }))
+        );
+      } else {
+        setLineItems([{ description: service?.name ?? 'Service', amountCents: service?.price_cents ?? 0 }]);
+      }
+
+      setLoading(false);
+    }
+
+    load();
+    return () => {
+      cancelled = true;
+    };
+  }, [bookingId]);
+
+  function handleAddLineItem() {
+    const amountCents = Math.round(Number(newAmount) * 100);
+    if (!newDescription.trim() || !Number.isFinite(amountCents) || amountCents <= 0) return;
+
+    setLineItems((prev) => [...prev, { description: newDescription.trim(), amountCents }]);
+    setNewDescription('');
+    setNewAmount('');
+  }
+
+  function handleRemoveLineItem(index: number) {
+    setLineItems((prev) => prev.filter((_, i) => i !== index));
+  }
+
+  const totalCents = lineItems.reduce((sum, item) => sum + item.amountCents, 0);
+
+  async function handleChargeAndComplete() {
+    if (lineItems.length === 0 || totalCents <= 0) return;
+    setCharging(true);
+
+    try {
+      await supabase.from('booking_line_items').delete().eq('booking_id', bookingId);
+      const { error: insertError } = await supabase.from('booking_line_items').insert(
+        lineItems.map((item) => ({
+          booking_id: bookingId,
+          description: item.description,
+          amount_cents: item.amountCents,
+        }))
+      );
+      if (insertError) throw new Error(insertError.message);
+
+      await chargeBooking(bookingId);
+      router.back();
+    } catch (err) {
+      notify('Charge failed', err instanceof Error ? err.message : 'Something went wrong');
+    } finally {
+      setCharging(false);
+    }
+  }
+
+  if (loading) {
+    return (
+      <SafeAreaView style={styles.container}>
+        <ActivityIndicator style={styles.loading} color={Colors.light.tint} />
+      </SafeAreaView>
+    );
+  }
+
+  if (loadError) {
+    return (
+      <SafeAreaView style={styles.container}>
+        <Text style={styles.error}>{loadError}</Text>
+      </SafeAreaView>
+    );
+  }
+
+  return (
+    <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
+      <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
+        <View style={styles.topRow}>
+          <Pressable onPress={() => router.back()}>
+            <Text style={styles.backLink}>← Back</Text>
+          </Pressable>
+          <Pressable onPress={() => supabase.auth.signOut()}>
+            <Text style={styles.signOutLink}>Sign out</Text>
+          </Pressable>
+        </View>
+
+        <View style={styles.titleRow}>
+          <Logo size={28} />
+          <Text style={styles.title}>Complete & invoice</Text>
+        </View>
+        <Text style={styles.subtitle}>
+          {serviceName} for {petName}
+        </Text>
+
+        <Text style={styles.sectionTitle}>Invoice items</Text>
+        {lineItems.map((item, index) => (
+          <View key={`${item.description}-${index}`} style={styles.lineItemRow}>
+            <Text style={styles.lineItemDescription}>{item.description}</Text>
+            <Text style={styles.lineItemAmount}>${(item.amountCents / 100).toFixed(2)}</Text>
+            <Pressable onPress={() => handleRemoveLineItem(index)}>
+              <Text style={styles.removeText}>Remove</Text>
+            </Pressable>
+          </View>
+        ))}
+
+        <View style={styles.addItemForm}>
+          <TextInput
+            style={[styles.input, styles.descriptionInput]}
+            placeholder="Item description"
+            placeholderTextColor={Colors.light.textMuted}
+            value={newDescription}
+            onChangeText={setNewDescription}
+          />
+          <TextInput
+            style={[styles.input, styles.amountInput]}
+            placeholder="0.00"
+            placeholderTextColor={Colors.light.textMuted}
+            keyboardType="decimal-pad"
+            value={newAmount}
+            onChangeText={setNewAmount}
+          />
+          <Pressable style={styles.addButton} onPress={handleAddLineItem}>
+            <Text style={styles.addButtonText}>Add</Text>
+          </Pressable>
+        </View>
+
+        <View style={styles.totalRow}>
+          <Text style={styles.totalLabel}>Subtotal</Text>
+          <Text style={styles.totalAmount}>${(totalCents / 100).toFixed(2)}</Text>
+        </View>
+        <Text style={styles.taxNote}>Sales tax (if applicable) is calculated and added at checkout.</Text>
+
+        <Pressable
+          style={[styles.chargeButton, (charging || totalCents <= 0) && styles.buttonDisabled]}
+          onPress={handleChargeAndComplete}
+          disabled={charging || totalCents <= 0}>
+          {charging ? (
+            <ActivityIndicator color="#fff" />
+          ) : (
+            <Text style={styles.chargeButtonText}>Charge & complete</Text>
+          )}
+        </Pressable>
+      </ScrollView>
+    </SafeAreaView>
+  );
+}
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: Colors.light.background,
+  },
+  content: {
+    padding: 20,
+    paddingBottom: 40,
+  },
+  loading: {
+    marginTop: 40,
+  },
+  error: {
+    margin: 20,
+    fontSize: 15,
+    color: Colors.light.danger,
+  },
+  topRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  backLink: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: Colors.light.tint,
+  },
+  signOutLink: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: Colors.light.danger,
+  },
+  titleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+  },
+  title: {
+    fontSize: 24,
+    fontWeight: '700',
+    color: Colors.light.text,
+  },
+  subtitle: {
+    marginTop: 4,
+    fontSize: 15,
+    color: Colors.light.textMuted,
+  },
+  sectionTitle: {
+    marginTop: 24,
+    marginBottom: 10,
+    fontSize: 17,
+    fontWeight: '600',
+    color: Colors.light.text,
+  },
+  lineItemRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 10,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: Colors.light.border,
+    gap: 10,
+  },
+  lineItemDescription: {
+    flex: 1,
+    fontSize: 15,
+    color: Colors.light.text,
+  },
+  lineItemAmount: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: Colors.light.text,
+  },
+  removeText: {
+    fontSize: 13,
+    color: Colors.light.danger,
+  },
+  addItemForm: {
+    flexDirection: 'row',
+    gap: 8,
+    marginTop: 16,
+  },
+  input: {
+    height: 44,
+    borderRadius: 8,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: Colors.light.border,
+    backgroundColor: Colors.light.surface,
+    paddingHorizontal: 12,
+    fontSize: 14,
+    color: Colors.light.text,
+  },
+  descriptionInput: {
+    flex: 2,
+  },
+  amountInput: {
+    flex: 1,
+  },
+  addButton: {
+    paddingHorizontal: 16,
+    borderRadius: 8,
+    backgroundColor: Colors.light.tint,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  addButtonText: {
+    color: '#fff',
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  totalRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginTop: 24,
+    paddingTop: 14,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: Colors.light.border,
+  },
+  totalLabel: {
+    fontSize: 17,
+    fontWeight: '600',
+    color: Colors.light.text,
+  },
+  totalAmount: {
+    fontSize: 17,
+    fontWeight: '700',
+    color: Colors.light.text,
+  },
+  taxNote: {
+    marginTop: 6,
+    fontSize: 12,
+    color: Colors.light.textMuted,
+  },
+  chargeButton: {
+    marginTop: 24,
+    height: 50,
+    borderRadius: 10,
+    backgroundColor: Colors.light.tint,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  chargeButtonText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  buttonDisabled: {
+    opacity: 0.5,
+  },
+});
