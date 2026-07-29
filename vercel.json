@@ -1,8 +1,5 @@
 {
-  "buildCommand": "npx expo export -p web && cp -r public/. dist/",
-  "outputDirectory": "dist",
-  "rewrites": [
-    { "source": "/support", "destination": "/support.html" },
-    { "source": "/(.*)", "destination": "/index.html" }
-  ]
+  "buildCommand": "echo 'static site, no build needed'",
+  "outputDirectory": "public",
+  "rewrites": [{ "source": "/support", "destination": "/support.html" }]
 }
