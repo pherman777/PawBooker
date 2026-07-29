@@ -14,6 +14,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { Logo } from '@/components/Logo';
+import { Wordmark } from '@/components/Wordmark';
 import { Colors } from '@/constants/theme';
 import { supabase } from '@/services/supabase';
 
@@ -44,7 +45,7 @@ export default function SignUpScreen() {
         <ScrollView contentContainerStyle={styles.content}>
           <View style={styles.brand}>
             <Logo size={64} />
-            <Text style={styles.brandName}>PawBooker</Text>
+            <Wordmark size={20} style={styles.brandName} />
           </View>
 
           <Text style={styles.title}>Check your email</Text>
@@ -67,7 +68,7 @@ export default function SignUpScreen() {
         <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
           <View style={styles.brand}>
             <Logo size={64} />
-            <Text style={styles.brandName}>PawBooker</Text>
+            <Wordmark size={20} style={styles.brandName} />
           </View>
 
           <Text style={styles.title}>Create an account</Text>
@@ -128,9 +129,6 @@ const styles = StyleSheet.create({
   },
   brandName: {
     marginTop: 12,
-    fontSize: 20,
-    fontWeight: '700',
-    color: Colors.light.text,
   },
   title: {
     fontSize: 28,

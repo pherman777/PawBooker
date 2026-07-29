@@ -1,3 +1,4 @@
+import { LinkDisplay, PlatformPay } from '@stripe/stripe-react-native';
 import { Image } from 'expo-image';
 import { useRouter, useFocusEffect } from 'expo-router';
 import { useCallback, useState } from 'react';
@@ -10,9 +11,9 @@ import { useStripePayments } from '@/hooks/useStripePayments';
 import { useAuth } from '@/services/auth-context';
 import { supabase } from '@/services/supabase';
 import { getSignedUrl } from '@/services/storage';
-import { createSetupIntent, finalizePaymentMethod } from '@/services/stripe';
-import type { CustomerBilling, Pet } from '@/types';
-import { notify } from '@/utils/confirm';
+import { createSetupIntent, finalizePaymentMethod, isStripeTestMode, removePaymentMethod } from '@/services/stripe';
+import type { Pet, SavedPaymentMethod } from '@/types';
+import { confirmAsync, notify } from '@/utils/confirm';
 
 type PetRow = Pet & { photoUrl: string | null };
 
@@ -22,8 +23,28 @@ export default function ProfileScreen() {
   const { initPaymentSheet, presentPaymentSheet } = useStripePayments();
   const [pets, setPets] = useState<PetRow[]>([]);
   const [loading, setLoading] = useState(true);
-  const [billing, setBilling] = useState<CustomerBilling | null>(null);
+  const [paymentMethods, setPaymentMethods] = useState<SavedPaymentMethod[]>([]);
   const [savingCard, setSavingCard] = useState(false);
+  const [updatingId, setUpdatingId] = useState<string | null>(null);
+
+  const loadPaymentMethods = useCallback(async () => {
+    if (!session) return;
+    const { data } = await supabase
+      .from('customer_payment_methods')
+      .select('id, card_brand, card_last4, wallet_type, is_default')
+      .eq('user_id', session.user.id)
+      .order('created_at', { ascending: true });
+
+    setPaymentMethods(
+      (data ?? []).map((row) => ({
+        id: row.id,
+        cardBrand: row.card_brand ?? undefined,
+        cardLast4: row.card_last4 ?? undefined,
+        walletType: row.wallet_type ?? undefined,
+        isDefault: row.is_default,
+      }))
+    );
+  }, [session]);
 
   useFocusEffect(
     useCallback(() => {
@@ -33,17 +54,13 @@ export default function ProfileScreen() {
         if (!session) return;
         setLoading(true);
 
-        const [petsResult, billingResult] = await Promise.all([
+        const [petsResult] = await Promise.all([
           supabase
             .from('pets')
             .select('id, owner_id, name, species, breed, photo_path')
             .eq('owner_id', session.user.id)
             .order('name'),
-          supabase
-            .from('customer_billing')
-            .select('stripe_customer_id, default_payment_method_id, card_brand, card_last4')
-            .eq('user_id', session.user.id)
-            .maybeSingle(),
+          loadPaymentMethods(),
         ]);
 
         if (cancelled) return;
@@ -62,16 +79,6 @@ export default function ProfileScreen() {
 
         if (!cancelled) {
           setPets(rows);
-          setBilling(
-            billingResult.data
-              ? {
-                  stripeCustomerId: billingResult.data.stripe_customer_id,
-                  defaultPaymentMethodId: billingResult.data.default_payment_method_id,
-                  cardBrand: billingResult.data.card_brand ?? undefined,
-                  cardLast4: billingResult.data.card_last4 ?? undefined,
-                }
-              : null
-          );
           setLoading(false);
         }
       }
@@ -80,20 +87,30 @@ export default function ProfileScreen() {
       return () => {
         cancelled = true;
       };
-    }, [session])
+    }, [session, loadPaymentMethods])
   );
 
   async function handleAddPaymentMethod() {
     setSavingCard(true);
     try {
-      const { customerId, ephemeralKey, setupIntentClientSecret } = await createSetupIntent();
+      const { setupIntentClientSecret } = await createSetupIntent();
 
+      // Deliberately not passing customerId/customerEphemeralKeySecret: this
+      // sheet is only ever for adding a brand new method (the Profile screen
+      // is where existing saved methods get managed), and providing them
+      // makes the sheet pre-select an existing saved card, which enables the
+      // confirm button before the customer has actually chosen anything new.
       const { error: initError } = await initPaymentSheet({
         merchantDisplayName: 'PawBooker',
-        customerId,
-        customerEphemeralKeySecret: ephemeralKey,
         setupIntentClientSecret,
         allowsDelayedPaymentMethods: false,
+        link: { display: LinkDisplay.NEVER },
+        applePay: {
+          merchantCountryCode: 'US',
+          buttonType: PlatformPay.ButtonType.SetUp,
+          cartItems: [{ paymentType: 'Immediate', label: 'No charge today', amount: '0.00' }],
+        },
+        googlePay: { merchantCountryCode: 'US', currencyCode: 'USD', testEnv: isStripeTestMode },
       });
       if (initError) throw new Error(initError.message);
 
@@ -106,18 +123,51 @@ export default function ProfileScreen() {
       }
 
       const setupIntentId = setupIntentClientSecret.split('_secret_')[0];
-      const result = await finalizePaymentMethod(setupIntentId);
-      setBilling({
-        stripeCustomerId: customerId,
-        defaultPaymentMethodId: '',
-        cardBrand: result.brand ?? undefined,
-        cardLast4: result.last4 ?? undefined,
-      });
+      await finalizePaymentMethod(setupIntentId);
+      await loadPaymentMethods();
     } catch (err) {
       notify('Something went wrong', err instanceof Error ? err.message : 'Please try again.');
     } finally {
       setSavingCard(false);
     }
+  }
+
+  async function handleMakeDefault(id: string) {
+    setUpdatingId(id);
+    try {
+      const { error } = await supabase
+        .from('customer_payment_methods')
+        .update({ is_default: true })
+        .eq('id', id);
+      if (error) throw new Error(error.message);
+      await loadPaymentMethods();
+    } catch (err) {
+      notify('Could not update default', err instanceof Error ? err.message : 'Please try again.');
+    } finally {
+      setUpdatingId(null);
+    }
+  }
+
+  async function handleRemove(id: string) {
+    const confirmed = await confirmAsync('Remove payment method?', 'This cannot be undone.');
+    if (!confirmed) return;
+
+    setUpdatingId(id);
+    try {
+      await removePaymentMethod(id);
+      await loadPaymentMethods();
+    } catch (err) {
+      notify('Could not remove payment method', err instanceof Error ? err.message : 'Please try again.');
+    } finally {
+      setUpdatingId(null);
+    }
+  }
+
+  function paymentMethodLabel(method: SavedPaymentMethod) {
+    const brand = method.cardBrand ? method.cardBrand[0].toUpperCase() + method.cardBrand.slice(1) : 'Card';
+    const walletPrefix =
+      method.walletType === 'apple_pay' ? 'Apple Pay · ' : method.walletType === 'google_pay' ? 'Google Pay · ' : '';
+    return `${walletPrefix}${brand} ···· ${method.cardLast4 ?? '????'}`;
   }
 
   return (
@@ -162,18 +212,36 @@ export default function ProfileScreen() {
         </Pressable>
 
         <View style={styles.section}>
-          <Text style={styles.sectionLabel}>Payment method</Text>
+          <Text style={styles.sectionLabel}>Payment methods</Text>
         </View>
 
-        {!loading && billing && (
-          <View style={styles.cardRow}>
-            <Text style={styles.cardText}>
-              {billing.cardBrand ? billing.cardBrand[0].toUpperCase() + billing.cardBrand.slice(1) : 'Card'} ····{' '}
-              {billing.cardLast4}
-            </Text>
-          </View>
+        {!loading && paymentMethods.length === 0 && (
+          <Text style={styles.emptyText}>No payment methods on file.</Text>
         )}
-        {!loading && !billing && <Text style={styles.emptyText}>No payment method on file.</Text>}
+
+        {!loading &&
+          paymentMethods.map((method) => (
+            <View key={method.id} style={styles.cardRow}>
+              <View style={styles.cardTextWrap}>
+                <Text style={styles.cardText}>{paymentMethodLabel(method)}</Text>
+                {method.isDefault && <Text style={styles.defaultPill}>Default</Text>}
+              </View>
+              {updatingId === method.id ? (
+                <ActivityIndicator color={Colors.light.tint} />
+              ) : (
+                <View style={styles.cardActions}>
+                  {!method.isDefault && (
+                    <Pressable onPress={() => handleMakeDefault(method.id)} hitSlop={6}>
+                      <Text style={styles.cardActionText}>Make default</Text>
+                    </Pressable>
+                  )}
+                  <Pressable onPress={() => handleRemove(method.id)} hitSlop={6}>
+                    <Text style={styles.cardActionTextDanger}>Remove</Text>
+                  </Pressable>
+                </View>
+              )}
+            </View>
+          ))}
 
         <Pressable
           style={[styles.addPetButton, savingCard && styles.buttonDisabled]}
@@ -182,8 +250,14 @@ export default function ProfileScreen() {
           {savingCard ? (
             <ActivityIndicator color={Colors.light.tint} />
           ) : (
-            <Text style={styles.addPetText}>{billing ? 'Update card' : '+ Add payment method'}</Text>
+            <Text style={styles.addPetText}>
+              {paymentMethods.length > 0 ? '+ Add another payment method' : '+ Add payment method'}
+            </Text>
           )}
+        </Pressable>
+
+        <Pressable style={styles.helpButton} onPress={() => router.push('/help')}>
+          <Text style={styles.helpButtonText}>Help &amp; support</Text>
         </Pressable>
 
         <Pressable style={styles.signOutButton} onPress={() => supabase.auth.signOut()}>
@@ -258,11 +332,48 @@ const styles = StyleSheet.create({
   cardRow: {
     marginTop: 8,
     paddingVertical: 10,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 10,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: Colors.light.border,
+  },
+  cardTextWrap: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    flexShrink: 1,
   },
   cardText: {
     fontSize: 16,
     fontWeight: '600',
     color: Colors.light.text,
+  },
+  defaultPill: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: Colors.light.tint,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: Colors.light.tint,
+    borderRadius: 999,
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    overflow: 'hidden',
+  },
+  cardActions: {
+    flexDirection: 'row',
+    gap: 14,
+  },
+  cardActionText: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: Colors.light.tint,
+  },
+  cardActionTextDanger: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: Colors.light.danger,
   },
   addPetButton: {
     marginTop: 12,
@@ -281,8 +392,22 @@ const styles = StyleSheet.create({
   buttonDisabled: {
     opacity: 0.6,
   },
+  helpButton: {
+    marginTop: 24,
+    height: 46,
+    borderRadius: 10,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: Colors.light.tint,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  helpButtonText: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: Colors.light.tint,
+  },
   signOutButton: {
-    marginTop: 16,
+    marginTop: 12,
     height: 46,
     borderRadius: 10,
     borderWidth: StyleSheet.hairlineWidth,

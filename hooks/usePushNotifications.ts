@@ -2,6 +2,7 @@ import type { Session } from '@supabase/supabase-js';
 import Constants from 'expo-constants';
 import * as Device from 'expo-device';
 import * as Notifications from 'expo-notifications';
+import { useRouter } from 'expo-router';
 import { useEffect } from 'react';
 import { Platform } from 'react-native';
 
@@ -16,7 +17,31 @@ Notifications.setNotificationHandler({
   }),
 });
 
-export function usePushNotifications(session: Session | null) {
+export function usePushNotifications(session: Session | null, isGroomer: boolean) {
+  const router = useRouter();
+
+  useEffect(() => {
+    const subscription = Notifications.addNotificationResponseReceivedListener((response) => {
+      const data = response.notification.request.content.data;
+      const bookingId = data?.bookingId;
+      const threadId = data?.threadId;
+
+      if (data?.screen === 'profile') {
+        router.push('/(tabs)/profile');
+      } else if (typeof bookingId === 'string') {
+        if (isGroomer) {
+          router.push({ pathname: '/(salon)', params: { bookingId } });
+        } else {
+          router.push({ pathname: '/(tabs)/bookings', params: { bookingId } });
+        }
+      } else if (typeof threadId === 'string') {
+        router.push({ pathname: '/chat/[threadId]', params: { threadId } });
+      }
+    });
+
+    return () => subscription.remove();
+  }, [isGroomer, router]);
+
   useEffect(() => {
     if (!session || Platform.OS === 'web' || !Device.isDevice) return;
 

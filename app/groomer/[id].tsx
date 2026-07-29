@@ -4,18 +4,36 @@ import { ActivityIndicator, Linking, Pressable, ScrollView, StyleSheet, Text, Vi
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { Colors } from '@/constants/theme';
+import { useAuth } from '@/services/auth-context';
+import { getOrCreateGroomerThread } from '@/services/chat';
 import { supabase } from '@/services/supabase';
 import type { Groomer, SalonReview } from '@/types';
+import { notify } from '@/utils/confirm';
 import { DAYS_OF_WEEK, dayLabel, formatDayHours, todayKey } from '@/utils/hours';
 import { StarRating } from '@/components/StarRating';
+import { DirectionsButton } from '@/components/DirectionsButton';
 
 export default function GroomerDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
+  const { session } = useAuth();
   const [groomer, setGroomer] = useState<Groomer | null>(null);
   const [reviews, setReviews] = useState<SalonReview[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [messaging, setMessaging] = useState(false);
+
+  async function handleMessage() {
+    if (!session || !groomer) return;
+    setMessaging(true);
+    try {
+      const threadId = await getOrCreateGroomerThread(session.user.id, groomer.id);
+      router.push({ pathname: '/chat/[threadId]', params: { threadId } });
+    } catch (err) {
+      notify('Could not start conversation', err instanceof Error ? err.message : 'Something went wrong.');
+    }
+    setMessaging(false);
+  }
 
   useEffect(() => {
     let cancelled = false;
@@ -25,7 +43,7 @@ export default function GroomerDetailScreen() {
         supabase
           .from('groomers')
           .select(
-            'id, name, avatar_url, bio, address, rating, review_count, phone, email, hours, groomer_services(id, name, price_cents, duration_minutes)'
+            'id, name, avatar_url, bio, address, latitude, longitude, rating, review_count, phone, email, hours, groomer_services(id, name, price_cents, duration_minutes)'
           )
           .eq('id', id)
           .single(),
@@ -50,6 +68,8 @@ export default function GroomerDetailScreen() {
           avatarUrl: data.avatar_url ?? undefined,
           bio: data.bio ?? undefined,
           address: data.address,
+          latitude: data.latitude ?? undefined,
+          longitude: data.longitude ?? undefined,
           rating: data.rating,
           reviewCount: data.review_count,
           priceFromCents: Math.min(...data.groomer_services.map((s) => s.price_cents)),
@@ -109,10 +129,25 @@ export default function GroomerDetailScreen() {
       <ScrollView contentContainerStyle={styles.content}>
         <Text style={styles.name}>{groomer.name}</Text>
         <Text style={styles.address}>{groomer.address}</Text>
+
+        {groomer.latitude != null && groomer.longitude != null && (
+          <View style={styles.directionsWrapper}>
+            <DirectionsButton destination={{ latitude: groomer.latitude, longitude: groomer.longitude }} />
+          </View>
+        )}
+
         <Text style={styles.rating}>
           ★ {groomer.rating.toFixed(1)} ({groomer.reviewCount} reviews)
         </Text>
         {groomer.bio && <Text style={styles.bio}>{groomer.bio}</Text>}
+
+        <Pressable style={styles.messageButton} onPress={handleMessage} disabled={messaging}>
+          {messaging ? (
+            <ActivityIndicator color={Colors.light.tint} size="small" />
+          ) : (
+            <Text style={styles.messageButtonText}>Message this groomer</Text>
+          )}
+        </Pressable>
 
         <Text style={styles.sectionTitle}>Services</Text>
         {groomer.services.map((service) => (
@@ -218,6 +253,9 @@ const styles = StyleSheet.create({
     fontSize: 15,
     color: Colors.light.textMuted,
   },
+  directionsWrapper: {
+    marginTop: 10,
+  },
   rating: {
     marginTop: 6,
     fontSize: 15,
@@ -228,6 +266,20 @@ const styles = StyleSheet.create({
     fontSize: 15,
     lineHeight: 21,
     color: Colors.light.text,
+  },
+  messageButton: {
+    marginTop: 16,
+    height: 44,
+    borderRadius: 10,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: Colors.light.tint,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  messageButtonText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: Colors.light.tint,
   },
   sectionTitle: {
     marginTop: 28,

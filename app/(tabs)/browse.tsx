@@ -1,3 +1,4 @@
+import * as Location from 'expo-location';
 import { useRouter } from 'expo-router';
 import { useEffect, useMemo, useState } from 'react';
 import { ActivityIndicator, FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
@@ -64,6 +65,29 @@ export default function BrowseScreen() {
     }
 
     loadGroomers();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    async function useCurrentLocation() {
+      const { status } = await Location.requestForegroundPermissionsAsync();
+      if (cancelled || status !== 'granted') return;
+
+      const position = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
+      if (cancelled) return;
+
+      setLocation((current) =>
+        current
+          ? current
+          : { label: 'your location', latitude: position.coords.latitude, longitude: position.coords.longitude }
+      );
+    }
+
+    useCurrentLocation().catch(() => {});
     return () => {
       cancelled = true;
     };

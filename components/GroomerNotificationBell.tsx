@@ -15,6 +15,7 @@ type Props = {
 const LABELS: Record<GroomerNotification['type'], string> = {
   booking_requested: 'New booking request',
   booking_cancelled: 'Booking cancelled',
+  booking_rescheduled: 'Booking rescheduled',
 };
 
 export function GroomerNotificationBell({ groomerId, onSelectBooking }: Props) {
@@ -132,9 +133,11 @@ export function GroomerNotificationBell({ groomerId, onSelectBooking }: Props) {
                   <Text style={styles.rowMeta}>
                     {item.petName ?? 'A pet'} · {item.serviceName ?? 'Service'}
                     {item.startsAt
-                      ? ` · ${new Date(item.startsAt).toLocaleDateString(undefined, {
+                      ? ` · ${new Date(item.startsAt).toLocaleString(undefined, {
                           month: 'short',
                           day: 'numeric',
+                          hour: 'numeric',
+                          minute: '2-digit',
                         })}`
                       : ''}
                   </Text>

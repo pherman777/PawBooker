@@ -6,7 +6,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Logo } from '@/components/Logo';
 import { Colors } from '@/constants/theme';
 import { supabase } from '@/services/supabase';
-import { chargeBooking } from '@/services/stripe';
+import { chargeBooking, markBookingPaidCash } from '@/services/stripe';
 import { notify } from '@/utils/confirm';
 
 type LineItem = {
@@ -26,6 +26,7 @@ export default function CompleteBookingScreen() {
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [charging, setCharging] = useState(false);
+  const [markingCash, setMarkingCash] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -115,6 +116,30 @@ export default function CompleteBookingScreen() {
     }
   }
 
+  async function handleMarkPaidCash() {
+    if (lineItems.length === 0 || totalCents <= 0) return;
+    setMarkingCash(true);
+
+    try {
+      await supabase.from('booking_line_items').delete().eq('booking_id', bookingId);
+      const { error: insertError } = await supabase.from('booking_line_items').insert(
+        lineItems.map((item) => ({
+          booking_id: bookingId,
+          description: item.description,
+          amount_cents: item.amountCents,
+        }))
+      );
+      if (insertError) throw new Error(insertError.message);
+
+      await markBookingPaidCash(bookingId);
+      router.back();
+    } catch (err) {
+      notify('Could not record payment', err instanceof Error ? err.message : 'Something went wrong');
+    } finally {
+      setMarkingCash(false);
+    }
+  }
+
   if (loading) {
     return (
       <SafeAreaView style={styles.container}>
@@ -190,15 +215,27 @@ export default function CompleteBookingScreen() {
         <Text style={styles.taxNote}>Sales tax (if applicable) is calculated and added at checkout.</Text>
 
         <Pressable
-          style={[styles.chargeButton, (charging || totalCents <= 0) && styles.buttonDisabled]}
+          style={[styles.chargeButton, (charging || markingCash || totalCents <= 0) && styles.buttonDisabled]}
           onPress={handleChargeAndComplete}
-          disabled={charging || totalCents <= 0}>
+          disabled={charging || markingCash || totalCents <= 0}>
           {charging ? (
             <ActivityIndicator color="#fff" />
           ) : (
             <Text style={styles.chargeButtonText}>Charge & complete</Text>
           )}
         </Pressable>
+
+        <Pressable
+          style={[styles.cashButton, (charging || markingCash || totalCents <= 0) && styles.buttonDisabled]}
+          onPress={handleMarkPaidCash}
+          disabled={charging || markingCash || totalCents <= 0}>
+          {markingCash ? (
+            <ActivityIndicator color={Colors.light.tint} />
+          ) : (
+            <Text style={styles.cashButtonText}>Mark as paid (cash)</Text>
+          )}
+        </Pressable>
+        <Text style={styles.cashNote}>Use this if your customer paid you directly in cash.</Text>
       </ScrollView>
     </SafeAreaView>
   );
@@ -349,6 +386,26 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontSize: 16,
     fontWeight: '600',
+  },
+  cashButton: {
+    marginTop: 12,
+    height: 50,
+    borderRadius: 10,
+    borderWidth: 1.5,
+    borderColor: Colors.light.tint,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  cashButtonText: {
+    color: Colors.light.tint,
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  cashNote: {
+    marginTop: 8,
+    fontSize: 12,
+    color: Colors.light.textMuted,
+    textAlign: 'center',
   },
   buttonDisabled: {
     opacity: 0.5,

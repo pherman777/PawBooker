@@ -9,7 +9,7 @@ if (!STRIPE_PUBLISHABLE_KEY) {
 
 export function StripeRoot({ children }: { children: ReactNode }) {
   return (
-    <StripeProvider publishableKey={STRIPE_PUBLISHABLE_KEY!}>
+    <StripeProvider publishableKey={STRIPE_PUBLISHABLE_KEY!} merchantIdentifier="merchant.com.pawbooker">
       <>{children}</>
     </StripeProvider>
   );

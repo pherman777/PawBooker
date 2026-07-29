@@ -1,3 +1,4 @@
+import Svg, { Ellipse, Path } from 'react-native-svg';
 import { StyleSheet, View, type StyleProp, type ViewStyle } from 'react-native';
 
 import { Colors } from '@/constants/theme';
@@ -12,118 +13,36 @@ type Props = {
   style?: StyleProp<ViewStyle>;
 };
 
+// "Confirmed Paw" mark: a paw print with a checkmark cut into the palm,
+// drawn on a 100x100 viewBox. Toe/palm proportions and the checkmark path
+// come from the approved logo exploration (2026-07-27).
 export function Logo({ size = 40, tile = true, color = Colors.light.tint, style }: Props) {
-  const markBox = tile ? size * 0.58 : size;
+  const markBox = tile ? size * 0.6 : size;
   const markColor = tile ? Colors.light.background : color;
-
-  const palmW = markBox * 0.54;
-  const palmH = markBox * 0.4;
-  const toeOuterW = markBox * 0.21;
-  const toeOuterH = markBox * 0.27;
-  const toeInnerW = markBox * 0.23;
-  const toeInnerH = markBox * 0.31;
+  const checkColor = tile ? Colors.light.tint : Colors.light.background;
 
   const mark = (
-    <View style={{ width: markBox, height: markBox }}>
-      <View
-        style={{
-          position: 'absolute',
-          backgroundColor: markColor,
-          width: palmW,
-          height: palmH,
-          left: markBox * 0.23,
-          top: markBox * 0.5,
-          borderRadius: palmH / 2,
-        }}
+    <Svg width={markBox} height={markBox} viewBox="0 0 100 100">
+      <Ellipse cx={50} cy={63} rx={23} ry={17} fill={markColor} />
+      <Ellipse cx={23} cy={40} rx={10.5} ry={13.5} rotation={-24} origin="23, 40" fill={markColor} />
+      <Ellipse cx={39} cy={25} rx={10.5} ry={14} rotation={-8} origin="39, 25" fill={markColor} />
+      <Ellipse cx={61} cy={25} rx={10.5} ry={14} rotation={8} origin="61, 25" fill={markColor} />
+      <Ellipse cx={77} cy={40} rx={10.5} ry={13.5} rotation={24} origin="77, 40" fill={markColor} />
+      <Path
+        d="M40 66 L47 73 L61 58"
+        stroke={checkColor}
+        strokeWidth={7}
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        fill="none"
       />
-      <View
-        style={{
-          position: 'absolute',
-          backgroundColor: markColor,
-          width: toeOuterW,
-          height: toeOuterH,
-          left: markBox * 0.05,
-          top: markBox * 0.2,
-          borderRadius: toeOuterW / 2,
-          transform: [{ rotate: '-20deg' }],
-        }}
-      />
-      <View
-        style={{
-          position: 'absolute',
-          backgroundColor: markColor,
-          width: toeInnerW,
-          height: toeInnerH,
-          left: markBox * 0.27,
-          top: markBox * 0.04,
-          borderRadius: toeInnerW / 2,
-          transform: [{ rotate: '-7deg' }],
-        }}
-      />
-      <View
-        style={{
-          position: 'absolute',
-          backgroundColor: markColor,
-          width: toeInnerW,
-          height: toeInnerH,
-          left: markBox * 0.51,
-          top: markBox * 0.04,
-          borderRadius: toeInnerW / 2,
-          transform: [{ rotate: '7deg' }],
-        }}
-      />
-      <View
-        style={{
-          position: 'absolute',
-          backgroundColor: markColor,
-          width: toeOuterW,
-          height: toeOuterH,
-          left: markBox * 0.74,
-          top: markBox * 0.2,
-          borderRadius: toeOuterW / 2,
-          transform: [{ rotate: '20deg' }],
-        }}
-      />
-      {tile && (
-        <>
-          <View
-            style={{
-              position: 'absolute',
-              backgroundColor: Colors.light.tint,
-              width: markBox * 0.2,
-              height: markBox * 0.07,
-              left: markBox * 0.4,
-              top: markBox * 0.66,
-              borderRadius: 3,
-              transform: [{ rotate: '38deg' }],
-            }}
-          />
-          <View
-            style={{
-              position: 'absolute',
-              backgroundColor: Colors.light.tint,
-              width: markBox * 0.12,
-              height: markBox * 0.07,
-              left: markBox * 0.34,
-              top: markBox * 0.63,
-              borderRadius: 3,
-              transform: [{ rotate: '-38deg' }],
-            }}
-          />
-        </>
-      )}
-    </View>
+    </Svg>
   );
 
   if (!tile) return mark;
 
   return (
-    <View
-      style={[
-        styles.tile,
-        { width: size, height: size, borderRadius: size * 0.22 },
-        style,
-      ]}>
+    <View style={[styles.tile, { width: size, height: size, borderRadius: size * 0.22 }, style]}>
       {mark}
     </View>
   );

@@ -5,7 +5,9 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useCallback, useEffect, useState } from 'react';
 import {
   ActivityIndicator,
+  KeyboardAvoidingView,
   Linking,
+  Platform,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -242,7 +244,8 @@ export default function PetDetailScreen() {
 
   return (
     <SafeAreaView style={styles.container} edges={['bottom']}>
-      <ScrollView contentContainerStyle={styles.content}>
+      <KeyboardAvoidingView style={styles.flex} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+        <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
         <Pressable style={styles.photoWrapper} onPress={handleChangePhoto} disabled={uploadingPhoto}>
           {photoUrl ? (
             <Image source={{ uri: photoUrl }} style={styles.photo} contentFit="cover" />
@@ -364,7 +367,8 @@ export default function PetDetailScreen() {
         <Pressable style={styles.deletePetButton} onPress={confirmDeletePet}>
           <Text style={styles.deletePetText}>Delete pet</Text>
         </Pressable>
-      </ScrollView>
+        </ScrollView>
+      </KeyboardAvoidingView>
     </SafeAreaView>
   );
 }
@@ -373,6 +377,9 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: Colors.light.background,
+  },
+  flex: {
+    flex: 1,
   },
   content: {
     padding: 20,

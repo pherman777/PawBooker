@@ -8,18 +8,34 @@ type Props = {
   title: string;
   subtitle?: string;
   right?: ReactNode;
+  /** Puts `right` on its own row below the title instead of beside it, so a
+   * long/dynamic title never has to compete with it for width. */
+  stackRight?: boolean;
 };
 
-export function AppHeader({ title, subtitle, right }: Props) {
+export function AppHeader({ title, subtitle, right, stackRight }: Props) {
+  const titleRow = (
+    <View style={styles.left}>
+      <Logo size={36} />
+      <View style={styles.titleWrap}>
+        <Text style={styles.title}>{title}</Text>
+        {subtitle && <Text style={styles.subtitle}>{subtitle}</Text>}
+      </View>
+    </View>
+  );
+
+  if (stackRight) {
+    return (
+      <View style={styles.stack}>
+        {titleRow}
+        {right && <View style={styles.stackedRight}>{right}</View>}
+      </View>
+    );
+  }
+
   return (
     <View style={styles.row}>
-      <View style={styles.left}>
-        <Logo size={36} />
-        <View style={styles.titleWrap}>
-          <Text style={styles.title}>{title}</Text>
-          {subtitle && <Text style={styles.subtitle}>{subtitle}</Text>}
-        </View>
-      </View>
+      {titleRow}
       {right}
     </View>
   );
@@ -31,6 +47,13 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     gap: 12,
+  },
+  stack: {
+    gap: 12,
+  },
+  stackedRight: {
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
   },
   left: {
     flexDirection: 'row',

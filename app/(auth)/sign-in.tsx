@@ -14,6 +14,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { Logo } from '@/components/Logo';
+import { Wordmark } from '@/components/Wordmark';
 import { Colors } from '@/constants/theme';
 import { supabase } from '@/services/supabase';
 
@@ -43,11 +44,11 @@ export default function SignInScreen() {
         <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
           <View style={styles.brand}>
             <Logo size={64} />
-            <Text style={styles.brandName}>PawBooker</Text>
+            <Wordmark size={20} style={styles.brandName} />
           </View>
 
-          <Text style={styles.title}>Welcome back</Text>
-          <Text style={styles.subtitle}>Sign in to book grooming appointments.</Text>
+          <Text style={styles.title}>Welcome</Text>
+          <Text style={styles.subtitle}>Sign in to your account.</Text>
 
           <TextInput
             style={styles.input}
@@ -68,6 +69,10 @@ export default function SignInScreen() {
           />
 
           {error && <Text style={styles.error}>{error}</Text>}
+
+          <Link href="/(auth)/forgot-password" style={styles.forgotLink}>
+            <Text style={styles.forgotLinkText}>Forgot password?</Text>
+          </Link>
 
           <Pressable
             style={[styles.button, loading && styles.buttonDisabled]}
@@ -104,9 +109,6 @@ const styles = StyleSheet.create({
   },
   brandName: {
     marginTop: 12,
-    fontSize: 20,
-    fontWeight: '700',
-    color: Colors.light.text,
   },
   title: {
     fontSize: 28,
@@ -134,6 +136,14 @@ const styles = StyleSheet.create({
     marginBottom: 12,
     fontSize: 14,
     color: Colors.light.danger,
+  },
+  forgotLink: {
+    alignSelf: 'flex-end',
+    marginBottom: 16,
+  },
+  forgotLinkText: {
+    fontSize: 13,
+    color: Colors.light.tint,
   },
   button: {
     height: 48,

@@ -1,6 +1,7 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 
 import { pushTokensForUser, sendExpoPushToTokens } from '../_shared/push.ts';
+import { base64Encode, buildIcsEvent } from '../_shared/ics.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -10,7 +11,7 @@ const corsHeaders = {
 const RESEND_API_KEY = Deno.env.get('RESEND_API_KEY')!;
 const FROM_ADDRESS = 'PawBooker <notifications@paw-booker.com>';
 
-type Action = 'accepted' | 'groomer_cancelled' | 'customer_cancelled' | 'booking_requested';
+type Action = 'accepted' | 'groomer_cancelled' | 'customer_cancelled' | 'booking_requested' | 'service_completed';
 
 function jsonResponse(body: unknown, status = 200) {
   return new Response(JSON.stringify(body), {
@@ -39,7 +40,7 @@ Deno.serve(async (req) => {
     const { data: booking, error } = await supabase
       .from('bookings')
       .select(
-        'customer_id, starts_at, cancellation_reason, customer_email, groomers(name, email, user_id), groomer_services(name), pets(name)'
+        'customer_id, starts_at, cancellation_reason, customer_email, groomers(name, address, email, user_id, timezone), groomer_services(name, duration_minutes), pets(name)'
       )
       .eq('id', bookingId)
       .single();
@@ -48,8 +49,14 @@ Deno.serve(async (req) => {
       return jsonResponse({ error: error?.message ?? 'Booking not found' }, 404);
     }
 
-    const groomer = booking.groomers as unknown as { name: string; email: string | null; user_id: string | null };
-    const service = booking.groomer_services as unknown as { name: string };
+    const groomer = booking.groomers as unknown as {
+      name: string;
+      address: string;
+      email: string | null;
+      user_id: string | null;
+      timezone: string;
+    };
+    const service = booking.groomer_services as unknown as { name: string; duration_minutes: number };
     const pet = booking.pets as unknown as { name: string };
     const when = new Date(booking.starts_at).toLocaleString('en-US', {
       weekday: 'long',
@@ -57,6 +64,7 @@ Deno.serve(async (req) => {
       day: 'numeric',
       hour: 'numeric',
       minute: '2-digit',
+      timeZone: groomer.timezone,
     });
 
     let emailTo: string | null = null;
@@ -65,6 +73,7 @@ Deno.serve(async (req) => {
     let pushUserId: string | null = null;
     let pushTitle = '';
     let pushBody = '';
+    let icsAttachment: { filename: string; content: string } | null = null;
 
     if (action === 'accepted') {
       emailTo = booking.customer_email;
@@ -73,6 +82,16 @@ Deno.serve(async (req) => {
       pushUserId = booking.customer_id;
       pushTitle = 'Booking confirmed';
       pushBody = `${groomer.name} accepted your ${service.name} appointment for ${pet.name}.`;
+
+      const icsContent = buildIcsEvent({
+        uid: bookingId,
+        startsAt: new Date(booking.starts_at),
+        durationMinutes: service.duration_minutes,
+        summary: `${service.name} for ${pet.name} at ${groomer.name}`,
+        location: groomer.address,
+        description: `${groomer.name} accepted your ${service.name} appointment for ${pet.name}.`,
+      });
+      icsAttachment = { filename: 'appointment.ics', content: base64Encode(icsContent) };
     } else if (action === 'groomer_cancelled') {
       emailTo = booking.customer_email;
       subject = `Your appointment at ${groomer.name} was cancelled`;
@@ -91,6 +110,13 @@ Deno.serve(async (req) => {
       pushUserId = groomer.user_id;
       pushTitle = 'New booking request';
       pushBody = `${pet.name} needs a ${service.name} on ${when}.`;
+    } else if (action === 'service_completed') {
+      emailTo = booking.customer_email;
+      subject = `${pet.name} is ready for pickup at ${groomer.name}!`;
+      text = `${pet.name}'s ${service.name} is all done at ${groomer.name} — ready for pickup whenever you can swing by.`;
+      pushUserId = booking.customer_id;
+      pushTitle = 'Ready for pickup!';
+      pushBody = `${pet.name}'s ${service.name} is done at ${groomer.name}.`;
     }
 
     if (pushUserId) {
@@ -108,7 +134,13 @@ Deno.serve(async (req) => {
         Authorization: `Bearer ${RESEND_API_KEY}`,
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify({ from: FROM_ADDRESS, to: emailTo, subject, text }),
+      body: JSON.stringify({
+        from: FROM_ADDRESS,
+        to: emailTo,
+        subject,
+        text,
+        ...(icsAttachment ? { attachments: [icsAttachment] } : {}),
+      }),
     });
 
     if (!resendResponse.ok) {

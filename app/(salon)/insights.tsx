@@ -38,6 +38,12 @@ export default function InsightsScreen() {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
+    if (groomerProfile && groomerProfile.plan !== 'pro') {
+      router.replace('/(salon)/plan');
+    }
+  }, [groomerProfile, router]);
+
+  useEffect(() => {
     let cancelled = false;
 
     async function load() {

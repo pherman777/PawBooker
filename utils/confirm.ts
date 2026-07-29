@@ -20,3 +20,28 @@ export function notify(title: string, message: string) {
   }
   Alert.alert(title, message);
 }
+
+type ActionSheetOption = {
+  label: string;
+  destructive?: boolean;
+  onPress: () => void;
+};
+
+export function showActionSheet(title: string, options: ActionSheetOption[]) {
+  if (Platform.OS === 'web') {
+    const labels = options.map((o, i) => `${i + 1}. ${o.label}`).join('\n');
+    const choice = window.prompt(`${title}\n\n${labels}\n\nEnter a number, or Cancel:`);
+    const index = choice ? parseInt(choice, 10) - 1 : -1;
+    if (index >= 0 && index < options.length) options[index].onPress();
+    return;
+  }
+
+  Alert.alert(title, undefined, [
+    ...options.map((o) => ({
+      text: o.label,
+      style: o.destructive ? ('destructive' as const) : ('default' as const),
+      onPress: o.onPress,
+    })),
+    { text: 'Cancel', style: 'cancel' as const },
+  ]);
+}

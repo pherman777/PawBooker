@@ -10,13 +10,14 @@ import { StripeRoot } from '@/components/StripeRoot';
 import { Colors } from '@/constants/theme';
 import { usePushNotifications } from '@/hooks/usePushNotifications';
 import { AuthProvider, useAuth } from '@/services/auth-context';
+import { supabase } from '@/services/supabase';
 
 function RouteGuard({ children }: { children: React.ReactNode }) {
   const { session, groomerProfile, loading } = useAuth();
   const segments = useSegments();
   const router = useRouter();
 
-  usePushNotifications(session);
+  usePushNotifications(session, Boolean(groomerProfile));
 
   useEffect(() => {
     if (loading) return;
@@ -29,12 +30,28 @@ function RouteGuard({ children }: { children: React.ReactNode }) {
     }
 
     if (groomerProfile) {
-      if (segment !== '(salon)') router.replace('/(salon)');
+      if (
+        segment !== '(salon)' &&
+        segment !== 'chat' &&
+        segment !== 'help' &&
+        segment !== 'contact-support'
+      ) {
+        router.replace('/(salon)');
+      }
       return;
     }
 
     if (segment === '(auth)' || segment === '(salon)') {
-      router.replace('/(tabs)');
+      // Send them straight to Profile instead of the home tab if they have a
+      // declined charge to resolve, so it isn't easy to miss after logging in.
+      supabase
+        .from('bookings')
+        .select('id', { count: 'exact', head: true })
+        .eq('customer_id', session.user.id)
+        .eq('payment_status', 'failed')
+        .then(({ count }) => {
+          router.replace(count && count > 0 ? '/(tabs)/profile' : '/(tabs)');
+        });
     }
   }, [session, groomerProfile, loading, segments, router]);
 
@@ -51,9 +68,10 @@ function RouteGuard({ children }: { children: React.ReactNode }) {
 
 function HomeHeaderButton() {
   const router = useRouter();
+  const { groomerProfile } = useAuth();
   return (
     <Pressable
-      onPress={() => router.push('/(tabs)')}
+      onPress={() => router.push(groomerProfile ? '/(salon)' : '/(tabs)')}
       hitSlop={10}
       style={{ paddingHorizontal: 4 }}>
       <Ionicons name="home" size={22} color={Colors.light.tint} />
@@ -111,6 +129,30 @@ export default function RootLayout() {
                 options={{
                   headerShown: true,
                   headerTitle: () => <HeaderBrand />,
+                  headerRight: () => <HomeHeaderButton />,
+                }}
+              />
+              <Stack.Screen
+                name="chat/[threadId]"
+                options={{
+                  headerShown: true,
+                  headerTitle: () => <HeaderBrand title="Chat" />,
+                  headerRight: () => <HomeHeaderButton />,
+                }}
+              />
+              <Stack.Screen
+                name="help"
+                options={{
+                  headerShown: true,
+                  headerTitle: () => <HeaderBrand title="Help" />,
+                  headerRight: () => <HomeHeaderButton />,
+                }}
+              />
+              <Stack.Screen
+                name="contact-support"
+                options={{
+                  headerShown: true,
+                  headerTitle: () => <HeaderBrand title="Contact us" />,
                   headerRight: () => <HomeHeaderButton />,
                 }}
               />

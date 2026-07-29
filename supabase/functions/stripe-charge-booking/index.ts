@@ -1,8 +1,9 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import { encodeBase64 } from 'https://deno.land/std@0.224.0/encoding/base64.ts';
 
-import { generateInvoicePdf } from './invoice-pdf.ts';
+import { generateInvoicePdf } from '../_shared/invoice-pdf.ts';
 import { pushTokensForUser, sendExpoPushToTokens } from '../_shared/push.ts';
+import { checkRateLimit } from '../_shared/rate-limit.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -78,7 +79,7 @@ Deno.serve(async (req) => {
     const { data: booking, error: bookingError } = await supabase
       .from('bookings')
       .select(
-        'id, customer_id, customer_email, status, groomers(name, state, zip_code), groomer_services(name), pets(name)'
+        'id, customer_id, customer_email, status, groomers(name, state, zip_code, stripe_connect_account_id, stripe_connect_charges_enabled), groomer_services(name), pets(name)'
       )
       .eq('id', bookingId)
       .single();
@@ -105,7 +106,13 @@ Deno.serve(async (req) => {
       return jsonResponse({ error: 'Invoice total must be greater than zero' }, 400);
     }
 
-    const groomer = booking.groomers as unknown as { name: string; state: string | null; zip_code: string | null };
+    const groomer = booking.groomers as unknown as {
+      name: string;
+      state: string | null;
+      zip_code: string | null;
+      stripe_connect_account_id: string | null;
+      stripe_connect_charges_enabled: boolean;
+    };
     const service = booking.groomer_services as unknown as { name: string };
     const pet = booking.pets as unknown as { name: string };
 
@@ -118,28 +125,64 @@ Deno.serve(async (req) => {
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
     );
 
-    const { data: billing } = await serviceRoleClient
-      .from('customer_billing')
-      .select('stripe_customer_id, default_payment_method_id')
-      .eq('user_id', booking.customer_id)
-      .maybeSingle();
+    const allowed = await checkRateLimit(serviceRoleClient, `charge:${booking.customer_id}`, 5, 600);
+    if (!allowed) {
+      return jsonResponse({ error: 'Too many charge attempts - please wait a few minutes and try again.' }, 429);
+    }
 
-    if (!billing) {
+    const { data: paymentMethods } = await serviceRoleClient
+      .from('customer_payment_methods')
+      .select('stripe_customer_id, stripe_payment_method_id')
+      .eq('user_id', booking.customer_id)
+      .order('is_default', { ascending: false })
+      .order('created_at', { ascending: true });
+
+    if (!paymentMethods || paymentMethods.length === 0) {
       return jsonResponse({ error: 'Customer has no payment method on file' }, 400);
     }
 
-    const { ok, data: paymentIntent } = await stripePost('payment_intents', {
-      amount: String(grandTotalCents),
-      currency: 'usd',
-      customer: billing.stripe_customer_id,
-      payment_method: billing.default_payment_method_id,
-      off_session: 'true',
-      confirm: 'true',
-    });
+    // Route funds to the groomer's own connected account once they've finished
+    // Connect onboarding. No application_fee_amount yet — the platform isn't
+    // taking a cut of bookings, just passing Stripe's processing fee through.
+    // If a groomer hasn't connected payouts yet, the charge still succeeds
+    // and stays on the platform account rather than blocking the booking.
+    let paymentIntent: { id: string; status: string; error?: { message?: string } } | undefined;
+    let lastErrorMessage = 'Charge failed';
 
-    if (!ok || paymentIntent.status !== 'succeeded') {
+    // Try the default payment method first, then fall back through any other
+    // saved methods (e.g. a backup card) before giving up on this charge.
+    for (const method of paymentMethods) {
+      const paymentIntentParams: Record<string, string> = {
+        amount: String(grandTotalCents),
+        currency: 'usd',
+        customer: method.stripe_customer_id,
+        payment_method: method.stripe_payment_method_id,
+        off_session: 'true',
+        confirm: 'true',
+      };
+      if (groomer.stripe_connect_account_id && groomer.stripe_connect_charges_enabled) {
+        paymentIntentParams['transfer_data[destination]'] = groomer.stripe_connect_account_id;
+      }
+
+      const { ok, data } = await stripePost('payment_intents', paymentIntentParams);
+      paymentIntent = data;
+
+      if (ok && data.status === 'succeeded') break;
+      lastErrorMessage = data.error?.message ?? 'Charge failed';
+    }
+
+    if (!paymentIntent || paymentIntent.status !== 'succeeded') {
       await supabase.from('bookings').update({ payment_status: 'failed' }).eq('id', bookingId);
-      return jsonResponse({ error: paymentIntent.error?.message ?? 'Charge failed' }, 402);
+
+      const failureTokens = await pushTokensForUser(serviceRoleClient, booking.customer_id);
+      await sendExpoPushToTokens(
+        failureTokens,
+        'Payment declined',
+        `We couldn't charge your card for the ${service.name} appointment for ${pet.name} at ${groomer.name}. Please update your payment method.`,
+        { bookingId, screen: 'profile' }
+      );
+
+      return jsonResponse({ error: lastErrorMessage }, 402);
     }
 
     if (tax?.calculationId) {

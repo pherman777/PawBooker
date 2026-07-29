@@ -9,7 +9,10 @@
     "userInterfaceStyle": "light",
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.professionalhomebody.PawBooker"
+      "bundleIdentifier": "com.professionalhomebody.PawBooker",
+      "infoPlist": {
+        "ITSAppUsesNonExemptEncryption": false
+      }
     },
     "android": {
       "adaptiveIcon": {
@@ -21,7 +24,8 @@
       "predictiveBackGestureEnabled": false,
       "permissions": [
         "android.permission.RECORD_AUDIO"
-      ]
+      ],
+      "package": "com.professionalhomebody.PawBooker"
     },
     "web": {
       "favicon": "./assets/favicon.png"
@@ -40,7 +44,7 @@
         "@stripe/stripe-react-native",
         {
           "merchantIdentifier": "merchant.com.pawbooker",
-          "enableGooglePay": false
+          "enableGooglePay": true
         }
       ],
       [
@@ -48,6 +52,12 @@
         {
           "icon": "./assets/android-icon-monochrome.png",
           "color": "#6B8F72"
+        }
+      ],
+      [
+        "expo-location",
+        {
+          "locationWhenInUsePermission": "Allow PawBooker to use your location to find groomers near you."
         }
       ]
     ],
@@ -60,6 +70,6 @@
         "projectId": "441d7057-71d7-4c65-82f6-d31d277c5ec9"
       }
     },
-    "owner": "professionalhomebody"
+    "owner": "pawbooker"
   }
 }

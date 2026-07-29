@@ -83,11 +83,12 @@ export type BookingLineItem = {
   amountCents: number;
 };
 
-export type CustomerBilling = {
-  stripeCustomerId: string;
-  defaultPaymentMethodId: string;
+export type SavedPaymentMethod = {
+  id: string;
   cardBrand?: string;
   cardLast4?: string;
+  walletType?: string;
+  isDefault: boolean;
 };
 
 export type SalonReview = {
@@ -107,7 +108,7 @@ export type AppReview = {
   createdAt: string;
 };
 
-export type GroomerNotificationType = 'booking_requested' | 'booking_cancelled';
+export type GroomerNotificationType = 'booking_requested' | 'booking_cancelled' | 'booking_rescheduled';
 
 export type GroomerNotification = {
   id: string;
@@ -121,10 +122,24 @@ export type GroomerNotification = {
   startsAt?: string;
 };
 
+export type ChatThreadType = 'groomer' | 'app_support';
+export type ChatSenderType = 'customer' | 'groomer' | 'bot';
+
 export type ChatThread = {
   id: string;
-  groomerId: string;
-  lastMessage: string;
-  lastMessageAt: string;
-  unread: boolean;
+  customerId: string;
+  groomerId?: string;
+  threadType: ChatThreadType;
+  needsHuman: boolean;
+  createdAt: string;
+  groomerName?: string;
+};
+
+export type ChatMessage = {
+  id: string;
+  threadId: string;
+  senderType: ChatSenderType;
+  senderId?: string;
+  body: string;
+  createdAt: string;
 };

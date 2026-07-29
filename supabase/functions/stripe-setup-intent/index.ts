@@ -70,10 +70,14 @@ Deno.serve(async (req) => {
       { 'Stripe-Version': STRIPE_VERSION }
     );
 
+    // Card covers Apple Pay/Google Pay too, since both produce a card-type
+    // payment method under the hood. Deliberately not using
+    // automatic_payment_methods here, since that would also surface bank
+    // accounts (ACH) — those settle over days, not instantly, and the rest
+    // of the app's charge flow assumes an immediate success/failure result.
     const setupIntent = await stripeRequest('setup_intents', {
       customer: customerId,
-      'automatic_payment_methods[enabled]': 'true',
-      'automatic_payment_methods[allow_redirects]': 'never',
+      'payment_method_types[]': 'card',
     });
 
     return jsonResponse({

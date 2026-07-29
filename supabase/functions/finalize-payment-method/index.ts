@@ -53,23 +53,35 @@ Deno.serve(async (req) => {
 
     const paymentMethod = await stripeGet(`payment_methods/${setupIntent.payment_method}`);
 
-    const { error: upsertError } = await supabase.from('customer_billing').upsert({
+    const { count: existingCount } = await supabase
+      .from('customer_payment_methods')
+      .select('id', { count: 'exact', head: true })
+      .eq('user_id', user.id);
+
+    // Only auto-default the very first method someone adds; later additions
+    // stay secondary until the customer explicitly makes them default.
+    const isFirstMethod = !existingCount || existingCount === 0;
+
+    const { error: insertError } = await supabase.from('customer_payment_methods').insert({
       user_id: user.id,
       stripe_customer_id: setupIntent.customer,
-      default_payment_method_id: setupIntent.payment_method,
+      stripe_payment_method_id: setupIntent.payment_method,
       card_brand: paymentMethod.card?.brand ?? null,
       card_last4: paymentMethod.card?.last4 ?? null,
-      updated_at: new Date().toISOString(),
+      wallet_type: paymentMethod.card?.wallet?.type ?? null,
+      is_default: isFirstMethod,
     });
 
-    if (upsertError) {
-      return jsonResponse({ error: upsertError.message }, 500);
+    if (insertError) {
+      return jsonResponse({ error: insertError.message }, 500);
     }
 
     return jsonResponse({
       success: true,
       brand: paymentMethod.card?.brand ?? null,
       last4: paymentMethod.card?.last4 ?? null,
+      walletType: paymentMethod.card?.wallet?.type ?? null,
+      isDefault: isFirstMethod,
     });
   } catch (err) {
     return jsonResponse({ error: err instanceof Error ? err.message : 'Unknown error' }, 500);

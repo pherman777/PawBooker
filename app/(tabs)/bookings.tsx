@@ -1,17 +1,30 @@
-import { useCallback, useState } from 'react';
-import { useFocusEffect, useRouter } from 'expo-router';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
 import { ActivityIndicator, FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { AppHeader } from '@/components/AppHeader';
 import { CancelBookingModal } from '@/components/CancelBookingModal';
+import { DirectionsButton } from '@/components/DirectionsButton';
+import { ReportModal } from '@/components/ReportModal';
 import { ReviewModal } from '@/components/ReviewModal';
+import { TipModal } from '@/components/TipModal';
 import { Colors } from '@/constants/theme';
 import { useAuth } from '@/services/auth-context';
 import { notifyGroomer, sendBookingEmail } from '@/services/notifications';
+import { submitReport } from '@/services/support';
+import { chargeTip } from '@/services/stripe';
 import { supabase } from '@/services/supabase';
-import type { BookingStatus } from '@/types';
+import type { BookingStatus, PaymentStatus } from '@/types';
 import { notify } from '@/utils/confirm';
+
+const REPORT_REASONS = [
+  'Overcharged me',
+  'Unsafe or unprofessional handling of my pet',
+  'Rude or unprofessional behavior',
+  'Did not show up',
+  'Other',
+];
 
 type BookingReview = {
   rating: number;
@@ -24,10 +37,16 @@ type BookingRow = {
   startsAt: string;
   status: BookingStatus;
   groomerName: string;
+  groomerLatitude?: number;
+  groomerLongitude?: number;
   serviceName: string;
   petName: string;
   cancellationReason?: string;
   review?: BookingReview;
+  invoiceTotalCents?: number;
+  taxAmountCents?: number;
+  tipAmountCents?: number;
+  paymentStatus?: PaymentStatus;
 };
 
 const STATUS_COLORS: Record<BookingStatus, string> = {
@@ -39,6 +58,10 @@ const STATUS_COLORS: Record<BookingStatus, string> = {
 
 export default function BookingsScreen() {
   const router = useRouter();
+  const { bookingId: notifiedBookingId } = useLocalSearchParams<{ bookingId?: string }>();
+  const handledNotificationRef = useRef<string | null>(null);
+  const flatListRef = useRef<FlatList<BookingRow>>(null);
+  const [highlightedId, setHighlightedId] = useState<string | null>(null);
   const { session } = useAuth();
   const [bookings, setBookings] = useState<BookingRow[]>([]);
   const [loading, setLoading] = useState(true);
@@ -47,6 +70,10 @@ export default function BookingsScreen() {
   const [cancelTargetId, setCancelTargetId] = useState<string | null>(null);
   const [reviewTargetId, setReviewTargetId] = useState<string | null>(null);
   const [submittingReview, setSubmittingReview] = useState(false);
+  const [tipTargetId, setTipTargetId] = useState<string | null>(null);
+  const [submittingTip, setSubmittingTip] = useState(false);
+  const [reportTargetId, setReportTargetId] = useState<string | null>(null);
+  const [submittingReport, setSubmittingReport] = useState(false);
 
   const load = useCallback(async () => {
     if (!session) return;
@@ -56,10 +83,10 @@ export default function BookingsScreen() {
       supabase
         .from('bookings')
         .select(
-          'id, groomer_id, starts_at, status, cancellation_reason, groomers(name), groomer_services(name), pets(name)'
+          'id, groomer_id, starts_at, status, payment_status, cancellation_reason, invoice_total_cents, tax_amount_cents, tip_amount_cents, groomers(name, latitude, longitude), groomer_services(name), pets(name)'
         )
         .eq('customer_id', session.user.id)
-        .order('starts_at', { ascending: true }),
+        .order('starts_at', { ascending: false }),
       supabase.from('salon_reviews').select('booking_id, rating, comment').eq('customer_id', session.user.id),
     ]);
 
@@ -77,10 +104,20 @@ export default function BookingsScreen() {
           startsAt: row.starts_at,
           status: row.status,
           cancellationReason: row.cancellation_reason ?? undefined,
-          groomerName: (row.groomers as unknown as { name: string })?.name ?? 'Unknown groomer',
+          groomerName:
+            (row.groomers as unknown as { name: string; latitude: number | null; longitude: number | null })
+              ?.name ?? 'Unknown groomer',
+          groomerLatitude:
+            (row.groomers as unknown as { latitude: number | null } | null)?.latitude ?? undefined,
+          groomerLongitude:
+            (row.groomers as unknown as { longitude: number | null } | null)?.longitude ?? undefined,
           serviceName: (row.groomer_services as unknown as { name: string })?.name ?? 'Service',
           petName: (row.pets as unknown as { name: string })?.name ?? 'Pet',
           review: reviewsByBooking.get(row.id),
+          invoiceTotalCents: row.invoice_total_cents ?? undefined,
+          taxAmountCents: row.tax_amount_cents ?? undefined,
+          tipAmountCents: row.tip_amount_cents ?? undefined,
+          paymentStatus: row.payment_status ?? undefined,
         }))
       );
     }
@@ -147,6 +184,54 @@ export default function BookingsScreen() {
     await load();
   }
 
+  async function handleSubmitTip(tipAmountCents: number) {
+    if (!tipTargetId) return;
+
+    setSubmittingTip(true);
+    try {
+      await chargeTip(tipTargetId, tipAmountCents);
+      setTipTargetId(null);
+      await load();
+    } catch (err) {
+      notify('Tip not sent', err instanceof Error ? err.message : 'Something went wrong.');
+    }
+    setSubmittingTip(false);
+  }
+
+  async function handleSubmitReport(reason: string, details: string) {
+    if (!reportTargetId) return;
+
+    setSubmittingReport(true);
+    try {
+      await submitReport(reportTargetId, reason, details || undefined);
+      setReportTargetId(null);
+      notify('Report submitted', 'Thanks for letting us know — our team will review it.');
+    } catch (err) {
+      notify('Could not submit report', err instanceof Error ? err.message : 'Something went wrong.');
+    }
+    setSubmittingReport(false);
+  }
+
+  function handleSelectBookingFromNotification(bookingId: string) {
+    setHighlightedId(bookingId);
+
+    setTimeout(() => {
+      const index = bookings.findIndex((b) => b.id === bookingId);
+      if (index >= 0) {
+        flatListRef.current?.scrollToIndex({ index, animated: true, viewPosition: 0.3 });
+      }
+    }, 100);
+
+    setTimeout(() => setHighlightedId(null), 4000);
+  }
+
+  useEffect(() => {
+    if (!notifiedBookingId || notifiedBookingId === handledNotificationRef.current) return;
+    if (bookings.length === 0) return;
+    handledNotificationRef.current = notifiedBookingId;
+    handleSelectBookingFromNotification(notifiedBookingId);
+  }, [notifiedBookingId, bookings]);
+
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
       <AppHeader
@@ -163,12 +248,18 @@ export default function BookingsScreen() {
 
       {!loading && !error && (
         <FlatList
+          ref={flatListRef}
           data={bookings}
           keyExtractor={(item) => item.id}
+          onScrollToIndexFailed={({ index }) => {
+            setTimeout(() => {
+              flatListRef.current?.scrollToIndex({ index, animated: true, viewPosition: 0.3 });
+            }, 200);
+          }}
           style={styles.flatList}
           contentContainerStyle={styles.list}
           renderItem={({ item }) => (
-            <View style={styles.card}>
+            <View style={[styles.card, item.id === highlightedId && styles.cardHighlighted]}>
               <View style={styles.cardHeader}>
                 <Text style={styles.cardService}>{item.serviceName}</Text>
                 <Text style={[styles.cardStatus, { color: STATUS_COLORS[item.status] }]}>{item.status}</Text>
@@ -190,6 +281,27 @@ export default function BookingsScreen() {
                 <Text style={styles.reasonText}>Reason: {item.cancellationReason}</Text>
               )}
 
+              {item.paymentStatus === 'failed' && (
+                <View style={styles.paymentFailedBanner}>
+                  <Text style={styles.paymentFailedText}>
+                    We couldn&apos;t charge your card for this appointment.
+                  </Text>
+                  <Pressable onPress={() => router.push('/(tabs)/profile')}>
+                    <Text style={styles.paymentFailedLink}>Update payment method</Text>
+                  </Pressable>
+                </View>
+              )}
+
+              {(item.status === 'pending' || item.status === 'confirmed') &&
+                item.groomerLatitude != null &&
+                item.groomerLongitude != null && (
+                  <View style={styles.directionsWrapper}>
+                    <DirectionsButton
+                      destination={{ latitude: item.groomerLatitude, longitude: item.groomerLongitude }}
+                    />
+                  </View>
+                )}
+
               {(item.status === 'pending' || item.status === 'confirmed') && (
                 <Pressable
                   style={styles.cancelButton}
@@ -208,6 +320,22 @@ export default function BookingsScreen() {
                   <Text style={styles.reviewButtonText}>
                     {item.review ? 'Edit review' : 'Leave a review'}
                   </Text>
+                </Pressable>
+              )}
+
+              {item.status === 'completed' && item.invoiceTotalCents != null && (
+                item.tipAmountCents != null ? (
+                  <Text style={styles.tippedText}>Tipped ${(item.tipAmountCents / 100).toFixed(2)}</Text>
+                ) : (
+                  <Pressable style={styles.tipButton} onPress={() => setTipTargetId(item.id)}>
+                    <Text style={styles.tipButtonText}>Leave a tip</Text>
+                  </Pressable>
+                )
+              )}
+
+              {(item.status === 'completed' || item.status === 'cancelled' || item.status === 'confirmed') && (
+                <Pressable style={styles.reportLink} onPress={() => setReportTargetId(item.id)}>
+                  <Text style={styles.reportLinkText}>Report an issue</Text>
                 </Pressable>
               )}
             </View>
@@ -239,6 +367,25 @@ export default function BookingsScreen() {
         initialComment={bookings.find((b) => b.id === reviewTargetId)?.review?.comment ?? ''}
         onDismiss={() => setReviewTargetId(null)}
         onSubmit={handleSubmitReview}
+      />
+
+      <TipModal
+        visible={tipTargetId != null}
+        subtotalCents={
+          (bookings.find((b) => b.id === tipTargetId)?.invoiceTotalCents ?? 0) -
+          (bookings.find((b) => b.id === tipTargetId)?.taxAmountCents ?? 0)
+        }
+        submitting={submittingTip}
+        onDismiss={() => setTipTargetId(null)}
+        onSubmit={handleSubmitTip}
+      />
+
+      <ReportModal
+        visible={reportTargetId != null}
+        reasons={REPORT_REASONS}
+        submitting={submittingReport}
+        onDismiss={() => setReportTargetId(null)}
+        onSubmit={handleSubmitReport}
       />
     </SafeAreaView>
   );
@@ -284,6 +431,10 @@ const styles = StyleSheet.create({
     borderWidth: StyleSheet.hairlineWidth,
     borderColor: Colors.light.border,
   },
+  cardHighlighted: {
+    borderColor: Colors.light.tint,
+    borderWidth: 2,
+  },
   cardHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -299,6 +450,9 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: Colors.light.textMuted,
   },
+  directionsWrapper: {
+    marginTop: 10,
+  },
   cardStatus: {
     fontSize: 13,
     fontWeight: '600',
@@ -309,6 +463,23 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontStyle: 'italic',
     color: Colors.light.danger,
+  },
+  paymentFailedBanner: {
+    marginTop: 8,
+    padding: 10,
+    borderRadius: 8,
+    backgroundColor: '#FBEAE8',
+  },
+  paymentFailedText: {
+    fontSize: 13,
+    color: Colors.light.danger,
+  },
+  paymentFailedLink: {
+    marginTop: 4,
+    fontSize: 13,
+    fontWeight: '600',
+    color: Colors.light.tint,
+    textDecorationLine: 'underline',
   },
   cancelButton: {
     marginTop: 12,
@@ -337,6 +508,35 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontWeight: '600',
     color: Colors.light.tint,
+  },
+  tipButton: {
+    marginTop: 8,
+    height: 38,
+    borderRadius: 8,
+    backgroundColor: Colors.light.tint,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  tipButtonText: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#fff',
+  },
+  tippedText: {
+    marginTop: 8,
+    fontSize: 13,
+    fontWeight: '600',
+    color: Colors.light.success,
+    textAlign: 'center',
+  },
+  reportLink: {
+    marginTop: 10,
+    alignItems: 'center',
+  },
+  reportLinkText: {
+    fontSize: 12,
+    color: Colors.light.textMuted,
+    textDecorationLine: 'underline',
   },
   empty: {
     flex: 1,

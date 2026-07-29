@@ -1,7 +1,12 @@
 import { supabase } from '@/services/supabase';
 import type { GroomerNotificationType } from '@/types';
 
-export type BookingEmailAction = 'accepted' | 'groomer_cancelled' | 'customer_cancelled' | 'booking_requested';
+export type BookingEmailAction =
+  | 'accepted'
+  | 'groomer_cancelled'
+  | 'customer_cancelled'
+  | 'booking_requested'
+  | 'service_completed';
 
 export async function sendBookingEmail(bookingId: string, action: BookingEmailAction) {
   const { error } = await supabase.functions.invoke('send-booking-email', {

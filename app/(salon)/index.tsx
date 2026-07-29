@@ -1,6 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
-import { useFocusEffect, useRouter } from 'expo-router';
-import { useCallback, useMemo, useRef, useState } from 'react';
+import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { ActivityIndicator, FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
@@ -8,14 +8,24 @@ import { AppHeader } from '@/components/AppHeader';
 import { BookingCalendar } from '@/components/BookingCalendar';
 import { CancelBookingModal } from '@/components/CancelBookingModal';
 import { GroomerNotificationBell } from '@/components/GroomerNotificationBell';
-import { SignOutButton } from '@/components/SignOutButton';
+import { MessagesIconButton } from '@/components/MessagesIconButton';
+import { ReportModal } from '@/components/ReportModal';
 import { Colors } from '@/constants/theme';
 import { useAuth } from '@/services/auth-context';
 import { sendBookingEmail } from '@/services/notifications';
+import { submitReport } from '@/services/support';
 import { supabase } from '@/services/supabase';
 import type { BookingStatus, PaymentStatus } from '@/types';
 import { addMonths, isSameDay } from '@/utils/calendar';
-import { notify } from '@/utils/confirm';
+import { notify, showActionSheet } from '@/utils/confirm';
+
+const REPORT_REASONS = [
+  'Failure to pay / payment dispute',
+  'Rude or abusive behavior',
+  'No-show / repeated cancellations',
+  'Unsafe or aggressive pet not disclosed',
+  'Other',
+];
 
 type SalonBookingRow = {
   id: string;
@@ -49,6 +59,8 @@ const STATUS_COLORS: Record<BookingStatus, string> = {
 
 export default function SalonDashboardScreen() {
   const router = useRouter();
+  const { bookingId: notifiedBookingId } = useLocalSearchParams<{ bookingId?: string }>();
+  const handledNotificationRef = useRef<string | null>(null);
   const { groomerProfile } = useAuth();
   const [bookings, setBookings] = useState<SalonBookingRow[]>([]);
   const [loading, setLoading] = useState(true);
@@ -60,6 +72,8 @@ export default function SalonDashboardScreen() {
   const [selectedDay, setSelectedDay] = useState(() => new Date());
   const [highlightedId, setHighlightedId] = useState<string | null>(null);
   const [statFilter, setStatFilter] = useState<StatFilter>(null);
+  const [reportTargetId, setReportTargetId] = useState<string | null>(null);
+  const [submittingReport, setSubmittingReport] = useState(false);
   const flatListRef = useRef<FlatList<SalonBookingRow>>(null);
 
   const load = useCallback(async () => {
@@ -72,7 +86,7 @@ export default function SalonDashboardScreen() {
         'id, customer_id, starts_at, status, payment_status, service_completed_at, cancellation_reason, invoice_total_cents, pets(name), groomer_services(name)'
       )
       .eq('groomer_id', groomerProfile.id)
-      .order('created_at', { ascending: false });
+      .order('starts_at', { ascending: false });
 
     if (queryError) {
       setError(queryError.message);
@@ -140,6 +154,25 @@ export default function SalonDashboardScreen() {
     setTimeout(() => setHighlightedId(null), 4000);
   }
 
+  useEffect(() => {
+    if (!notifiedBookingId || notifiedBookingId === handledNotificationRef.current) return;
+    if (bookings.length === 0) return;
+    handledNotificationRef.current = notifiedBookingId;
+    handleSelectBookingFromNotification(notifiedBookingId);
+  }, [notifiedBookingId, bookings]);
+
+  function handleOpenMenu() {
+    const isPro = groomerProfile?.plan === 'pro';
+    showActionSheet('Menu', [
+      {
+        label: isPro ? 'Insights' : 'Insights (upgrade to Pro)',
+        onPress: () => router.push(isPro ? '/(salon)/insights' : '/(salon)/plan'),
+      },
+      { label: 'Help & support', onPress: () => router.push('/help') },
+      { label: 'Sign out', destructive: true, onPress: () => supabase.auth.signOut() },
+    ]);
+  }
+
   async function handleAccept(bookingId: string) {
     setUpdatingId(bookingId);
     const { error: updateError } = await supabase
@@ -169,6 +202,7 @@ export default function SalonDashboardScreen() {
       return;
     }
     await load();
+    sendBookingEmail(bookingId, 'service_completed');
   }
 
   async function handleConfirmCancel(reason: string) {
@@ -192,23 +226,43 @@ export default function SalonDashboardScreen() {
     sendBookingEmail(bookingId, 'groomer_cancelled');
   }
 
+  async function handleSubmitReport(reason: string, details: string) {
+    if (!reportTargetId) return;
+
+    setSubmittingReport(true);
+    try {
+      await submitReport(reportTargetId, reason, details || undefined);
+      setReportTargetId(null);
+      notify('Report submitted', 'Thanks for letting us know — our team will review it.');
+    } catch (err) {
+      notify('Could not submit report', err instanceof Error ? err.message : 'Something went wrong.');
+    }
+    setSubmittingReport(false);
+  }
+
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
       <AppHeader
         title={groomerProfile?.name ?? ''}
         subtitle="Dashboard"
+        stackRight
         right={
           <View style={styles.headerActions}>
-            <Pressable style={styles.iconButton} onPress={() => router.push('/(salon)/insights')} hitSlop={8}>
-              <Ionicons name="bar-chart-outline" size={18} color={Colors.light.text} />
-            </Pressable>
+            {groomerProfile && <MessagesIconButton groomerId={groomerProfile.id} />}
             {groomerProfile && (
               <GroomerNotificationBell
                 groomerId={groomerProfile.id}
                 onSelectBooking={handleSelectBookingFromNotification}
               />
             )}
-            <SignOutButton />
+            <Pressable style={styles.iconButton} onPress={handleOpenMenu} hitSlop={8}>
+              <Ionicons name="menu-outline" size={22} color={Colors.light.text} />
+              {groomerProfile?.plan !== 'pro' && (
+                <View style={styles.lockBadge}>
+                  <Ionicons name="lock-closed" size={9} color="#fff" />
+                </View>
+              )}
+            </Pressable>
           </View>
         }
       />
@@ -230,6 +284,34 @@ export default function SalonDashboardScreen() {
           }}
           ListHeaderComponent={
             <View>
+              <Pressable style={styles.planBanner} onPress={() => router.push('/(salon)/plan')}>
+                <Ionicons
+                  name={groomerProfile?.plan === 'pro' ? 'star' : 'star-outline'}
+                  size={16}
+                  color={Colors.light.tint}
+                />
+                <Text style={styles.planBannerText}>
+                  {groomerProfile?.plan === 'pro'
+                    ? 'On the Pro plan · Manage subscription'
+                    : 'Upgrade to Pro for Insights + the AI chat assistant'}
+                </Text>
+                <Ionicons name="chevron-forward" size={16} color={Colors.light.textMuted} />
+              </Pressable>
+
+              <Pressable style={styles.planBanner} onPress={() => router.push('/(salon)/payouts')}>
+                <Ionicons
+                  name={groomerProfile?.payoutsEnabled ? 'checkmark-circle' : 'card-outline'}
+                  size={16}
+                  color={Colors.light.tint}
+                />
+                <Text style={styles.planBannerText}>
+                  {groomerProfile?.payoutsEnabled
+                    ? 'Payouts active · View details'
+                    : 'Connect your bank account to get paid'}
+                </Text>
+                <Ionicons name="chevron-forward" size={16} color={Colors.light.textMuted} />
+              </Pressable>
+
               <View style={styles.statsGrid}>
                 <Pressable
                   style={[styles.statCard, statFilter === 'pending' && styles.statCardActive]}
@@ -399,6 +481,12 @@ export default function SalonDashboardScreen() {
                   </Pressable>
                 </View>
               )}
+
+              {(item.status === 'completed' || item.status === 'cancelled') && (
+                <Pressable style={styles.reportLink} onPress={() => setReportTargetId(item.id)}>
+                  <Text style={styles.reportLinkText}>Report an issue</Text>
+                </Pressable>
+              )}
             </View>
           )}
           ListEmptyComponent={
@@ -427,6 +515,14 @@ export default function SalonDashboardScreen() {
         onDismiss={() => setCancelTargetId(null)}
         onConfirm={handleConfirmCancel}
       />
+
+      <ReportModal
+        visible={reportTargetId != null}
+        reasons={REPORT_REASONS}
+        submitting={submittingReport}
+        onDismiss={() => setReportTargetId(null)}
+        onSubmit={handleSubmitReport}
+      />
     </SafeAreaView>
   );
 }
@@ -452,6 +548,17 @@ const styles = StyleSheet.create({
     borderWidth: StyleSheet.hairlineWidth,
     borderColor: Colors.light.border,
   },
+  lockBadge: {
+    position: 'absolute',
+    bottom: -2,
+    right: -2,
+    width: 14,
+    height: 14,
+    borderRadius: 7,
+    backgroundColor: Colors.light.textMuted,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   loading: {
     marginTop: 24,
   },
@@ -467,6 +574,24 @@ const styles = StyleSheet.create({
     marginTop: 16,
     gap: 12,
     paddingBottom: 24,
+  },
+  planBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    backgroundColor: Colors.light.surface,
+    borderRadius: 10,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: Colors.light.border,
+    paddingVertical: 10,
+    paddingHorizontal: 14,
+    marginBottom: 16,
+  },
+  planBannerText: {
+    flex: 1,
+    fontSize: 13,
+    fontWeight: '600',
+    color: Colors.light.text,
   },
   statsGrid: {
     flexDirection: 'row',
@@ -581,6 +706,15 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontStyle: 'italic',
     color: Colors.light.danger,
+  },
+  reportLink: {
+    marginTop: 10,
+    alignItems: 'center',
+  },
+  reportLinkText: {
+    fontSize: 12,
+    color: Colors.light.textMuted,
+    textDecorationLine: 'underline',
   },
   paidText: {
     marginTop: 8,

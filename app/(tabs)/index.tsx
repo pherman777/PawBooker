@@ -6,6 +6,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { Logo } from '@/components/Logo';
 import { ReviewModal } from '@/components/ReviewModal';
+import { Wordmark } from '@/components/Wordmark';
 import { StarRating } from '@/components/StarRating';
 import { Colors } from '@/constants/theme';
 import { useAuth } from '@/services/auth-context';
@@ -112,7 +113,7 @@ export default function HomeScreen() {
       <ScrollView contentContainerStyle={styles.content}>
         <View style={styles.hero}>
           <Logo size={88} style={styles.logoBadge} />
-          <Text style={styles.appName}>PawBooker</Text>
+          <Wordmark size={30} style={styles.appName} />
           <Text style={styles.tagline}>Grooming made easy for your best friend.</Text>
         </View>
 
@@ -201,10 +202,6 @@ const styles = StyleSheet.create({
   },
   appName: {
     marginTop: 16,
-    fontSize: 30,
-    fontWeight: '800',
-    color: Colors.light.text,
-    letterSpacing: 0.2,
   },
   tagline: {
     marginTop: 6,
