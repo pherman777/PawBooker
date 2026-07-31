@@ -75,38 +75,59 @@ Deno.serve(async (req) => {
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
     );
 
-    if (event.type === 'customer.subscription.updated' || event.type === 'customer.subscription.deleted') {
+    if (
+      event.type === 'customer.subscription.created' ||
+      event.type === 'customer.subscription.updated' ||
+      event.type === 'customer.subscription.deleted'
+    ) {
       const subscription = event.data.object;
-      const stripeCustomerId = subscription.customer as string;
 
-      const { data: billing } = await serviceRoleClient
-        .from('customer_billing')
-        .select('user_id')
-        .eq('stripe_customer_id', stripeCustomerId)
-        .maybeSingle();
+      // Subscriptions started via the website checkout (create-checkout-session)
+      // carry the groomer's id directly in metadata. Older subscriptions started
+      // from inside the app instead look up the groomer via their saved Stripe
+      // customer id.
+      let groomerId: string | null = subscription.metadata?.groomerId ?? null;
+      console.log('subscription event', event.type, 'metadata', JSON.stringify(subscription.metadata));
 
-      if (billing) {
-        const { data: groomer } = await serviceRoleClient
-          .from('groomers')
-          .select('id')
-          .eq('user_id', billing.user_id)
+      if (!groomerId) {
+        const stripeCustomerId = subscription.customer as string;
+        const { data: billing } = await serviceRoleClient
+          .from('customer_billing')
+          .select('user_id')
+          .eq('stripe_customer_id', stripeCustomerId)
           .maybeSingle();
 
-        if (groomer) {
-          const isActive = subscription.status === 'active' || subscription.status === 'trialing';
-
-          await serviceRoleClient
+        if (billing) {
+          const { data: groomer } = await serviceRoleClient
             .from('groomers')
-            .update({
-              plan: isActive ? 'pro' : 'free',
-              stripe_subscription_id: isActive ? subscription.id : null,
-              stripe_cancel_at_period_end: isActive ? Boolean(subscription.cancel_at_period_end) : false,
-              plan_current_period_end: subscription.current_period_end
-                ? new Date(subscription.current_period_end * 1000).toISOString()
-                : null,
-            })
-            .eq('id', groomer.id);
+            .select('id')
+            .eq('user_id', billing.user_id)
+            .maybeSingle();
+          groomerId = groomer?.id ?? null;
         }
+
+        console.log('fell back to customer_billing lookup, resolved groomerId:', groomerId);
+      }
+
+      if (groomerId) {
+        const isActive = subscription.status === 'active' || subscription.status === 'trialing';
+
+        const { error: updateError, data: updateData } = await serviceRoleClient
+          .from('groomers')
+          .update({
+            plan: isActive ? 'pro' : 'free',
+            stripe_subscription_id: isActive ? subscription.id : null,
+            stripe_cancel_at_period_end: isActive ? Boolean(subscription.cancel_at_period_end) : false,
+            plan_current_period_end: subscription.current_period_end
+              ? new Date(subscription.current_period_end * 1000).toISOString()
+              : null,
+          })
+          .eq('id', groomerId)
+          .select();
+
+        console.log('groomer update result', JSON.stringify({ updateError, updateData }));
+      } else {
+        console.warn('Could not resolve a groomerId for subscription', subscription.id);
       }
     }
 

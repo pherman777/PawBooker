@@ -114,19 +114,6 @@ export async function createConnectDashboardLink(): Promise<ConnectDashboardLink
   return data;
 }
 
-export type CreateSubscriptionResponse = {
-  success: boolean;
-};
-
-export async function createSubscription(): Promise<CreateSubscriptionResponse> {
-  const { data, error } = await supabase.functions.invoke<CreateSubscriptionResponse>(
-    'stripe-create-subscription'
-  );
-  if (error) throw error;
-  if (!data) throw new Error('No response from stripe-create-subscription');
-  return data;
-}
-
 export type CancelSubscriptionResponse = {
   success: boolean;
   currentPeriodEnd: string | null;

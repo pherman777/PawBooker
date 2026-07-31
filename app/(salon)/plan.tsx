@@ -1,22 +1,16 @@
-import { LinkDisplay, PlatformPay } from '@stripe/stripe-react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { useFocusEffect, useRouter } from 'expo-router';
-import { useCallback, useState } from 'react';
-import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import { ActivityIndicator, Linking, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { Colors } from '@/constants/theme';
-import { useStripePayments } from '@/hooks/useStripePayments';
 import { useAuth } from '@/services/auth-context';
 import { supabase } from '@/services/supabase';
-import {
-  cancelSubscription,
-  createSetupIntent,
-  createSubscription,
-  finalizePaymentMethod,
-  isStripeTestMode,
-} from '@/services/stripe';
+import { cancelSubscription } from '@/services/stripe';
 import { notify } from '@/utils/confirm';
+
+const CHECKOUT_URL = 'https://ivgxjvooaobtytyntafu.supabase.co/functions/v1/create-checkout-session';
 
 const PRO_FEATURES = [
   'Insights dashboard (revenue, repeat rate, cancellations, service mix)',
@@ -26,35 +20,31 @@ const PRO_FEATURES = [
 
 export default function PlanScreen() {
   const router = useRouter();
+  const { upgraded } = useLocalSearchParams<{ upgraded?: string }>();
   const { groomerProfile, refreshGroomerProfile } = useAuth();
-  const { initPaymentSheet, presentPaymentSheet } = useStripePayments();
-  const [hasPaymentMethod, setHasPaymentMethod] = useState(false);
   const [loading, setLoading] = useState(true);
   const [working, setWorking] = useState(false);
   const [cancelAtPeriodEnd, setCancelAtPeriodEnd] = useState(false);
   const [periodEnd, setPeriodEnd] = useState<string | null>(null);
+  const [confirmingUpgrade, setConfirmingUpgrade] = useState(false);
+  const groomerProfileRef = useRef(groomerProfile);
+
+  useEffect(() => {
+    groomerProfileRef.current = groomerProfile;
+  }, [groomerProfile]);
 
   const load = useCallback(async () => {
     if (!groomerProfile) return;
     setLoading(true);
 
-    const {
-      data: { session },
-    } = await supabase.auth.getSession();
+    const { data: groomerResult } = await supabase
+      .from('groomers')
+      .select('stripe_cancel_at_period_end, plan_current_period_end')
+      .eq('id', groomerProfile.id)
+      .single();
 
-    if (session) {
-      const [billingResult, groomerResult] = await Promise.all([
-        supabase.from('customer_billing').select('user_id').eq('user_id', session.user.id).maybeSingle(),
-        supabase
-          .from('groomers')
-          .select('stripe_cancel_at_period_end, plan_current_period_end')
-          .eq('id', groomerProfile.id)
-          .single(),
-      ]);
-      setHasPaymentMethod(Boolean(billingResult.data));
-      setCancelAtPeriodEnd(Boolean(groomerResult.data?.stripe_cancel_at_period_end));
-      setPeriodEnd(groomerResult.data?.plan_current_period_end ?? null);
-    }
+    setCancelAtPeriodEnd(Boolean(groomerResult?.stripe_cancel_at_period_end));
+    setPeriodEnd(groomerResult?.plan_current_period_end ?? null);
 
     setLoading(false);
   }, [groomerProfile]);
@@ -65,48 +55,40 @@ export default function PlanScreen() {
     }, [load])
   );
 
-  async function ensurePaymentMethod() {
-    if (hasPaymentMethod) return true;
+  // Right after returning from a successful checkout, the plan isn't
+  // necessarily "pro" yet - Stripe's webhook updates it asynchronously and
+  // can lag a couple seconds behind the redirect. Poll briefly rather than
+  // checking once, so the screen doesn't flash "Free" right after payment.
+  // (Only refreshing here, not on every focus - refreshGroomerProfile creates
+  // a new object each call, which would retrigger this screen's other effects
+  // and cause an infinite render loop if tied to every focus event instead.)
+  useEffect(() => {
+    if (!upgraded) return;
 
-    const { setupIntentClientSecret } = await createSetupIntent();
+    setConfirmingUpgrade(true);
+    refreshGroomerProfile();
 
-    const { error: initError } = await initPaymentSheet({
-      merchantDisplayName: 'PawBooker',
-      setupIntentClientSecret,
-      allowsDelayedPaymentMethods: false,
-      link: { display: LinkDisplay.NEVER },
-      applePay: {
-        merchantCountryCode: 'US',
-        buttonType: PlatformPay.ButtonType.SetUp,
-        cartItems: [{ paymentType: 'Immediate', label: 'No charge today', amount: '0.00' }],
-      },
-      googlePay: { merchantCountryCode: 'US', currencyCode: 'USD', testEnv: isStripeTestMode },
-    });
-    if (initError) throw new Error(initError.message);
+    let attempts = 0;
+    const interval = setInterval(() => {
+      attempts += 1;
+      if (groomerProfileRef.current?.plan === 'pro' || attempts >= 5) {
+        clearInterval(interval);
+        setConfirmingUpgrade(false);
+        return;
+      }
+      refreshGroomerProfile();
+    }, 2000);
 
-    const { error: presentError } = await presentPaymentSheet();
-    if (presentError) {
-      if (presentError.code === 'Canceled') return false;
-      throw new Error(presentError.message);
-    }
-
-    const setupIntentId = setupIntentClientSecret.split('_secret_')[0];
-    await finalizePaymentMethod(setupIntentId);
-    setHasPaymentMethod(true);
-    return true;
-  }
+    return () => clearInterval(interval);
+  }, [upgraded, refreshGroomerProfile]);
 
   async function handleUpgrade() {
+    if (!groomerProfile) return;
     setWorking(true);
     try {
-      const ready = await ensurePaymentMethod();
-      if (!ready) return;
-
-      await createSubscription();
-      await refreshGroomerProfile();
-      notify('You’re on Pro!', 'Insights and the AI assistant are now unlocked.');
+      await Linking.openURL(`${CHECKOUT_URL}?groomerId=${groomerProfile.id}`);
     } catch (err) {
-      notify('Upgrade failed', err instanceof Error ? err.message : 'Something went wrong.');
+      notify('Could not open checkout', err instanceof Error ? err.message : 'Something went wrong.');
     } finally {
       setWorking(false);
     }
@@ -172,6 +154,11 @@ export default function PlanScreen() {
 
         {loading ? (
           <ActivityIndicator style={styles.loading} color={Colors.light.tint} />
+        ) : confirmingUpgrade && !isPro ? (
+          <View style={styles.cancelNotice}>
+            <ActivityIndicator color={Colors.light.tint} size="small" />
+            <Text style={styles.cancelNoticeText}>Confirming your upgrade — this only takes a moment...</Text>
+          </View>
         ) : isPro && cancelAtPeriodEnd ? (
           <View style={styles.cancelNotice}>
             <Ionicons name="information-circle-outline" size={18} color={Colors.light.textMuted} />
@@ -189,13 +176,16 @@ export default function PlanScreen() {
             )}
           </Pressable>
         ) : (
-          <Pressable style={styles.upgradeButton} onPress={handleUpgrade} disabled={working}>
-            {working ? (
-              <ActivityIndicator color="#fff" />
-            ) : (
-              <Text style={styles.upgradeButtonText}>Upgrade to Pro — $35/mo</Text>
-            )}
-          </Pressable>
+          <>
+            <Pressable style={styles.upgradeButton} onPress={handleUpgrade} disabled={working}>
+              {working ? (
+                <ActivityIndicator color="#fff" />
+              ) : (
+                <Text style={styles.upgradeButtonText}>Upgrade to Pro — $35/mo</Text>
+              )}
+            </Pressable>
+            <Text style={styles.upgradeHint}>Opens in your browser to complete payment securely.</Text>
+          </>
         )}
       </ScrollView>
     </SafeAreaView>
@@ -284,6 +274,12 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontSize: 15,
     fontWeight: '600',
+  },
+  upgradeHint: {
+    marginTop: 8,
+    fontSize: 12,
+    textAlign: 'center',
+    color: Colors.light.textMuted,
   },
   cancelButton: {
     marginTop: 20,
