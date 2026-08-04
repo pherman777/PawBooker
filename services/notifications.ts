@@ -29,3 +29,16 @@ export async function notifyGroomer(groomerId: string, bookingId: string, type: 
     console.warn('notifyGroomer failed', error);
   }
 }
+
+// Unlike sendBookingEmail, this is the primary action (not a side-effect of
+// one already completed), so callers should catch and surface the error
+// rather than treat it as fire-and-forget.
+export async function sendCustomerReminder(reminderId: string) {
+  const { error } = await supabase.functions.invoke('send-customer-reminder', {
+    body: { reminderId },
+  });
+
+  if (error) {
+    throw error;
+  }
+}

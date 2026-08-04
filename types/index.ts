@@ -122,6 +122,32 @@ export type GroomerNotification = {
   startsAt?: string;
 };
 
+export type GroomerSupply = {
+  id: string;
+  groomerId: string;
+  name: string;
+  unit: string;
+  quantityOnHand: number;
+  reorderThreshold: number;
+  reorderQuantity?: number;
+  createdAt: string;
+};
+
+export type CustomerReminderStatus = 'draft' | 'sent' | 'dismissed';
+
+export type CustomerReminder = {
+  id: string;
+  groomerId: string;
+  customerId: string;
+  customerEmail: string;
+  lastBookingAt: string;
+  draftSubject: string;
+  draftBody: string;
+  status: CustomerReminderStatus;
+  createdAt: string;
+  sentAt?: string;
+};
+
 export type ChatThreadType = 'groomer' | 'app_support';
 export type ChatSenderType = 'customer' | 'groomer' | 'bot';
 

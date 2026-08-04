@@ -74,7 +74,17 @@ export default function SalonDashboardScreen() {
   const [statFilter, setStatFilter] = useState<StatFilter>(null);
   const [reportTargetId, setReportTargetId] = useState<string | null>(null);
   const [submittingReport, setSubmittingReport] = useState(false);
+  const [lowStockCount, setLowStockCount] = useState(0);
   const flatListRef = useRef<FlatList<SalonBookingRow>>(null);
+
+  const loadLowStockCount = useCallback(async () => {
+    if (!groomerProfile) return;
+    const { data } = await supabase
+      .from('groomer_supplies')
+      .select('quantity_on_hand, reorder_threshold')
+      .eq('groomer_id', groomerProfile.id);
+    setLowStockCount((data ?? []).filter((s) => s.quantity_on_hand <= s.reorder_threshold).length);
+  }, [groomerProfile]);
 
   const load = useCallback(async () => {
     if (!groomerProfile) return;
@@ -112,7 +122,8 @@ export default function SalonDashboardScreen() {
   useFocusEffect(
     useCallback(() => {
       load();
-    }, [load])
+      loadLowStockCount();
+    }, [load, loadLowStockCount])
   );
 
   const stats = useMemo(() => {
@@ -168,6 +179,11 @@ export default function SalonDashboardScreen() {
         label: isPro ? 'Insights' : 'Insights (upgrade to Pro)',
         onPress: () => router.push(isPro ? '/(salon)/insights' : '/(salon)/plan'),
       },
+      {
+        label: isPro ? 'Win-back reminders' : 'Win-back reminders (upgrade to Pro)',
+        onPress: () => router.push(isPro ? '/(salon)/reminders' : '/(salon)/plan'),
+      },
+      { label: 'Supplies', onPress: () => router.push('/(salon)/supplies') },
       { label: 'Help & support', onPress: () => router.push('/help') },
       { label: 'Sign out', destructive: true, onPress: () => supabase.auth.signOut() },
     ]);
@@ -311,6 +327,16 @@ export default function SalonDashboardScreen() {
                 </Text>
                 <Ionicons name="chevron-forward" size={16} color={Colors.light.textMuted} />
               </Pressable>
+
+              {lowStockCount > 0 && (
+                <Pressable style={styles.planBanner} onPress={() => router.push('/(salon)/supplies')}>
+                  <Ionicons name="alert-circle" size={16} color={Colors.light.danger} />
+                  <Text style={styles.planBannerText}>
+                    {lowStockCount} suppl{lowStockCount === 1 ? 'y' : 'ies'} low on stock · Reorder
+                  </Text>
+                  <Ionicons name="chevron-forward" size={16} color={Colors.light.textMuted} />
+                </Pressable>
+              )}
 
               <View style={styles.statsGrid}>
                 <Pressable
