@@ -1,10 +1,11 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 
-// Public, unauthenticated by design - this is opened directly in a browser
-// (not called via fetch/XHR from the app), as the entry point for a groomer
-// upgrading to Pro on the website instead of inside the app. Apple/Google
-// require digital in-app features like Pro to be sold this way (or via each
-// platform's own in-app purchase system) rather than processed in-app.
+// Public, unauthenticated by design - reached only from the web upgrade form
+// at paw-booker.com/upgrade, never linked or opened from inside the app.
+// Apple and Google require Pro (it unlocks in-app features) to be sold via
+// their own in-app purchase systems if the app itself sells or links to it -
+// the app deliberately has no "Upgrade" button; it just tells groomers to
+// visit the website, so this stays outside that requirement.
 const STRIPE_SECRET_KEY = Deno.env.get('STRIPE_SECRET_KEY')!;
 const STRIPE_PRO_PRICE_ID = Deno.env.get('STRIPE_PRO_PRICE_ID')!;
 
@@ -23,10 +24,10 @@ async function stripePost(path: string, params: Record<string, string>) {
 
 Deno.serve(async (req) => {
   const url = new URL(req.url);
-  const groomerId = url.searchParams.get('groomerId');
+  const email = url.searchParams.get('email')?.trim().toLowerCase();
 
-  if (!groomerId) {
-    return new Response('Missing groomerId', { status: 400 });
+  if (!email) {
+    return new Response('Missing email', { status: 400 });
   }
 
   const serviceRoleClient = createClient(
@@ -37,11 +38,14 @@ Deno.serve(async (req) => {
   const { data: groomer } = await serviceRoleClient
     .from('groomers')
     .select('id, email, plan')
-    .eq('id', groomerId)
+    .ilike('email', email)
     .maybeSingle();
 
   if (!groomer) {
-    return new Response('Groomer not found', { status: 404 });
+    return new Response(
+      "We couldn't find a groomer account with that email. Double-check it matches the email on your PawBooker account.",
+      { status: 404 }
+    );
   }
 
   if (groomer.plan === 'pro') {
@@ -52,8 +56,8 @@ Deno.serve(async (req) => {
     mode: 'subscription',
     'line_items[0][price]': STRIPE_PRO_PRICE_ID,
     'line_items[0][quantity]': '1',
-    success_url: 'pawbooker://(salon)/plan?upgraded=1',
-    cancel_url: 'pawbooker://(salon)/plan',
+    success_url: 'https://paw-booker.com/upgrade?success=1',
+    cancel_url: 'https://paw-booker.com/upgrade',
     ...(groomer.email ? { customer_email: groomer.email } : {}),
     'subscription_data[metadata][groomerId]': groomer.id,
   });

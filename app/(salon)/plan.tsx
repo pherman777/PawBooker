@@ -1,7 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { ActivityIndicator, Linking, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { Colors } from '@/constants/theme';
@@ -10,11 +10,11 @@ import { supabase } from '@/services/supabase';
 import { cancelSubscription } from '@/services/stripe';
 import { notify } from '@/utils/confirm';
 
-const CHECKOUT_URL = 'https://ivgxjvooaobtytyntafu.supabase.co/functions/v1/create-checkout-session';
-
 const PRO_FEATURES = [
   'Insights dashboard (revenue, repeat rate, cancellations, service mix)',
   'AI chat assistant for your customers, with escalation when it needs you',
+  'Business Assistant - ask about customers, revenue, and supplies',
+  'Win-back reminders for lapsed customers',
   'Priority support',
 ];
 
@@ -81,18 +81,6 @@ export default function PlanScreen() {
 
     return () => clearInterval(interval);
   }, [upgraded, refreshGroomerProfile]);
-
-  async function handleUpgrade() {
-    if (!groomerProfile) return;
-    setWorking(true);
-    try {
-      await Linking.openURL(`${CHECKOUT_URL}?groomerId=${groomerProfile.id}`);
-    } catch (err) {
-      notify('Could not open checkout', err instanceof Error ? err.message : 'Something went wrong.');
-    } finally {
-      setWorking(false);
-    }
-  }
 
   async function handleCancel() {
     setWorking(true);
@@ -176,16 +164,12 @@ export default function PlanScreen() {
             )}
           </Pressable>
         ) : (
-          <>
-            <Pressable style={styles.upgradeButton} onPress={handleUpgrade} disabled={working}>
-              {working ? (
-                <ActivityIndicator color="#fff" />
-              ) : (
-                <Text style={styles.upgradeButtonText}>Upgrade to Pro — $35/mo</Text>
-              )}
-            </Pressable>
-            <Text style={styles.upgradeHint}>Opens in your browser to complete payment securely.</Text>
-          </>
+          <View style={styles.upgradeNotice}>
+            <Text style={styles.upgradeNoticeText}>
+              Upgrading to Pro is done on the PawBooker website, not in the app. Visit paw-booker.com/upgrade
+              from a browser to subscribe.
+            </Text>
+          </View>
         )}
       </ScrollView>
     </SafeAreaView>
@@ -262,24 +246,18 @@ const styles = StyleSheet.create({
   loading: {
     marginTop: 24,
   },
-  upgradeButton: {
+  upgradeNotice: {
     marginTop: 20,
-    height: 48,
+    padding: 16,
     borderRadius: 10,
-    backgroundColor: Colors.light.tint,
-    alignItems: 'center',
-    justifyContent: 'center',
+    backgroundColor: Colors.light.surface,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: Colors.light.border,
   },
-  upgradeButtonText: {
-    color: '#fff',
-    fontSize: 15,
-    fontWeight: '600',
-  },
-  upgradeHint: {
-    marginTop: 8,
-    fontSize: 12,
-    textAlign: 'center',
-    color: Colors.light.textMuted,
+  upgradeNoticeText: {
+    fontSize: 14,
+    lineHeight: 20,
+    color: Colors.light.text,
   },
   cancelButton: {
     marginTop: 20,

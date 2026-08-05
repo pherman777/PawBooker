@@ -4,6 +4,7 @@
   "rewrites": [
     { "source": "/support", "destination": "/support.html" },
     { "source": "/privacy", "destination": "/privacy.html" },
-    { "source": "/delete-account", "destination": "/delete-account.html" }
+    { "source": "/delete-account", "destination": "/delete-account.html" },
+    { "source": "/upgrade", "destination": "/upgrade.html" }
   ]
 }
