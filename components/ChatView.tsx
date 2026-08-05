@@ -94,6 +94,10 @@ export function ChatView({ messages, ownSenderTypes, value, onChangeValue, onSen
           value={value}
           onChangeText={onChangeValue}
           multiline
+          autoCorrect
+          autoCapitalize="sentences"
+          spellCheck
+          keyboardType="default"
         />
         <Pressable
           style={[styles.sendButton, (!value.trim() || sending) && styles.sendButtonDisabled]}

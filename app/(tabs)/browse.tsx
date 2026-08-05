@@ -29,6 +29,7 @@ export default function BrowseScreen() {
         .select(
           'id, name, avatar_url, bio, address, zip_code, latitude, longitude, rating, review_count, groomer_services(id, name, price_cents, duration_minutes)'
         )
+        .is('deactivated_at', null)
         .order('rating', { ascending: false });
 
       if (cancelled) return;

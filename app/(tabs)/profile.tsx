@@ -26,6 +26,7 @@ export default function ProfileScreen() {
   const [paymentMethods, setPaymentMethods] = useState<SavedPaymentMethod[]>([]);
   const [savingCard, setSavingCard] = useState(false);
   const [updatingId, setUpdatingId] = useState<string | null>(null);
+  const [deletingAccount, setDeletingAccount] = useState(false);
 
   const loadPaymentMethods = useCallback(async () => {
     if (!session) return;
@@ -163,6 +164,24 @@ export default function ProfileScreen() {
     }
   }
 
+  async function handleDeleteAccount() {
+    const confirmed = await confirmAsync(
+      'Delete your account?',
+      "This permanently deletes your account, pets, saved payment methods, and messages. Some booking history may be kept in anonymized form for the groomer's records. This cannot be undone."
+    );
+    if (!confirmed) return;
+
+    setDeletingAccount(true);
+    try {
+      const { error } = await supabase.functions.invoke('delete-account');
+      if (error) throw error;
+      await supabase.auth.signOut();
+    } catch (err) {
+      notify('Could not delete account', err instanceof Error ? err.message : 'Please try again.');
+      setDeletingAccount(false);
+    }
+  }
+
   function paymentMethodLabel(method: SavedPaymentMethod) {
     const brand = method.cardBrand ? method.cardBrand[0].toUpperCase() + method.cardBrand.slice(1) : 'Card';
     const walletPrefix =
@@ -262,6 +281,17 @@ export default function ProfileScreen() {
 
         <Pressable style={styles.signOutButton} onPress={() => supabase.auth.signOut()}>
           <Text style={styles.signOutText}>Sign out</Text>
+        </Pressable>
+
+        <Pressable
+          style={[styles.deleteAccountButton, deletingAccount && styles.buttonDisabled]}
+          onPress={handleDeleteAccount}
+          disabled={deletingAccount}>
+          {deletingAccount ? (
+            <ActivityIndicator color={Colors.light.danger} />
+          ) : (
+            <Text style={styles.deleteAccountText}>Delete account</Text>
+          )}
         </Pressable>
       </ScrollView>
     </SafeAreaView>
@@ -419,5 +449,15 @@ const styles = StyleSheet.create({
     fontSize: 15,
     fontWeight: '600',
     color: Colors.light.danger,
+  },
+  deleteAccountButton: {
+    marginTop: 24,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  deleteAccountText: {
+    fontSize: 13,
+    color: Colors.light.danger,
+    textDecorationLine: 'underline',
   },
 });

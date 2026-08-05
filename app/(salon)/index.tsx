@@ -17,7 +17,7 @@ import { submitReport } from '@/services/support';
 import { supabase } from '@/services/supabase';
 import type { BookingStatus, PaymentStatus } from '@/types';
 import { addMonths, isSameDay } from '@/utils/calendar';
-import { notify, showActionSheet } from '@/utils/confirm';
+import { confirmAsync, notify, showActionSheet } from '@/utils/confirm';
 
 const REPORT_REASONS = [
   'Failure to pay / payment dispute',
@@ -172,6 +172,21 @@ export default function SalonDashboardScreen() {
     handleSelectBookingFromNotification(notifiedBookingId);
   }, [notifiedBookingId, bookings]);
 
+  async function handleDeleteAccount() {
+    const confirmed = await confirmAsync(
+      'Delete your account?',
+      "This permanently deletes your account and messages, removes your salon from Browse, and cancels your Pro subscription if active. Past bookings and reviews are kept in anonymized form so your customers' history stays intact. This cannot be undone."
+    );
+    if (!confirmed) return;
+
+    const { error } = await supabase.functions.invoke('delete-account');
+    if (error) {
+      notify('Could not delete account', error instanceof Error ? error.message : 'Please try again.');
+      return;
+    }
+    await supabase.auth.signOut();
+  }
+
   function handleOpenMenu() {
     const isPro = groomerProfile?.plan === 'pro';
     showActionSheet('Menu', [
@@ -186,6 +201,7 @@ export default function SalonDashboardScreen() {
       { label: 'Supplies', onPress: () => router.push('/(salon)/supplies') },
       { label: 'Help & support', onPress: () => router.push('/help') },
       { label: 'Sign out', destructive: true, onPress: () => supabase.auth.signOut() },
+      { label: 'Delete account', destructive: true, onPress: handleDeleteAccount },
     ]);
   }
 

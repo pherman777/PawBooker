@@ -2,7 +2,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { useCallback, useState } from 'react';
 import { Modal, Pressable, StyleSheet, Text, View } from 'react-native';
-import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
+import { SafeAreaProvider, SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { ChatView } from '@/components/ChatView';
 import { Colors } from '@/constants/theme';
@@ -113,35 +113,40 @@ export function BusinessAssistantFab() {
       </Pressable>
 
       <Modal visible={visible} animationType="slide" onRequestClose={() => setVisible(false)}>
-        <SafeAreaView style={styles.modal} edges={['top', 'bottom']}>
-          <View style={styles.header}>
-            <View>
-              <Text style={styles.headerTitle}>Business Assistant</Text>
-              <Text style={styles.headerSubtitle}>Ask about customers, revenue, or supplies</Text>
+        {/* RN's Modal renders in its own native window on iOS, which doesn't inherit the
+            app's root SafeAreaProvider - without this nested one, insets read as zero and
+            the header renders under the status bar. */}
+        <SafeAreaProvider>
+          <SafeAreaView style={styles.modal} edges={['top', 'bottom']}>
+            <View style={styles.header}>
+              <View>
+                <Text style={styles.headerTitle}>Business Assistant</Text>
+                <Text style={styles.headerSubtitle}>Ask about customers, revenue, or supplies</Text>
+              </View>
+              <Pressable onPress={() => setVisible(false)} hitSlop={8}>
+                <Ionicons name="close" size={26} color={Colors.light.text} />
+              </Pressable>
             </View>
-            <Pressable onPress={() => setVisible(false)} hitSlop={8}>
-              <Ionicons name="close" size={26} color={Colors.light.text} />
-            </Pressable>
-          </View>
 
-          {messages.length === 0 && !loading && (
-            <View style={styles.emptyState}>
-              <Text style={styles.emptyStateText}>
-                Try asking: "Which customers haven't booked in 3 months?", "How's revenue looking this month?", or
-                "What's low on supplies?"
-              </Text>
-            </View>
-          )}
+            {messages.length === 0 && !loading && (
+              <View style={styles.emptyState}>
+                <Text style={styles.emptyStateText}>
+                  Try asking: "Which customers haven't booked in 3 months?", "How's revenue looking this month?", or
+                  "What's low on supplies?"
+                </Text>
+              </View>
+            )}
 
-          <ChatView
-            messages={messages}
-            ownSenderTypes={['groomer']}
-            value={value}
-            onChangeValue={setValue}
-            onSend={handleSend}
-            sending={sending}
-          />
-        </SafeAreaView>
+            <ChatView
+              messages={messages}
+              ownSenderTypes={['groomer']}
+              value={value}
+              onChangeValue={setValue}
+              onSend={handleSend}
+              sending={sending}
+            />
+          </SafeAreaView>
+        </SafeAreaProvider>
       </Modal>
     </>
   );

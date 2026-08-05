@@ -22,6 +22,7 @@ export default function GroomerDetailScreen() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [messaging, setMessaging] = useState(false);
+  const [isDeactivated, setIsDeactivated] = useState(false);
 
   async function handleMessage() {
     if (!session || !groomer) return;
@@ -43,7 +44,7 @@ export default function GroomerDetailScreen() {
         supabase
           .from('groomers')
           .select(
-            'id, name, avatar_url, bio, address, latitude, longitude, rating, review_count, phone, email, hours, groomer_services(id, name, price_cents, duration_minutes)'
+            'id, name, avatar_url, bio, address, latitude, longitude, rating, review_count, phone, email, hours, deactivated_at, groomer_services(id, name, price_cents, duration_minutes)'
           )
           .eq('id', id)
           .single(),
@@ -83,6 +84,7 @@ export default function GroomerDetailScreen() {
           email: data.email ?? undefined,
           hours: data.hours ?? undefined,
         });
+        setIsDeactivated(Boolean(data.deactivated_at));
       }
 
       if (reviewsResult.data) {
@@ -141,13 +143,19 @@ export default function GroomerDetailScreen() {
         </Text>
         {groomer.bio && <Text style={styles.bio}>{groomer.bio}</Text>}
 
-        <Pressable style={styles.messageButton} onPress={handleMessage} disabled={messaging}>
-          {messaging ? (
-            <ActivityIndicator color={Colors.light.tint} size="small" />
-          ) : (
-            <Text style={styles.messageButtonText}>Message this groomer</Text>
-          )}
-        </Pressable>
+        {isDeactivated ? (
+          <Text style={styles.deactivatedNotice}>
+            This salon is no longer accepting messages or bookings.
+          </Text>
+        ) : (
+          <Pressable style={styles.messageButton} onPress={handleMessage} disabled={messaging}>
+            {messaging ? (
+              <ActivityIndicator color={Colors.light.tint} size="small" />
+            ) : (
+              <Text style={styles.messageButtonText}>Message this groomer</Text>
+            )}
+          </Pressable>
+        )}
 
         <Text style={styles.sectionTitle}>Services</Text>
         {groomer.services.map((service) => (
@@ -158,16 +166,18 @@ export default function GroomerDetailScreen() {
             </View>
             <View style={styles.serviceAction}>
               <Text style={styles.servicePrice}>${(service.priceCents / 100).toFixed(0)}</Text>
-              <Pressable
-                style={styles.bookButton}
-                onPress={() =>
-                  router.push({
-                    pathname: '/booking/[groomerId]',
-                    params: { groomerId: groomer.id, serviceId: service.id },
-                  })
-                }>
-                <Text style={styles.bookButtonText}>Book</Text>
-              </Pressable>
+              {!isDeactivated && (
+                <Pressable
+                  style={styles.bookButton}
+                  onPress={() =>
+                    router.push({
+                      pathname: '/booking/[groomerId]',
+                      params: { groomerId: groomer.id, serviceId: service.id },
+                    })
+                  }>
+                  <Text style={styles.bookButtonText}>Book</Text>
+                </Pressable>
+              )}
             </View>
           </View>
         ))}
@@ -280,6 +290,12 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '600',
     color: Colors.light.tint,
+  },
+  deactivatedNotice: {
+    marginTop: 16,
+    fontSize: 14,
+    fontStyle: 'italic',
+    color: Colors.light.textMuted,
   },
   sectionTitle: {
     marginTop: 28,
