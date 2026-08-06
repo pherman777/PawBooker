@@ -294,6 +294,22 @@
       background: #fff;
       margin-bottom: 14px;
     }
+    .checkbox-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 14px;
+      font-weight: 400;
+      color: var(--text);
+      margin-bottom: 18px;
+      cursor: pointer;
+    }
+    .checkbox-row input[type="checkbox"] {
+      width: 16px;
+      height: 16px;
+      margin: 0;
+      accent-color: var(--accent);
+    }
     .modal-actions {
       display: flex;
       gap: 10px;
@@ -447,6 +463,10 @@
         <form id="notify-form">
           <label for="notify-email">Email</label>
           <input type="email" id="notify-email" name="email" placeholder="you@example.com" required />
+          <label class="checkbox-row" for="notify-groomer">
+            <input type="checkbox" id="notify-groomer" name="groomer" />
+            I'm a groomer
+          </label>
           <p class="modal-error" id="notify-error">Something went wrong &mdash; please try again.</p>
           <div class="modal-actions">
             <button type="button" class="btn btn-ghost" data-close-modal>Cancel</button>
@@ -475,6 +495,7 @@
 
     document.querySelectorAll('[data-open-modal]').forEach(function (btn) {
       btn.addEventListener('click', function () {
+        document.getElementById('notify-form').reset();
         formView.classList.remove('hidden');
         successView.classList.remove('open');
         errorEl.classList.remove('open');
@@ -497,6 +518,7 @@
       errorEl.classList.remove('open');
       var email = document.getElementById('notify-email').value.trim();
       if (!email) return;
+      var isGroomer = document.getElementById('notify-groomer').checked;
 
       fetch(SUPABASE_URL + '/rest/v1/marketing_leads', {
         method: 'POST',
@@ -506,7 +528,7 @@
           'Authorization': 'Bearer ' + SUPABASE_ANON_KEY,
           'Prefer': 'return=minimal'
         },
-        body: JSON.stringify({ email: email, source: 'homepage' })
+        body: JSON.stringify({ email: email, source: isGroomer ? 'homepage-groomer' : 'homepage' })
       }).then(function (res) {
         if (!res.ok) throw new Error('request failed');
         formView.classList.add('hidden');
