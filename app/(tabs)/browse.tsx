@@ -99,7 +99,7 @@ export default function BrowseScreen() {
       return groomers.map((groomer) => ({ groomer, distance: undefined }));
     }
 
-    return groomers
+    const byDistance = groomers
       .map((groomer) => ({
         groomer,
         distance:
@@ -107,8 +107,13 @@ export default function BrowseScreen() {
             ? distanceInMiles(location, { latitude: groomer.latitude, longitude: groomer.longitude })
             : Number.POSITIVE_INFINITY,
       }))
-      .filter((row) => row.distance <= MAX_DISTANCE_MILES)
       .sort((a, b) => a.distance - b.distance);
+
+    // Prefer salons within range, but if there are none nearby (sparse early
+    // inventory, or a user far from any salon), fall back to showing all of them
+    // so Browse is never empty when salons exist.
+    const nearby = byDistance.filter((row) => row.distance <= MAX_DISTANCE_MILES);
+    return nearby.length > 0 ? nearby : byDistance;
   }, [groomers, location]);
 
   return (
@@ -149,13 +154,7 @@ export default function BrowseScreen() {
               </View>
             </Pressable>
           )}
-          ListEmptyComponent={
-            <Text style={styles.subtitle}>
-              {location
-                ? `No groomers found within ${MAX_DISTANCE_MILES} miles of ${location.label}.`
-                : 'No groomers found yet.'}
-            </Text>
-          }
+          ListEmptyComponent={<Text style={styles.subtitle}>No groomers available yet.</Text>}
         />
       )}
     </SafeAreaView>

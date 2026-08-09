@@ -124,8 +124,8 @@ export default function SalonWelcomeScreen() {
       <ScrollView contentContainerStyle={styles.content}>
         <Text style={styles.title}>Welcome to PawBooker</Text>
         <Text style={styles.subtitle}>
-          Finish these steps to start taking bookings. Your salon stays hidden from customers until
-          the required steps are done.
+          Finish these steps so customers can book you and you get paid. You&apos;re listed as soon as
+          you add a service.
         </Text>
 
         <View style={[styles.statusBanner, isLive ? styles.statusLive : styles.statusPending]}>
@@ -136,7 +136,7 @@ export default function SalonWelcomeScreen() {
           />
           <Text style={styles.statusText}>
             {isLive
-              ? "You're live — customers can find and book you in Browse."
+              ? "You're all set — ready to take bookings and get paid."
               : `${requiredDone} of ${requiredTotal} required steps done`}
           </Text>
         </View>
