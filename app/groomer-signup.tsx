@@ -18,44 +18,38 @@ import { Logo } from '@/components/Logo';
 import { Wordmark } from '@/components/Wordmark';
 import { Colors } from '@/constants/theme';
 import { useAuth } from '@/services/auth-context';
-import { createGroomer } from '@/services/groomer';
+import { createGroomer, savePendingGroomer, type CreateGroomerInput } from '@/services/groomer';
+import { supabase } from '@/services/supabase';
 
 export default function GroomerSignupScreen() {
   const router = useRouter();
   const { session, refreshGroomerProfile } = useAuth();
+  const loggedIn = Boolean(session);
 
   const [name, setName] = useState('');
   const [location, setLocation] = useState<SelectedLocation | null>(null);
   const [phone, setPhone] = useState('');
   const [email, setEmail] = useState(session?.user.email ?? '');
+  const [password, setPassword] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [confirmSent, setConfirmSent] = useState(false);
 
-  // Listing a business writes a groomers row keyed to the account, so a signed-in
-  // user is required. Anyone who taps through while logged out is sent to create
-  // or sign in to a normal account first, then comes back here.
-  if (!session) {
-    return (
-      <SafeAreaView style={styles.container}>
-        <ScrollView contentContainerStyle={styles.content}>
-          <View style={styles.brand}>
-            <Logo size={64} />
-            <Wordmark size={20} style={styles.brandName} />
-          </View>
-          <Text style={styles.title}>List your grooming business</Text>
-          <Text style={styles.subtitle}>
-            To add your salon, first create a PawBooker account or sign in. Then you can set up your
-            services, hours, and payouts.
-          </Text>
-          <Pressable style={styles.button} onPress={() => router.replace('/(auth)/sign-up')}>
-            <Text style={styles.buttonText}>Create an account</Text>
-          </Pressable>
-          <Pressable style={styles.secondaryLink} onPress={() => router.replace('/(auth)/sign-in')}>
-            <Text style={styles.linkText}>Already have an account? Sign in</Text>
-          </Pressable>
-        </ScrollView>
-      </SafeAreaView>
-    );
+  function pendingFrom(): CreateGroomerInput {
+    return {
+      name: name.trim(),
+      address: location!.label,
+      latitude: location!.latitude,
+      longitude: location!.longitude,
+      phone: phone.trim(),
+      email: email.trim(),
+    };
+  }
+
+  async function finishAndGoToSalon(details: CreateGroomerInput) {
+    await createGroomer(details);
+    await refreshGroomerProfile();
+    router.replace('/(salon)/welcome');
   }
 
   async function handleSubmit() {
@@ -67,24 +61,66 @@ export default function GroomerSignupScreen() {
       setError('Search for and select your business address.');
       return;
     }
+    if (!loggedIn && (!email.trim() || password.length < 6)) {
+      setError('Enter an email and a password of at least 6 characters to create your account.');
+      return;
+    }
 
     setSubmitting(true);
     setError(null);
+
     try {
-      await createGroomer({
-        name: name.trim(),
-        address: location.label,
-        latitude: location.latitude,
-        longitude: location.longitude,
-        phone: phone.trim(),
+      if (loggedIn) {
+        await finishAndGoToSalon(pendingFrom());
+        return;
+      }
+
+      // Not logged in: create the account, then create the salon. If sign-up
+      // returns a session right away, finish now. If email confirmation is
+      // required (no session yet), save the details so we can finish
+      // automatically the moment they confirm and sign in.
+      const { data, error: signUpError } = await supabase.auth.signUp({
         email: email.trim(),
+        password,
       });
-      await refreshGroomerProfile();
-      router.replace('/(salon)/welcome');
+      if (signUpError) {
+        setError(signUpError.message);
+        setSubmitting(false);
+        return;
+      }
+
+      if (data.session) {
+        await finishAndGoToSalon(pendingFrom());
+      } else {
+        await savePendingGroomer(pendingFrom());
+        setConfirmSent(true);
+        setSubmitting(false);
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Could not list your business.');
       setSubmitting(false);
     }
+  }
+
+  if (confirmSent) {
+    return (
+      <SafeAreaView style={styles.container}>
+        <ScrollView contentContainerStyle={styles.content}>
+          <View style={styles.brand}>
+            <Logo size={64} />
+            <Wordmark size={20} style={styles.brandName} />
+          </View>
+          <Text style={styles.title}>Confirm your email</Text>
+          <Text style={styles.subtitle}>
+            We sent a confirmation link to {email.trim()}. Confirm it, then sign in — we&apos;ll
+            finish setting up {name.trim() || 'your salon'} automatically.
+          </Text>
+          <Pressable style={styles.button} onPress={() => router.replace('/(auth)/sign-in')}>
+            <Text style={styles.buttonText}>Go to sign in</Text>
+          </Pressable>
+        </ScrollView>
+      </SafeAreaView>
+    );
   }
 
   return (
@@ -100,8 +136,8 @@ export default function GroomerSignupScreen() {
 
           <Text style={styles.title}>List your grooming business</Text>
           <Text style={styles.subtitle}>
-            Tell us the basics. You&apos;ll add services, hours, and payouts next — your salon stays
-            private until it&apos;s ready.
+            Set up your salon in one step. You&apos;ll add services, hours, and payouts next — your
+            salon stays private until it&apos;s ready.
           </Text>
 
           <Text style={styles.label}>Business name</Text>
@@ -133,16 +169,46 @@ export default function GroomerSignupScreen() {
             onChangeText={setPhone}
           />
 
-          <Text style={styles.label}>Contact email</Text>
-          <TextInput
-            style={styles.input}
-            placeholder="Where bookings should reach you"
-            placeholderTextColor={Colors.light.textMuted}
-            autoCapitalize="none"
-            keyboardType="email-address"
-            value={email}
-            onChangeText={setEmail}
-          />
+          {loggedIn ? (
+            <>
+              <Text style={styles.label}>Contact email</Text>
+              <TextInput
+                style={styles.input}
+                placeholder="Where bookings should reach you"
+                placeholderTextColor={Colors.light.textMuted}
+                autoCapitalize="none"
+                keyboardType="email-address"
+                value={email}
+                onChangeText={setEmail}
+              />
+            </>
+          ) : (
+            <>
+              <Text style={styles.sectionHeader}>Create your account</Text>
+              <Text style={styles.label}>Email</Text>
+              <TextInput
+                style={styles.input}
+                placeholder="you@business.com"
+                placeholderTextColor={Colors.light.textMuted}
+                autoCapitalize="none"
+                keyboardType="email-address"
+                value={email}
+                onChangeText={setEmail}
+              />
+              <Text style={styles.label}>Password</Text>
+              <TextInput
+                style={styles.input}
+                placeholder="At least 6 characters"
+                placeholderTextColor={Colors.light.textMuted}
+                secureTextEntry
+                value={password}
+                onChangeText={setPassword}
+              />
+              <Pressable style={styles.inlineLink} onPress={() => router.replace('/(auth)/sign-in')}>
+                <Text style={styles.linkText}>Already have an account? Sign in first</Text>
+              </Pressable>
+            </>
+          )}
 
           {error && <Text style={styles.error}>{error}</Text>}
 
@@ -153,7 +219,7 @@ export default function GroomerSignupScreen() {
             {submitting ? (
               <ActivityIndicator color="#fff" />
             ) : (
-              <Text style={styles.buttonText}>Continue</Text>
+              <Text style={styles.buttonText}>{loggedIn ? 'Create my salon' : 'Create account & salon'}</Text>
             )}
           </Pressable>
 
@@ -197,6 +263,13 @@ const styles = StyleSheet.create({
     fontSize: 15,
     lineHeight: 21,
     color: Colors.light.textMuted,
+  },
+  sectionHeader: {
+    marginTop: 20,
+    marginBottom: 4,
+    fontSize: 16,
+    fontWeight: '700',
+    color: Colors.light.text,
   },
   label: {
     fontSize: 14,
@@ -259,6 +332,10 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontSize: 16,
     fontWeight: '600',
+  },
+  inlineLink: {
+    marginTop: 2,
+    marginBottom: 4,
   },
   secondaryLink: {
     marginTop: 20,

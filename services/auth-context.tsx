@@ -1,6 +1,7 @@
 import type { Session } from '@supabase/supabase-js';
 import { createContext, useCallback, useContext, useEffect, useRef, useState, type ReactNode } from 'react';
 
+import { consumePendingGroomer, createGroomer, savePendingGroomer } from '@/services/groomer';
 import { supabase } from '@/services/supabase';
 
 export type GroomerPlan = 'free' | 'pro';
@@ -42,6 +43,26 @@ async function fetchGroomerProfile(session: Session | null): Promise<GroomerProf
   };
 }
 
+// Like fetchGroomerProfile, but if the user has no salon yet and there's a
+// pending "list your business" signup saved (they created their account, then
+// email confirmation interrupted the flow), finish creating the salon now that
+// they're signed in. Keeps the failure recoverable by re-queuing.
+async function resolveGroomerProfile(session: Session | null): Promise<GroomerProfile | null> {
+  const existing = await fetchGroomerProfile(session);
+  if (existing || !session) return existing;
+
+  const pending = await consumePendingGroomer();
+  if (!pending) return null;
+
+  try {
+    await createGroomer(pending);
+    return await fetchGroomerProfile(session);
+  } catch {
+    await savePendingGroomer(pending);
+    return null;
+  }
+}
+
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [session, setSession] = useState<Session | null>(null);
   const [groomerProfile, setGroomerProfile] = useState<GroomerProfile | null>(null);
@@ -64,7 +85,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const { data } = await supabase.auth.getSession();
       if (cancelled) return;
       setSession(data.session);
-      const profile = await fetchGroomerProfile(data.session);
+      const profile = await resolveGroomerProfile(data.session);
       if (!cancelled) {
         setGroomerProfile(profile);
         setLoading(false);
@@ -75,7 +96,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     const { data: subscription } = supabase.auth.onAuthStateChange((_event, newSession) => {
       setSession(newSession);
-      fetchGroomerProfile(newSession).then((profile) => {
+      resolveGroomerProfile(newSession).then((profile) => {
         if (!cancelled) setGroomerProfile(profile);
       });
     });

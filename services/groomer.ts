@@ -1,3 +1,5 @@
+import AsyncStorage from '@react-native-async-storage/async-storage';
+
 import { supabase } from '@/services/supabase';
 
 export type CreateGroomerInput = {
@@ -8,6 +10,32 @@ export type CreateGroomerInput = {
   phone: string;
   email: string;
 };
+
+// When someone starts "List your business" while logged out, we save their
+// business details here before creating their account. If the account comes
+// back with a session immediately we finish right away; if email confirmation
+// is required, this lets us finish automatically the moment they sign in.
+const PENDING_KEY = 'pendingGroomerSignup';
+
+export async function savePendingGroomer(input: CreateGroomerInput): Promise<void> {
+  await AsyncStorage.setItem(PENDING_KEY, JSON.stringify(input));
+}
+
+export async function clearPendingGroomer(): Promise<void> {
+  await AsyncStorage.removeItem(PENDING_KEY);
+}
+
+// Reads and removes any pending business details. Returns null if there are none.
+export async function consumePendingGroomer(): Promise<CreateGroomerInput | null> {
+  const raw = await AsyncStorage.getItem(PENDING_KEY);
+  if (!raw) return null;
+  await AsyncStorage.removeItem(PENDING_KEY);
+  try {
+    return JSON.parse(raw) as CreateGroomerInput;
+  } catch {
+    return null;
+  }
+}
 
 // Creates the caller's salon via the create-groomer edge function (service-role
 // insert, one salon per account) and returns the new groomer id. Callers should
