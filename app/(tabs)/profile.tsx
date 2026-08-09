@@ -2,13 +2,14 @@ import { LinkDisplay, PlatformPay } from '@stripe/stripe-react-native';
 import { Image } from 'expo-image';
 import { useRouter, useFocusEffect } from 'expo-router';
 import { useCallback, useState } from 'react';
-import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { AppHeader } from '@/components/AppHeader';
 import { Colors } from '@/constants/theme';
 import { useStripePayments } from '@/hooks/useStripePayments';
 import { useAuth } from '@/services/auth-context';
+import { redeemInvite } from '@/services/groomer';
 import { supabase } from '@/services/supabase';
 import { getSignedUrl } from '@/services/storage';
 import { createSetupIntent, finalizePaymentMethod, isStripeTestMode, removePaymentMethod } from '@/services/stripe';
@@ -27,6 +28,24 @@ export default function ProfileScreen() {
   const [savingCard, setSavingCard] = useState(false);
   const [updatingId, setUpdatingId] = useState<string | null>(null);
   const [deletingAccount, setDeletingAccount] = useState(false);
+  const [showInvite, setShowInvite] = useState(false);
+  const [inviteCode, setInviteCode] = useState('');
+  const [redeeming, setRedeeming] = useState(false);
+
+  async function handleRedeemInvite() {
+    if (!inviteCode.trim()) return;
+    setRedeeming(true);
+    try {
+      const groomerName = await redeemInvite(inviteCode.trim());
+      setInviteCode('');
+      setShowInvite(false);
+      notify('Code applied', `You're now connected with ${groomerName}.`);
+    } catch (err) {
+      notify('Could not apply code', err instanceof Error ? err.message : 'Something went wrong.');
+    } finally {
+      setRedeeming(false);
+    }
+  }
 
   const loadPaymentMethods = useCallback(async () => {
     if (!session) return;
@@ -275,6 +294,47 @@ export default function ProfileScreen() {
           )}
         </Pressable>
 
+        {showInvite ? (
+          <View style={styles.inviteForm}>
+            <TextInput
+              style={styles.inviteInput}
+              placeholder="Enter your groomer's invite code"
+              placeholderTextColor={Colors.light.textMuted}
+              autoCapitalize="characters"
+              autoCorrect={false}
+              value={inviteCode}
+              onChangeText={setInviteCode}
+            />
+            <View style={styles.inviteActions}>
+              <Pressable
+                onPress={() => {
+                  setShowInvite(false);
+                  setInviteCode('');
+                }}>
+                <Text style={styles.inviteCancel}>Cancel</Text>
+              </Pressable>
+              <Pressable
+                style={[styles.inviteApply, (!inviteCode.trim() || redeeming) && styles.buttonDisabled]}
+                onPress={handleRedeemInvite}
+                disabled={!inviteCode.trim() || redeeming}>
+                {redeeming ? (
+                  <ActivityIndicator color="#fff" size="small" />
+                ) : (
+                  <Text style={styles.inviteApplyText}>Apply</Text>
+                )}
+              </Pressable>
+            </View>
+          </View>
+        ) : (
+          <Pressable style={[styles.listBusinessButton, styles.firstAction]} onPress={() => setShowInvite(true)}>
+            <Text style={styles.listBusinessText}>Have an invite code?</Text>
+          </Pressable>
+        )}
+
+        <Pressable style={styles.listBusinessButton} onPress={() => router.push('/groomer-signup')}>
+          <Text style={styles.listBusinessText}>List your grooming business</Text>
+        </Pressable>
+
         <Pressable style={styles.helpButton} onPress={() => router.push('/help')}>
           <Text style={styles.helpButtonText}>Help &amp; support</Text>
         </Pressable>
@@ -293,6 +353,8 @@ export default function ProfileScreen() {
             <Text style={styles.deleteAccountText}>Delete account</Text>
           )}
         </Pressable>
+
+        <Text style={styles.copyright}>© 2026 PawBooker. All rights reserved.</Text>
       </ScrollView>
     </SafeAreaView>
   );
@@ -422,8 +484,70 @@ const styles = StyleSheet.create({
   buttonDisabled: {
     opacity: 0.6,
   },
-  helpButton: {
+  listBusinessButton: {
+    marginTop: 12,
+    height: 46,
+    borderRadius: 10,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: Colors.light.border,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  firstAction: {
     marginTop: 24,
+  },
+  inviteForm: {
+    marginTop: 24,
+    padding: 14,
+    borderRadius: 10,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: Colors.light.border,
+    backgroundColor: Colors.light.surface,
+  },
+  inviteInput: {
+    height: 44,
+    borderRadius: 8,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: Colors.light.border,
+    backgroundColor: Colors.light.background,
+    paddingHorizontal: 12,
+    fontSize: 15,
+    letterSpacing: 2,
+    color: Colors.light.text,
+  },
+  inviteActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'flex-end',
+    gap: 16,
+    marginTop: 12,
+  },
+  inviteCancel: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: Colors.light.textMuted,
+  },
+  inviteApply: {
+    minWidth: 80,
+    height: 40,
+    borderRadius: 8,
+    backgroundColor: Colors.light.tint,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 16,
+  },
+  inviteApplyText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#fff',
+  },
+  listBusinessText: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: Colors.light.text,
+  },
+  helpButton: {
+    marginTop: 12,
     height: 46,
     borderRadius: 10,
     borderWidth: StyleSheet.hairlineWidth,
@@ -454,6 +578,12 @@ const styles = StyleSheet.create({
     marginTop: 24,
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  copyright: {
+    marginTop: 28,
+    textAlign: 'center',
+    fontSize: 12,
+    color: Colors.light.textMuted,
   },
   deleteAccountText: {
     fontSize: 13,

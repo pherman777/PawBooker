@@ -11,7 +11,13 @@ const corsHeaders = {
 const RESEND_API_KEY = Deno.env.get('RESEND_API_KEY')!;
 const FROM_ADDRESS = 'PawBooker <notifications@paw-booker.com>';
 
-type Action = 'accepted' | 'groomer_cancelled' | 'customer_cancelled' | 'booking_requested' | 'service_completed';
+type Action =
+  | 'accepted'
+  | 'groomer_cancelled'
+  | 'customer_cancelled'
+  | 'booking_requested'
+  | 'service_completed'
+  | 'declined';
 
 function jsonResponse(body: unknown, status = 200) {
   return new Response(JSON.stringify(body), {
@@ -117,6 +123,13 @@ Deno.serve(async (req) => {
       pushUserId = booking.customer_id;
       pushTitle = 'Ready for pickup!';
       pushBody = `${pet.name}'s ${service.name} is done at ${groomer.name}.`;
+    } else if (action === 'declined') {
+      emailTo = booking.customer_email;
+      subject = `Your request at ${groomer.name} — a note about timing`;
+      text = `${groomer.name} couldn't take your ${service.name} appointment for ${pet.name} on ${when}.\n\nNote from ${groomer.name}: ${booking.cancellation_reason ?? 'No note given'}\n\nOpen PawBooker to rebook for a time that works.`;
+      pushUserId = booking.customer_id;
+      pushTitle = 'A note about your request';
+      pushBody = `${groomer.name} suggested another time for ${pet.name}'s ${service.name}. Tap to rebook.`;
     }
 
     if (pushUserId) {

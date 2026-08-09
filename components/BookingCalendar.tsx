@@ -27,6 +27,7 @@ const STATUS_DOT_COLORS: Record<BookingStatus, string> = {
   confirmed: Colors.light.success,
   completed: Colors.light.textMuted,
   cancelled: Colors.light.danger,
+  declined: Colors.light.warning,
 };
 
 const CELL_SIZE = '14.28%';

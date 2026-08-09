@@ -38,6 +38,7 @@ type SalonBookingRow = {
   petName: string;
   cancellationReason?: string;
   invoiceTotalCents?: number;
+  platformFeeCents?: number;
 };
 
 type ViewMode = 'list' | 'calendar';
@@ -55,6 +56,7 @@ const STATUS_COLORS: Record<BookingStatus, string> = {
   confirmed: Colors.light.success,
   completed: Colors.light.textMuted,
   cancelled: Colors.light.danger,
+  declined: Colors.light.warning,
 };
 
 export default function SalonDashboardScreen() {
@@ -67,6 +69,7 @@ export default function SalonDashboardScreen() {
   const [error, setError] = useState<string | null>(null);
   const [updatingId, setUpdatingId] = useState<string | null>(null);
   const [cancelTargetId, setCancelTargetId] = useState<string | null>(null);
+  const [declineTargetId, setDeclineTargetId] = useState<string | null>(null);
   const [viewMode, setViewMode] = useState<ViewMode>('list');
   const [calendarMonth, setCalendarMonth] = useState(() => new Date());
   const [selectedDay, setSelectedDay] = useState(() => new Date());
@@ -93,7 +96,7 @@ export default function SalonDashboardScreen() {
     const { data, error: queryError } = await supabase
       .from('bookings')
       .select(
-        'id, customer_id, starts_at, status, payment_status, service_completed_at, cancellation_reason, invoice_total_cents, pets(name), groomer_services(name)'
+        'id, customer_id, starts_at, status, payment_status, service_completed_at, cancellation_reason, invoice_total_cents, platform_fee_cents, pets(name), groomer_services(name)'
       )
       .eq('groomer_id', groomerProfile.id)
       .order('starts_at', { ascending: false });
@@ -111,6 +114,7 @@ export default function SalonDashboardScreen() {
           serviceCompletedAt: row.service_completed_at ?? undefined,
           cancellationReason: row.cancellation_reason ?? undefined,
           invoiceTotalCents: row.invoice_total_cents ?? undefined,
+          platformFeeCents: row.platform_fee_cents ?? undefined,
           serviceName: (row.groomer_services as unknown as { name: string })?.name ?? 'Service',
           petName: (row.pets as unknown as { name: string })?.name ?? 'Pet',
         }))
@@ -190,6 +194,11 @@ export default function SalonDashboardScreen() {
   function handleOpenMenu() {
     const isPro = groomerProfile?.plan === 'pro';
     showActionSheet('Menu', [
+      { label: 'Setup checklist', onPress: () => router.push('/(salon)/welcome') },
+      { label: 'Business info', onPress: () => router.push('/(salon)/business-info') },
+      { label: 'Services & prices', onPress: () => router.push('/(salon)/services') },
+      { label: 'Hours', onPress: () => router.push('/(salon)/hours') },
+      { label: 'Invite your customers', onPress: () => router.push('/(salon)/invite') },
       {
         label: isPro ? 'Insights' : 'Insights (upgrade to Pro)',
         onPress: () => router.push(isPro ? '/(salon)/insights' : '/(salon)/plan'),
@@ -235,6 +244,27 @@ export default function SalonDashboardScreen() {
     }
     await load();
     sendBookingEmail(bookingId, 'service_completed');
+  }
+
+  async function handleConfirmDecline(note: string) {
+    if (!declineTargetId) return;
+    const bookingId = declineTargetId;
+    setUpdatingId(bookingId);
+
+    const { error: updateError } = await supabase
+      .from('bookings')
+      .update({ status: 'declined', cancellation_reason: note, cancelled_by: 'groomer' })
+      .eq('id', bookingId);
+
+    setUpdatingId(null);
+    setDeclineTargetId(null);
+
+    if (updateError) {
+      notify('Update failed', updateError.message);
+      return;
+    }
+    await load();
+    sendBookingEmail(bookingId, 'declined');
   }
 
   async function handleConfirmCancel(reason: string) {
@@ -469,12 +499,24 @@ export default function SalonDashboardScreen() {
                 })}
               </Text>
 
+              {item.status === 'declined' && item.cancellationReason && (
+                <Text style={styles.reasonText}>Your note: {item.cancellationReason}</Text>
+              )}
+
               {item.status === 'cancelled' && item.cancellationReason && (
                 <Text style={styles.reasonText}>Reason: {item.cancellationReason}</Text>
               )}
 
               {item.status === 'completed' && item.invoiceTotalCents != null && (
-                <Text style={styles.paidText}>Paid ${(item.invoiceTotalCents / 100).toFixed(2)}</Text>
+                <>
+                  <Text style={styles.paidText}>Paid ${(item.invoiceTotalCents / 100).toFixed(2)}</Text>
+                  {item.platformFeeCents != null && item.platformFeeCents > 0 && (
+                    <Text style={styles.feeText}>
+                      PawBooker fee −${(item.platformFeeCents / 100).toFixed(2)} · You received $
+                      {((item.invoiceTotalCents - item.platformFeeCents) / 100).toFixed(2)}
+                    </Text>
+                  )}
+                </>
               )}
 
               {item.paymentStatus === 'failed' && (
@@ -515,12 +557,21 @@ export default function SalonDashboardScreen() {
                       <Text style={styles.acceptButtonText}>Complete & Invoice</Text>
                     </Pressable>
                   )}
-                  <Pressable
-                    style={[styles.actionButton, styles.cancelButton]}
-                    onPress={() => setCancelTargetId(item.id)}
-                    disabled={updatingId === item.id}>
-                    <Text style={styles.cancelButtonText}>Cancel</Text>
-                  </Pressable>
+                  {item.status === 'pending' ? (
+                    <Pressable
+                      style={[styles.actionButton, styles.cancelButton]}
+                      onPress={() => setDeclineTargetId(item.id)}
+                      disabled={updatingId === item.id}>
+                      <Text style={styles.cancelButtonText}>Decline</Text>
+                    </Pressable>
+                  ) : (
+                    <Pressable
+                      style={[styles.actionButton, styles.cancelButton]}
+                      onPress={() => setCancelTargetId(item.id)}
+                      disabled={updatingId === item.id}>
+                      <Text style={styles.cancelButtonText}>Cancel</Text>
+                    </Pressable>
+                  )}
                 </View>
               )}
 
@@ -556,6 +607,17 @@ export default function SalonDashboardScreen() {
         submitting={updatingId === cancelTargetId}
         onDismiss={() => setCancelTargetId(null)}
         onConfirm={handleConfirmCancel}
+      />
+
+      <CancelBookingModal
+        visible={declineTargetId != null}
+        submitting={updatingId === declineTargetId}
+        onDismiss={() => setDeclineTargetId(null)}
+        onConfirm={handleConfirmDecline}
+        title="Decline request"
+        subtitle="Let the customer know why, and suggest another day or time. They can rebook from your note."
+        placeholder="e.g. I'm booked that day — I have openings Wed or Thu afternoon"
+        confirmLabel="Decline request"
       />
 
       <ReportModal
@@ -763,6 +825,11 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontWeight: '600',
     color: Colors.light.success,
+  },
+  feeText: {
+    marginTop: 2,
+    fontSize: 12,
+    color: Colors.light.textMuted,
   },
   actions: {
     flexDirection: 'row',

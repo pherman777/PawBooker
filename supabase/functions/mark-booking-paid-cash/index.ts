@@ -33,7 +33,7 @@ Deno.serve(async (req) => {
 
     const { data: booking, error: bookingError } = await supabase
       .from('bookings')
-      .select('id, customer_id, customer_email, status, groomers(name), groomer_services(name), pets(name)')
+      .select('id, customer_id, customer_email, status, groomer_id, groomers(name, plan), groomer_services(name), pets(name)')
       .eq('id', bookingId)
       .single();
 
@@ -59,9 +59,40 @@ Deno.serve(async (req) => {
       return jsonResponse({ error: 'Invoice total must be greater than zero' }, 400);
     }
 
-    const groomer = booking.groomers as unknown as { name: string };
+    const groomer = booking.groomers as unknown as { name: string; plan: string };
     const service = booking.groomer_services as unknown as { name: string };
     const pet = booking.pets as unknown as { name: string };
+
+    const serviceRoleClient = createClient(
+      Deno.env.get('SUPABASE_URL')!,
+      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
+    );
+
+    // An app-acquired customer's first booking must be paid by card so the 5%
+    // acquisition fee is collectible - cash has no rail to skim it from. Once
+    // that first booking is settled (or if they're a referral / the groomer is
+    // Pro), cash is fine.
+    const { data: pairing } = await serviceRoleClient
+      .from('groomer_customers')
+      .select('origin, acquisition_settled')
+      .eq('groomer_id', booking.groomer_id)
+      .eq('customer_id', booking.customer_id)
+      .maybeSingle();
+
+    const feeDue =
+      groomer.plan !== 'pro' &&
+      (pairing?.origin ?? 'search') === 'search' &&
+      !(pairing?.acquisition_settled ?? false);
+
+    if (feeDue) {
+      return jsonResponse(
+        {
+          error:
+            "This customer's first booking was booked through PawBooker and must be paid by card. You can mark cash on their future visits.",
+        },
+        400
+      );
+    }
 
     const { error: updateError } = await supabase
       .from('bookings')
@@ -79,10 +110,14 @@ Deno.serve(async (req) => {
       return jsonResponse({ error: updateError.message }, 500);
     }
 
-    const serviceRoleClient = createClient(
-      Deno.env.get('SUPABASE_URL')!,
-      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
-    );
+    // Close the acquisition window: a cash-paid first booking is only reachable
+    // when no fee was due (referral or Pro), but settling keeps a later
+    // downgrade from reopening it.
+    await serviceRoleClient
+      .from('groomer_customers')
+      .update({ acquisition_settled: true })
+      .eq('groomer_id', booking.groomer_id)
+      .eq('customer_id', booking.customer_id);
 
     const pushTokens = await pushTokensForUser(serviceRoleClient, booking.customer_id);
     await sendExpoPushToTokens(

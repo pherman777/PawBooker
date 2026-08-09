@@ -34,6 +34,8 @@ type BookingReview = {
 type BookingRow = {
   id: string;
   groomerId: string;
+  serviceId: string;
+  petId: string;
   startsAt: string;
   status: BookingStatus;
   groomerName: string;
@@ -54,6 +56,7 @@ const STATUS_COLORS: Record<BookingStatus, string> = {
   confirmed: Colors.light.success,
   completed: Colors.light.textMuted,
   cancelled: Colors.light.danger,
+  declined: Colors.light.warning,
 };
 
 export default function BookingsScreen() {
@@ -83,7 +86,7 @@ export default function BookingsScreen() {
       supabase
         .from('bookings')
         .select(
-          'id, groomer_id, starts_at, status, payment_status, cancellation_reason, invoice_total_cents, tax_amount_cents, tip_amount_cents, groomers(name, latitude, longitude), groomer_services(name), pets(name)'
+          'id, groomer_id, service_id, pet_id, starts_at, status, payment_status, cancellation_reason, invoice_total_cents, tax_amount_cents, tip_amount_cents, groomers(name, latitude, longitude), groomer_services(name), pets(name)'
         )
         .eq('customer_id', session.user.id)
         .order('starts_at', { ascending: false }),
@@ -101,6 +104,8 @@ export default function BookingsScreen() {
         (bookingsResult.data ?? []).map((row) => ({
           id: row.id,
           groomerId: row.groomer_id,
+          serviceId: row.service_id,
+          petId: row.pet_id,
           startsAt: row.starts_at,
           status: row.status,
           cancellationReason: row.cancellation_reason ?? undefined,
@@ -279,6 +284,30 @@ export default function BookingsScreen() {
 
               {item.status === 'cancelled' && item.cancellationReason && (
                 <Text style={styles.reasonText}>Reason: {item.cancellationReason}</Text>
+              )}
+
+              {item.status === 'declined' && (
+                <View style={styles.declinedBox}>
+                  <Text style={styles.declinedLabel}>Note from {item.groomerName}</Text>
+                  <Text style={styles.declinedNote}>
+                    {item.cancellationReason || 'They couldn’t take this time. Try booking another.'}
+                  </Text>
+                  <Pressable
+                    style={styles.rebookButton}
+                    onPress={() =>
+                      router.push({
+                        pathname: '/booking/[groomerId]',
+                        params: {
+                          groomerId: item.groomerId,
+                          serviceId: item.serviceId,
+                          petId: item.petId,
+                          note: item.cancellationReason ?? '',
+                        },
+                      })
+                    }>
+                    <Text style={styles.rebookButtonText}>Rebook a different time</Text>
+                  </Pressable>
+                </View>
               )}
 
               {item.paymentStatus === 'failed' && (
@@ -463,6 +492,38 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontStyle: 'italic',
     color: Colors.light.danger,
+  },
+  declinedBox: {
+    marginTop: 10,
+    padding: 12,
+    borderRadius: 10,
+    backgroundColor: Colors.light.surface,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: Colors.light.border,
+  },
+  declinedLabel: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: Colors.light.textMuted,
+    marginBottom: 4,
+  },
+  declinedNote: {
+    fontSize: 14,
+    lineHeight: 20,
+    color: Colors.light.text,
+  },
+  rebookButton: {
+    marginTop: 12,
+    height: 40,
+    borderRadius: 8,
+    backgroundColor: Colors.light.tint,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  rebookButtonText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#fff',
   },
   paymentFailedBanner: {
     marginTop: 8,

@@ -79,7 +79,7 @@ Deno.serve(async (req) => {
     const { data: booking, error: bookingError } = await supabase
       .from('bookings')
       .select(
-        'id, customer_id, customer_email, status, groomers(name, state, zip_code, stripe_connect_account_id, stripe_connect_charges_enabled), groomer_services(name), pets(name)'
+        'id, customer_id, customer_email, status, groomer_id, groomers(name, state, zip_code, plan, stripe_connect_account_id, stripe_connect_charges_enabled), groomer_services(name), pets(name)'
       )
       .eq('id', bookingId)
       .single();
@@ -110,6 +110,7 @@ Deno.serve(async (req) => {
       name: string;
       state: string | null;
       zip_code: string | null;
+      plan: string;
       stripe_connect_account_id: string | null;
       stripe_connect_charges_enabled: boolean;
     };
@@ -129,6 +130,24 @@ Deno.serve(async (req) => {
     if (!allowed) {
       return jsonResponse({ error: 'Too many charge attempts - please wait a few minutes and try again.' }, 429);
     }
+
+    // Platform acquisition fee: 5% of the pre-tax subtotal on the first booking
+    // of a customer the app brought this groomer, unless they're a referral or
+    // the groomer is on Pro. `acquisition_settled` closes the window after the
+    // first completed booking so it never fires twice (and a later Pro->Free
+    // downgrade can't reopen it).
+    const { data: pairing } = await serviceRoleClient
+      .from('groomer_customers')
+      .select('origin, acquisition_settled')
+      .eq('groomer_id', booking.groomer_id)
+      .eq('customer_id', booking.customer_id)
+      .maybeSingle();
+
+    const feeApplies =
+      groomer.plan !== 'pro' &&
+      (pairing?.origin ?? 'search') === 'search' &&
+      !(pairing?.acquisition_settled ?? false);
+    const acquisitionFeeCents = feeApplies ? Math.round(subtotalCents * 0.05) : 0;
 
     const { data: paymentMethods } = await serviceRoleClient
       .from('customer_payment_methods')
@@ -162,6 +181,11 @@ Deno.serve(async (req) => {
       };
       if (groomer.stripe_connect_account_id && groomer.stripe_connect_charges_enabled) {
         paymentIntentParams['transfer_data[destination]'] = groomer.stripe_connect_account_id;
+        // application_fee_amount only has meaning on a destination charge - it's
+        // the slice the platform keeps before the rest transfers to the groomer.
+        if (acquisitionFeeCents > 0) {
+          paymentIntentParams['application_fee_amount'] = String(acquisitionFeeCents);
+        }
       }
 
       const { ok, data } = await stripePost('payment_intents', paymentIntentParams);
@@ -201,6 +225,7 @@ Deno.serve(async (req) => {
         stripe_payment_intent_id: paymentIntent.id,
         invoice_total_cents: grandTotalCents,
         tax_amount_cents: taxAmountCents,
+        platform_fee_cents: acquisitionFeeCents,
         invoice_sent_at: new Date().toISOString(),
       })
       .eq('id', bookingId);
@@ -208,6 +233,17 @@ Deno.serve(async (req) => {
     if (updateError) {
       return jsonResponse({ error: updateError.message }, 500);
     }
+
+    // Close the acquisition window now that the first booking has completed.
+    // Only record the fee amount when we actually charged one, so a later
+    // (fee-free) booking doesn't overwrite the original fee on record.
+    const settleUpdate: Record<string, unknown> = { acquisition_settled: true };
+    if (acquisitionFeeCents > 0) settleUpdate.acquisition_fee_cents = acquisitionFeeCents;
+    await serviceRoleClient
+      .from('groomer_customers')
+      .update(settleUpdate)
+      .eq('groomer_id', booking.groomer_id)
+      .eq('customer_id', booking.customer_id);
 
     const pushTokens = await pushTokensForUser(serviceRoleClient, booking.customer_id);
     await sendExpoPushToTokens(

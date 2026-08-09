@@ -6,7 +6,8 @@ export type BookingEmailAction =
   | 'groomer_cancelled'
   | 'customer_cancelled'
   | 'booking_requested'
-  | 'service_completed';
+  | 'service_completed'
+  | 'declined';
 
 export async function sendBookingEmail(bookingId: string, action: BookingEmailAction) {
   const { error } = await supabase.functions.invoke('send-booking-email', {

@@ -42,7 +42,12 @@ function nextDays(count: number) {
 }
 
 export default function BookingScreen() {
-  const { groomerId, serviceId } = useLocalSearchParams<{ groomerId: string; serviceId: string }>();
+  const { groomerId, serviceId, petId, note } = useLocalSearchParams<{
+    groomerId: string;
+    serviceId: string;
+    petId?: string;
+    note?: string;
+  }>();
   const router = useRouter();
   const { session } = useAuth();
 
@@ -115,20 +120,25 @@ export default function BookingScreen() {
             breed: p.breed ?? undefined,
           }))
         );
-        setEligiblePetIds(
-          new Set(
-            petsResult.data
-              .filter((p) =>
-                hasCurrentRabiesVaccination(
-                  p.pet_documents.map((d) => ({
-                    documentType: d.document_type,
-                    expiresAt: d.expires_at ?? undefined,
-                  }))
-                )
+        const eligible = new Set(
+          petsResult.data
+            .filter((p) =>
+              hasCurrentRabiesVaccination(
+                p.pet_documents.map((d) => ({
+                  documentType: d.document_type,
+                  expiresAt: d.expires_at ?? undefined,
+                }))
               )
-              .map((p) => p.id)
-          )
+            )
+            .map((p) => p.id)
         );
+        setEligiblePetIds(eligible);
+
+        // On a rebook we're handed the original pet - preselect it if it's still
+        // eligible so the customer only has to pick a new time.
+        if (petId && eligible.has(petId)) {
+          setSelectedPetId(petId);
+        }
       }
 
       setLoading(false);
@@ -138,7 +148,7 @@ export default function BookingScreen() {
     return () => {
       cancelled = true;
     };
-  }, [serviceId, session]);
+  }, [serviceId, session, petId]);
 
   async function handleSavePet() {
     if (!newPetName.trim() || !session) return;
@@ -232,6 +242,13 @@ export default function BookingScreen() {
         <Text style={styles.serviceMeta}>
           {service.groomerName} · {service.durationMinutes} min · ${(service.priceCents / 100).toFixed(0)}
         </Text>
+
+        {note ? (
+          <View style={styles.noteBanner}>
+            <Text style={styles.noteBannerLabel}>Note from {service.groomerName}</Text>
+            <Text style={styles.noteBannerText}>{note}</Text>
+          </View>
+        ) : null}
 
         <Text style={styles.sectionTitle}>Choose a date</Text>
         <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.dayScroll}>
@@ -392,6 +409,25 @@ const styles = StyleSheet.create({
     marginTop: 4,
     fontSize: 15,
     color: Colors.light.textMuted,
+  },
+  noteBanner: {
+    marginTop: 16,
+    padding: 12,
+    borderRadius: 10,
+    backgroundColor: Colors.light.surface,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: Colors.light.border,
+  },
+  noteBannerLabel: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: Colors.light.textMuted,
+    marginBottom: 4,
+  },
+  noteBannerText: {
+    fontSize: 14,
+    lineHeight: 20,
+    color: Colors.light.text,
   },
   sectionTitle: {
     marginTop: 24,

@@ -84,6 +84,14 @@ export default function SignInScreen() {
           <Link href="/(auth)/sign-up" style={styles.link}>
             <Text style={styles.linkText}>Don&apos;t have an account? Sign up</Text>
           </Link>
+
+          <View style={styles.divider} />
+
+          <Link href="/groomer-signup" style={styles.link}>
+            <Text style={styles.linkText}>Are you a groomer? List your business</Text>
+          </Link>
+
+          <Text style={styles.copyright}>© 2026 PawBooker. All rights reserved.</Text>
         </ScrollView>
       </KeyboardAvoidingView>
     </SafeAreaView>
@@ -168,5 +176,17 @@ const styles = StyleSheet.create({
   linkText: {
     fontSize: 14,
     color: Colors.light.tint,
+  },
+  divider: {
+    height: StyleSheet.hairlineWidth,
+    backgroundColor: Colors.light.border,
+    marginTop: 24,
+    marginHorizontal: 32,
+  },
+  copyright: {
+    marginTop: 28,
+    textAlign: 'center',
+    fontSize: 12,
+    color: Colors.light.textMuted,
   },
 });

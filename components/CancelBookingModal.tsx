@@ -20,9 +20,24 @@ type Props = {
   submitting: boolean;
   onDismiss: () => void;
   onConfirm: (reason: string) => void;
+  // Defaults keep the original cancel-booking wording; the decline flow overrides
+  // these to ask for a note that suggests another time.
+  title?: string;
+  subtitle?: string;
+  placeholder?: string;
+  confirmLabel?: string;
 };
 
-export function CancelBookingModal({ visible, submitting, onDismiss, onConfirm }: Props) {
+export function CancelBookingModal({
+  visible,
+  submitting,
+  onDismiss,
+  onConfirm,
+  title = 'Cancel booking',
+  subtitle = 'Please provide a reason for the cancellation.',
+  placeholder = 'Reason for cancelling',
+  confirmLabel = 'Cancel booking',
+}: Props) {
   const [reason, setReason] = useState('');
 
   function handleDismiss() {
@@ -43,12 +58,12 @@ export function CancelBookingModal({ visible, submitting, onDismiss, onConfirm }
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
         <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
           <View style={styles.sheet}>
-            <Text style={styles.title}>Cancel booking</Text>
-            <Text style={styles.subtitle}>Please provide a reason for the cancellation.</Text>
+            <Text style={styles.title}>{title}</Text>
+            <Text style={styles.subtitle}>{subtitle}</Text>
 
             <TextInput
               style={styles.input}
-              placeholder="Reason for cancelling"
+              placeholder={placeholder}
               placeholderTextColor={Colors.light.textMuted}
               value={reason}
               onChangeText={setReason}
@@ -69,7 +84,7 @@ export function CancelBookingModal({ visible, submitting, onDismiss, onConfirm }
                 {submitting ? (
                   <ActivityIndicator color="#fff" />
                 ) : (
-                  <Text style={styles.confirmButtonText}>Cancel booking</Text>
+                  <Text style={styles.confirmButtonText}>{confirmLabel}</Text>
                 )}
               </Pressable>
             </View>

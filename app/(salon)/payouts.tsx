@@ -21,6 +21,7 @@ export default function PayoutsScreen() {
   const { groomerProfile, refreshGroomerProfile } = useAuth();
   const groomerId = groomerProfile?.id;
   const [status, setStatus] = useState<ConnectStatus | null>(null);
+  const [feesThisMonthCents, setFeesThisMonthCents] = useState(0);
   const [loading, setLoading] = useState(true);
   const [working, setWorking] = useState(false);
 
@@ -28,12 +29,25 @@ export default function PayoutsScreen() {
     if (!groomerId) return;
     setLoading(true);
 
-    const { data } = await supabase
-      .from('groomers')
-      .select('stripe_connect_account_id, stripe_connect_charges_enabled, stripe_connect_payouts_enabled')
-      .eq('id', groomerId)
-      .single();
+    const monthStart = new Date();
+    monthStart.setDate(1);
+    monthStart.setHours(0, 0, 0, 0);
 
+    const [groomerResult, feesResult] = await Promise.all([
+      supabase
+        .from('groomers')
+        .select('stripe_connect_account_id, stripe_connect_charges_enabled, stripe_connect_payouts_enabled')
+        .eq('id', groomerId)
+        .single(),
+      supabase
+        .from('bookings')
+        .select('platform_fee_cents')
+        .eq('groomer_id', groomerId)
+        .eq('status', 'completed')
+        .gte('invoice_sent_at', monthStart.toISOString()),
+    ]);
+
+    const data = groomerResult.data;
     setStatus(
       data
         ? {
@@ -43,6 +57,7 @@ export default function PayoutsScreen() {
           }
         : null
     );
+    setFeesThisMonthCents((feesResult.data ?? []).reduce((sum, row) => sum + (row.platform_fee_cents ?? 0), 0));
     setLoading(false);
     await refreshGroomerProfile();
   }, [groomerId, refreshGroomerProfile]);
@@ -54,6 +69,7 @@ export default function PayoutsScreen() {
   );
 
   const isFullySetUp = Boolean(status?.chargesEnabled && status?.payoutsEnabled);
+  const isPro = groomerProfile?.plan === 'pro';
 
   async function handleSetUpPayouts() {
     setWorking(true);
@@ -133,6 +149,26 @@ export default function PayoutsScreen() {
                 </Text>
               )}
             </Pressable>
+
+            <View style={styles.feeCard}>
+              <Text style={styles.feeCardLabel}>PawBooker fees this month</Text>
+              <Text style={styles.feeCardAmount}>${(feesThisMonthCents / 100).toFixed(2)}</Text>
+              {isPro ? (
+                <Text style={styles.feeCardNote}>
+                  You&apos;re on Pro — a flat $35/month with no per-booking acquisition fees.
+                </Text>
+              ) : (
+                <>
+                  <Text style={styles.feeCardNote}>
+                    A one-time 5% fee applies to each new customer&apos;s first booking. Pro is a flat
+                    $35/month with no acquisition fees.
+                  </Text>
+                  <Pressable onPress={() => router.push('/(salon)/plan')}>
+                    <Text style={styles.feeCardLink}>See how Pro compares →</Text>
+                  </Pressable>
+                </>
+              )}
+            </View>
           </>
         )}
       </ScrollView>
@@ -211,6 +247,37 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.light.tint,
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  feeCard: {
+    marginTop: 28,
+    padding: 18,
+    borderRadius: 14,
+    backgroundColor: Colors.light.surface,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: Colors.light.border,
+  },
+  feeCardLabel: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: Colors.light.textMuted,
+  },
+  feeCardAmount: {
+    marginTop: 4,
+    fontSize: 28,
+    fontWeight: '800',
+    color: Colors.light.text,
+  },
+  feeCardNote: {
+    marginTop: 10,
+    fontSize: 13,
+    lineHeight: 19,
+    color: Colors.light.textMuted,
+  },
+  feeCardLink: {
+    marginTop: 12,
+    fontSize: 14,
+    fontWeight: '600',
+    color: Colors.light.tint,
   },
   actionButtonText: {
     color: '#fff',

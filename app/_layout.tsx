@@ -25,7 +25,12 @@ function RouteGuard({ children }: { children: React.ReactNode }) {
     const segment = segments[0];
 
     if (!session) {
-      if (segment !== '(auth)') router.replace('/(auth)/sign-in');
+      // groomer-signup is reachable while logged out (it guides them to create
+      // an account first) and while logged in (from the customer Profile tab),
+      // so it lives outside the (auth) group and is allowed in both states.
+      if (segment !== '(auth)' && (segment as string) !== 'groomer-signup') {
+        router.replace('/(auth)/sign-in');
+      }
       return;
     }
 
@@ -100,6 +105,7 @@ export default function RootLayout() {
               <Stack.Screen name="(auth)" />
               <Stack.Screen name="(tabs)" />
               <Stack.Screen name="(salon)" />
+              <Stack.Screen name="groomer-signup" />
               <Stack.Screen
                 name="groomer/[id]"
                 options={{

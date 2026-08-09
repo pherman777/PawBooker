@@ -59,7 +59,7 @@ export type Groomer = {
   hours?: GroomerHours;
 };
 
-export type BookingStatus = 'pending' | 'confirmed' | 'completed' | 'cancelled';
+export type BookingStatus = 'pending' | 'confirmed' | 'completed' | 'cancelled' | 'declined';
 export type PaymentStatus = 'unpaid' | 'paid' | 'failed';
 
 export type Booking = {

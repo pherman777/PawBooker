@@ -27,6 +27,7 @@ export default function CompleteBookingScreen() {
   const [loadError, setLoadError] = useState<string | null>(null);
   const [charging, setCharging] = useState(false);
   const [markingCash, setMarkingCash] = useState(false);
+  const [cashBlocked, setCashBlocked] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -35,7 +36,7 @@ export default function CompleteBookingScreen() {
       const [bookingResult, existingItemsResult] = await Promise.all([
         supabase
           .from('bookings')
-          .select('pets(name), groomer_services(name, price_cents)')
+          .select('customer_id, groomer_id, pets(name), groomer_services(name, price_cents), groomers(plan)')
           .eq('id', bookingId)
           .single(),
         supabase.from('booking_line_items').select('description, amount_cents').eq('booking_id', bookingId),
@@ -54,8 +55,24 @@ export default function CompleteBookingScreen() {
         name: string;
         price_cents: number;
       };
+      const groomer = bookingResult.data.groomers as unknown as { plan: string };
       setPetName(pet?.name ?? 'Pet');
       setServiceName(service?.name ?? 'Service');
+
+      // An app-acquired customer's first booking must be paid by card so the 5%
+      // acquisition fee is collectible. Mirror the server's rule so we can
+      // disable the cash button up front rather than failing on submit.
+      if (groomer?.plan !== 'pro') {
+        const { data: pairing } = await supabase
+          .from('groomer_customers')
+          .select('origin, acquisition_settled')
+          .eq('groomer_id', bookingResult.data.groomer_id)
+          .eq('customer_id', bookingResult.data.customer_id)
+          .maybeSingle();
+        if (!cancelled) {
+          setCashBlocked((pairing?.origin ?? 'search') === 'search' && !(pairing?.acquisition_settled ?? false));
+        }
+      }
 
       if (existingItemsResult.data && existingItemsResult.data.length > 0) {
         setLineItems(
@@ -214,6 +231,25 @@ export default function CompleteBookingScreen() {
         </View>
         <Text style={styles.taxNote}>Sales tax (if applicable) is calculated and added at checkout.</Text>
 
+        {cashBlocked && totalCents > 0 && (
+          <View style={styles.feeCard}>
+            <Text style={styles.feeCardTitle}>New customer from PawBooker</Text>
+            <View style={styles.feeRow}>
+              <Text style={styles.feeRowLabel}>One-time acquisition fee (5%)</Text>
+              <Text style={styles.feeRowValue}>−${(Math.round(totalCents * 0.05) / 100).toFixed(2)}</Text>
+            </View>
+            <View style={styles.feeRow}>
+              <Text style={styles.feeRowLabelBold}>You receive</Text>
+              <Text style={styles.feeRowValueBold}>
+                ${((totalCents - Math.round(totalCents * 0.05)) / 100).toFixed(2)}
+              </Text>
+            </View>
+            <Text style={styles.feeCardNote}>
+              Applies only to this first booking. Future visits from this customer have no fee.
+            </Text>
+          </View>
+        )}
+
         <Pressable
           style={[styles.chargeButton, (charging || markingCash || totalCents <= 0) && styles.buttonDisabled]}
           onPress={handleChargeAndComplete}
@@ -225,17 +261,26 @@ export default function CompleteBookingScreen() {
           )}
         </Pressable>
 
-        <Pressable
-          style={[styles.cashButton, (charging || markingCash || totalCents <= 0) && styles.buttonDisabled]}
-          onPress={handleMarkPaidCash}
-          disabled={charging || markingCash || totalCents <= 0}>
-          {markingCash ? (
-            <ActivityIndicator color={Colors.light.tint} />
-          ) : (
-            <Text style={styles.cashButtonText}>Mark as paid (cash)</Text>
-          )}
-        </Pressable>
-        <Text style={styles.cashNote}>Use this if your customer paid you directly in cash.</Text>
+        {cashBlocked ? (
+          <Text style={styles.cashBlockedNote}>
+            This customer&apos;s first booking came through PawBooker, so it must be paid by card. You can
+            mark cash on their future visits.
+          </Text>
+        ) : (
+          <>
+            <Pressable
+              style={[styles.cashButton, (charging || markingCash || totalCents <= 0) && styles.buttonDisabled]}
+              onPress={handleMarkPaidCash}
+              disabled={charging || markingCash || totalCents <= 0}>
+              {markingCash ? (
+                <ActivityIndicator color={Colors.light.tint} />
+              ) : (
+                <Text style={styles.cashButtonText}>Mark as paid (cash)</Text>
+              )}
+            </Pressable>
+            <Text style={styles.cashNote}>Use this if your customer paid you directly in cash.</Text>
+          </>
+        )}
       </ScrollView>
     </SafeAreaView>
   );
@@ -374,6 +419,49 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: Colors.light.textMuted,
   },
+  feeCard: {
+    marginTop: 16,
+    padding: 14,
+    borderRadius: 10,
+    backgroundColor: Colors.light.surface,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: Colors.light.border,
+  },
+  feeCardTitle: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: Colors.light.text,
+    marginBottom: 8,
+  },
+  feeRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginTop: 4,
+  },
+  feeRowLabel: {
+    fontSize: 13,
+    color: Colors.light.textMuted,
+  },
+  feeRowValue: {
+    fontSize: 13,
+    color: Colors.light.textMuted,
+  },
+  feeRowLabelBold: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: Colors.light.text,
+  },
+  feeRowValueBold: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: Colors.light.text,
+  },
+  feeCardNote: {
+    marginTop: 10,
+    fontSize: 12,
+    lineHeight: 17,
+    color: Colors.light.textMuted,
+  },
   chargeButton: {
     marginTop: 24,
     height: 50,
@@ -404,6 +492,18 @@ const styles = StyleSheet.create({
   cashNote: {
     marginTop: 8,
     fontSize: 12,
+    color: Colors.light.textMuted,
+    textAlign: 'center',
+  },
+  cashBlockedNote: {
+    marginTop: 16,
+    padding: 12,
+    borderRadius: 10,
+    backgroundColor: Colors.light.surface,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: Colors.light.border,
+    fontSize: 13,
+    lineHeight: 19,
     color: Colors.light.textMuted,
     textAlign: 'center',
   },
