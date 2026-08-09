@@ -26,6 +26,7 @@ export default function PlanScreen() {
   const [working, setWorking] = useState(false);
   const [cancelAtPeriodEnd, setCancelAtPeriodEnd] = useState(false);
   const [periodEnd, setPeriodEnd] = useState<string | null>(null);
+  const [hasSubscription, setHasSubscription] = useState(false);
   const [confirmingUpgrade, setConfirmingUpgrade] = useState(false);
   const groomerProfileRef = useRef(groomerProfile);
 
@@ -39,12 +40,13 @@ export default function PlanScreen() {
 
     const { data: groomerResult } = await supabase
       .from('groomers')
-      .select('stripe_cancel_at_period_end, plan_current_period_end')
+      .select('stripe_cancel_at_period_end, plan_current_period_end, stripe_subscription_id')
       .eq('id', groomerProfile.id)
       .single();
 
     setCancelAtPeriodEnd(Boolean(groomerResult?.stripe_cancel_at_period_end));
     setPeriodEnd(groomerResult?.plan_current_period_end ?? null);
+    setHasSubscription(Boolean(groomerResult?.stripe_subscription_id));
 
     setLoading(false);
   }, [groomerProfile]);
@@ -155,7 +157,7 @@ export default function PlanScreen() {
               keep Pro access until then.
             </Text>
           </View>
-        ) : isPro ? (
+        ) : isPro && hasSubscription ? (
           <Pressable style={styles.cancelButton} onPress={handleCancel} disabled={working}>
             {working ? (
               <ActivityIndicator color={Colors.light.danger} size="small" />
@@ -163,6 +165,13 @@ export default function PlanScreen() {
               <Text style={styles.cancelButtonText}>Cancel subscription</Text>
             )}
           </Pressable>
+        ) : isPro ? (
+          <View style={styles.cancelNotice}>
+            <Ionicons name="checkmark-circle-outline" size={18} color={Colors.light.textMuted} />
+            <Text style={styles.cancelNoticeText}>
+              You&apos;re on a complimentary Pro plan — no billing and nothing to cancel.
+            </Text>
+          </View>
         ) : (
           <View style={styles.upgradeNotice}>
             <Text style={styles.upgradeNoticeText}>
