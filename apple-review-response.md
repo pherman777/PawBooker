@@ -30,3 +30,21 @@ Registering as a grooming business is now fully self-service, directly in the ap
 You can also create a business account yourself from the sign-in screen or the Profile tab, and a standard pet-owner account through normal sign-up.
 
 We're glad to provide any additional information or a walkthrough of either experience. Thank you for your time.
+
+---
+
+## App Review Notes (short version)
+
+> Paste into App Store Connect → App Information → App Review Information → Notes.
+> Keep the groomer demo credentials in the separate Sign-In Information fields.
+
+PawBooker has two user types:
+
+- **Pet owners (customers)** — book grooming, pay, and message groomers. Created via normal sign-up.
+- **Grooming businesses (groomers)** — manage services, hours, bookings, and payouts.
+
+The demo account provided in Sign-In Information is a **business (groomer) account** — sign in with it to see the full business experience.
+
+To create a business account yourself: on the sign-in screen tap **"Are you a groomer? List your business"** (also in the Profile tab). Normal sign-up creates a customer account. No features are hidden, remotely toggled, or conditional.
+
+Contact: support@paw-booker.com
