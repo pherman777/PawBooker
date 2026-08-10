@@ -12,10 +12,12 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { Colors } from '@/constants/theme';
+import { fetchActiveStaff, fetchBusyIntervals, type SalonStaff } from '@/services/availability';
 import { useAuth } from '@/services/auth-context';
 import { notifyGroomer, sendBookingEmail } from '@/services/notifications';
 import { supabase } from '@/services/supabase';
-import type { Pet } from '@/types';
+import type { GroomerHours, Pet } from '@/types';
+import { computeAvailableTimes, type BusyInterval, type StaffSelection } from '@/utils/availability';
 import { notify } from '@/utils/confirm';
 import { hasCurrentRabiesVaccination } from '@/utils/vaccination';
 import { formatTime } from '@/utils/hours';
@@ -28,7 +30,6 @@ type ServiceInfo = {
   groomerName: string;
 };
 
-const TIME_SLOTS = ['09:00', '10:00', '11:00', '12:00', '13:00', '14:00', '15:00', '16:00', '17:00'];
 const DAYS_AHEAD = 14;
 const PET_SPECIES: Pet['species'][] = ['dog', 'cat', 'other'];
 
@@ -58,6 +59,11 @@ export default function BookingScreen() {
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
 
+  const [salonHours, setSalonHours] = useState<GroomerHours | null>(null);
+  const [staff, setStaff] = useState<SalonStaff[]>([]);
+  const [busy, setBusy] = useState<BusyInterval[]>([]);
+  const [staffSelection, setStaffSelection] = useState<string>('any'); // 'any' or a staff id
+
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
   const [selectedTime, setSelectedTime] = useState<string | null>(null);
   const [selectedPetId, setSelectedPetId] = useState<string | null>(null);
@@ -72,13 +78,33 @@ export default function BookingScreen() {
 
   const days = useMemo(() => nextDays(DAYS_AHEAD), []);
 
+  const availableTimes = useMemo(() => {
+    if (!selectedDate || !service) return [];
+    const selection: StaffSelection =
+      staffSelection === 'any'
+        ? { kind: 'any', capacity: Math.max(staff.length, 1) }
+        : { kind: 'staff', staffId: staffSelection };
+    return computeAvailableTimes({
+      date: selectedDate,
+      hours: salonHours,
+      durationMinutes: service.durationMinutes,
+      busy,
+      selection,
+    });
+  }, [selectedDate, service, staffSelection, staff.length, salonHours, busy]);
+
   useEffect(() => {
     let cancelled = false;
 
     async function load() {
       if (!session) return;
 
-      const [serviceResult, petsResult, billingResult] = await Promise.all([
+      const windowStart = new Date();
+      windowStart.setHours(0, 0, 0, 0);
+      const windowEnd = new Date(windowStart);
+      windowEnd.setDate(windowEnd.getDate() + DAYS_AHEAD);
+
+      const [serviceResult, petsResult, billingResult, hoursResult, staffResult, busyResult] = await Promise.all([
         supabase
           .from('groomer_services')
           .select('id, name, price_cents, duration_minutes, groomers(name)')
@@ -89,10 +115,16 @@ export default function BookingScreen() {
           .select('id, owner_id, name, species, breed, pet_documents(document_type, expires_at)')
           .eq('owner_id', session.user.id),
         supabase.from('customer_billing').select('user_id').eq('user_id', session.user.id).maybeSingle(),
+        supabase.from('groomers').select('hours').eq('id', groomerId).single(),
+        fetchActiveStaff(groomerId),
+        fetchBusyIntervals(groomerId, windowStart, windowEnd),
       ]);
 
       if (!cancelled) {
         setHasPaymentMethod(billingResult.data != null);
+        setSalonHours((hoursResult.data?.hours ?? null) as GroomerHours | null);
+        setStaff(staffResult);
+        setBusy(busyResult);
       }
 
       if (cancelled) return;
@@ -198,6 +230,7 @@ export default function BookingScreen() {
         groomer_id: groomerId,
         pet_id: selectedPetId,
         service_id: service.id,
+        staff_id: staffSelection === 'any' ? null : staffSelection,
         starts_at: startsAt.toISOString(),
         status: 'pending',
       })
@@ -258,7 +291,10 @@ export default function BookingScreen() {
               <Pressable
                 key={day.toISOString()}
                 style={[styles.dayChip, isSelected && styles.chipSelected]}
-                onPress={() => setSelectedDate(day)}>
+                onPress={() => {
+                  setSelectedDate(day);
+                  setSelectedTime(null);
+                }}>
                 <Text style={[styles.dayChipWeekday, isSelected && styles.chipTextSelected]}>
                   {day.toLocaleDateString(undefined, { weekday: 'short' })}
                 </Text>
@@ -270,22 +306,64 @@ export default function BookingScreen() {
           })}
         </ScrollView>
 
-        <Text style={styles.sectionTitle}>Choose a time</Text>
-        <View style={styles.timeGrid}>
-          {TIME_SLOTS.map((slot) => {
-            const isSelected = selectedTime === slot;
-            return (
+        {staff.length >= 2 && (
+          <>
+            <Text style={styles.sectionTitle}>Choose your groomer</Text>
+            <View style={styles.petRow}>
               <Pressable
-                key={slot}
-                style={[styles.timeChip, isSelected && styles.chipSelected]}
-                onPress={() => setSelectedTime(slot)}>
-                <Text style={[styles.timeChipText, isSelected && styles.chipTextSelected]}>
-                  {formatTime(slot)}
+                style={[styles.groomerChip, staffSelection === 'any' && styles.chipSelected]}
+                onPress={() => {
+                  setStaffSelection('any');
+                  setSelectedTime(null);
+                }}>
+                <Text style={[styles.groomerChipText, staffSelection === 'any' && styles.chipTextSelected]}>
+                  First available
                 </Text>
               </Pressable>
-            );
-          })}
-        </View>
+              {staff.map((member) => {
+                const isSelected = staffSelection === member.id;
+                return (
+                  <Pressable
+                    key={member.id}
+                    style={[styles.groomerChip, isSelected && styles.chipSelected]}
+                    onPress={() => {
+                      setStaffSelection(member.id);
+                      setSelectedTime(null);
+                    }}>
+                    <Text style={[styles.groomerChipText, isSelected && styles.chipTextSelected]}>
+                      {member.name}
+                    </Text>
+                  </Pressable>
+                );
+              })}
+            </View>
+          </>
+        )}
+
+        <Text style={styles.sectionTitle}>Choose a time</Text>
+        {!selectedDate ? (
+          <Text style={styles.timeHint}>Pick a date to see available times.</Text>
+        ) : availableTimes.length === 0 ? (
+          <Text style={styles.timeHint}>
+            No open times on this day{staffSelection === 'any' ? '' : ' for this groomer'}. Try another date.
+          </Text>
+        ) : (
+          <View style={styles.timeGrid}>
+            {availableTimes.map((slot) => {
+              const isSelected = selectedTime === slot;
+              return (
+                <Pressable
+                  key={slot}
+                  style={[styles.timeChip, isSelected && styles.chipSelected]}
+                  onPress={() => setSelectedTime(slot)}>
+                  <Text style={[styles.timeChipText, isSelected && styles.chipTextSelected]}>
+                    {formatTime(slot)}
+                  </Text>
+                </Pressable>
+              );
+            })}
+          </View>
+        )}
 
         <Text style={styles.sectionTitle}>Which pet?</Text>
         <View style={styles.petRow}>
@@ -473,6 +551,22 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.light.surface,
   },
   timeChipText: {
+    fontSize: 14,
+    color: Colors.light.text,
+  },
+  timeHint: {
+    fontSize: 14,
+    color: Colors.light.textMuted,
+  },
+  groomerChip: {
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    borderRadius: 10,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: Colors.light.border,
+    backgroundColor: Colors.light.surface,
+  },
+  groomerChipText: {
     fontSize: 14,
     color: Colors.light.text,
   },

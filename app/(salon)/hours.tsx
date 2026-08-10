@@ -1,22 +1,14 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'expo-router';
-import {
-  ActivityIndicator,
-  Pressable,
-  ScrollView,
-  StyleSheet,
-  Switch,
-  Text,
-  TextInput,
-  View,
-} from 'react-native';
+import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Switch, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { TimePickerModal } from '@/components/TimePickerModal';
 import { Colors } from '@/constants/theme';
 import { useAuth } from '@/services/auth-context';
 import { supabase } from '@/services/supabase';
 import type { GroomerHours } from '@/types';
-import { DAYS_OF_WEEK, dayLabel } from '@/utils/hours';
+import { DAYS_OF_WEEK, dayLabel, formatTime } from '@/utils/hours';
 import { notify } from '@/utils/confirm';
 
 type DayDraft = {
@@ -28,15 +20,7 @@ type DayDraft = {
 const DEFAULT_OPEN = '09:00';
 const DEFAULT_CLOSE = '17:00';
 
-// Accepts 24-hour HH:MM. Returns a zero-padded value or null if it can't parse.
-function normalizeTime(value: string): string | null {
-  const match = value.trim().match(/^(\d{1,2}):(\d{2})$/);
-  if (!match) return null;
-  const hour = Number(match[1]);
-  const minute = Number(match[2]);
-  if (hour > 23 || minute > 59) return null;
-  return `${String(hour).padStart(2, '0')}:${match[2]}`;
-}
+type PickerTarget = { day: string; field: 'open' | 'close' };
 
 export default function HoursScreen() {
   const router = useRouter();
@@ -44,6 +28,7 @@ export default function HoursScreen() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [draft, setDraft] = useState<Record<string, DayDraft>>({});
+  const [picker, setPicker] = useState<PickerTarget | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -87,17 +72,13 @@ export default function HoursScreen() {
         hours[day] = null;
         continue;
       }
-      const open = normalizeTime(entry.open);
-      const close = normalizeTime(entry.close);
-      if (!open || !close) {
-        notify('Check your times', `Use 24-hour HH:MM format (e.g. 09:00) for ${dayLabel(day as keyof GroomerHours)}.`);
-        return;
-      }
-      if (open >= close) {
+      // Values come from the picker, so they're already valid HH:MM; just guard
+      // that closing is after opening (string compare works for zero-padded 24h).
+      if (entry.open >= entry.close) {
         notify('Check your times', `Closing time must be after opening time on ${dayLabel(day as keyof GroomerHours)}.`);
         return;
       }
-      hours[day] = { open, close };
+      hours[day] = { open: entry.open, close: entry.close };
     }
 
     setSaving(true);
@@ -129,9 +110,7 @@ export default function HoursScreen() {
       </View>
       <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
         <Text style={styles.title}>Hours</Text>
-        <Text style={styles.subtitle}>
-          Turn on the days you&apos;re open and set your hours. Use 24-hour time (e.g. 09:00, 17:30).
-        </Text>
+        <Text style={styles.subtitle}>Turn on the days you&apos;re open and tap a time to set your hours.</Text>
 
         {DAYS_OF_WEEK.map((day) => {
           const entry = draft[day];
@@ -147,23 +126,13 @@ export default function HoursScreen() {
               </View>
               {entry?.enabled && (
                 <View style={styles.timesRow}>
-                  <TextInput
-                    style={styles.timeInput}
-                    value={entry.open}
-                    onChangeText={(text) => setDay(day, { open: text })}
-                    placeholder="09:00"
-                    placeholderTextColor={Colors.light.textMuted}
-                    keyboardType="numbers-and-punctuation"
-                  />
+                  <Pressable style={styles.timeField} onPress={() => setPicker({ day, field: 'open' })}>
+                    <Text style={styles.timeFieldText}>{formatTime(entry.open)}</Text>
+                  </Pressable>
                   <Text style={styles.toLabel}>to</Text>
-                  <TextInput
-                    style={styles.timeInput}
-                    value={entry.close}
-                    onChangeText={(text) => setDay(day, { close: text })}
-                    placeholder="17:00"
-                    placeholderTextColor={Colors.light.textMuted}
-                    keyboardType="numbers-and-punctuation"
-                  />
+                  <Pressable style={styles.timeField} onPress={() => setPicker({ day, field: 'close' })}>
+                    <Text style={styles.timeFieldText}>{formatTime(entry.close)}</Text>
+                  </Pressable>
                 </View>
               )}
             </View>
@@ -177,6 +146,20 @@ export default function HoursScreen() {
           {saving ? <ActivityIndicator color="#fff" /> : <Text style={styles.buttonText}>Save</Text>}
         </Pressable>
       </ScrollView>
+
+      <TimePickerModal
+        visible={picker != null}
+        value={picker ? draft[picker.day]?.[picker.field] ?? DEFAULT_OPEN : DEFAULT_OPEN}
+        title={
+          picker
+            ? `${dayLabel(picker.day as keyof GroomerHours)} ${picker.field === 'open' ? 'opening' : 'closing'} time`
+            : undefined
+        }
+        onSelect={(value) => {
+          if (picker) setDay(picker.day, { [picker.field]: value });
+        }}
+        onDismiss={() => setPicker(null)}
+      />
     </SafeAreaView>
   );
 }
@@ -235,7 +218,7 @@ const styles = StyleSheet.create({
     gap: 12,
     marginTop: 12,
   },
-  timeInput: {
+  timeField: {
     flex: 1,
     height: 44,
     borderRadius: 10,
@@ -243,7 +226,12 @@ const styles = StyleSheet.create({
     borderColor: Colors.light.border,
     backgroundColor: Colors.light.surface,
     paddingHorizontal: 14,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  timeFieldText: {
     fontSize: 16,
+    fontWeight: '600',
     color: Colors.light.text,
   },
   toLabel: {

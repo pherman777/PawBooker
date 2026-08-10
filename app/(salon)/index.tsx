@@ -36,6 +36,7 @@ type SalonBookingRow = {
   serviceCompletedAt?: string;
   serviceName: string;
   petName: string;
+  staffName?: string;
   cancellationReason?: string;
   invoiceTotalCents?: number;
   platformFeeCents?: number;
@@ -96,7 +97,7 @@ export default function SalonDashboardScreen() {
     const { data, error: queryError } = await supabase
       .from('bookings')
       .select(
-        'id, customer_id, starts_at, status, payment_status, service_completed_at, cancellation_reason, invoice_total_cents, platform_fee_cents, pets(name), groomer_services(name)'
+        'id, customer_id, starts_at, status, payment_status, service_completed_at, cancellation_reason, invoice_total_cents, platform_fee_cents, pets(name), groomer_services(name), salon_staff(name)'
       )
       .eq('groomer_id', groomerProfile.id)
       .order('starts_at', { ascending: false });
@@ -117,6 +118,7 @@ export default function SalonDashboardScreen() {
           platformFeeCents: row.platform_fee_cents ?? undefined,
           serviceName: (row.groomer_services as unknown as { name: string })?.name ?? 'Service',
           petName: (row.pets as unknown as { name: string })?.name ?? 'Pet',
+          staffName: (row.salon_staff as unknown as { name: string } | null)?.name ?? undefined,
         }))
       );
     }
@@ -198,6 +200,7 @@ export default function SalonDashboardScreen() {
       { label: 'Business info', onPress: () => router.push('/(salon)/business-info') },
       { label: 'Services & prices', onPress: () => router.push('/(salon)/services') },
       { label: 'Hours', onPress: () => router.push('/(salon)/hours') },
+      { label: 'Groomers', onPress: () => router.push('/(salon)/staff') },
       { label: 'Invite your customers', onPress: () => router.push('/(salon)/invite') },
       {
         label: isPro ? 'Insights' : 'Insights (upgrade to Pro)',
@@ -488,7 +491,10 @@ export default function SalonDashboardScreen() {
                 <Text style={styles.cardService}>{item.serviceName}</Text>
                 <Text style={[styles.cardStatus, { color: STATUS_COLORS[item.status] }]}>{item.status}</Text>
               </View>
-              <Text style={styles.cardMeta}>for {item.petName}</Text>
+              <Text style={styles.cardMeta}>
+                for {item.petName}
+                {item.staffName ? ` · with ${item.staffName}` : ''}
+              </Text>
               <Text style={styles.cardMeta}>
                 {new Date(item.startsAt).toLocaleString(undefined, {
                   weekday: 'short',
