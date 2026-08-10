@@ -105,7 +105,7 @@ export default function GroomerSignupScreen() {
   if (confirmSent) {
     return (
       <SafeAreaView style={styles.container}>
-        <ScrollView contentContainerStyle={styles.content}>
+        <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.content}>
           <View style={styles.brand}>
             <Logo size={64} />
             <Wordmark size={20} style={styles.brandName} />
@@ -128,7 +128,7 @@ export default function GroomerSignupScreen() {
       <KeyboardAvoidingView
         style={styles.flex}
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-        <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
+        <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
           <View style={styles.brand}>
             <Logo size={64} />
             <Wordmark size={20} style={styles.brandName} />

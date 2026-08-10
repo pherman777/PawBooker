@@ -12,6 +12,7 @@ type StepState = {
   hasServices: boolean;
   hasHours: boolean;
   hasSupplies: boolean;
+  hasStaff: boolean;
 };
 
 type SalonRoute =
@@ -19,7 +20,8 @@ type SalonRoute =
   | '/(salon)/services'
   | '/(salon)/hours'
   | '/(salon)/payouts'
-  | '/(salon)/supplies';
+  | '/(salon)/supplies'
+  | '/(salon)/staff';
 
 type Step = {
   key: string;
@@ -41,7 +43,7 @@ export default function SalonWelcomeScreen() {
     setLoading(true);
     await refreshGroomerProfile();
 
-    const [servicesResult, suppliesResult, groomerResult] = await Promise.all([
+    const [servicesResult, suppliesResult, staffResult, groomerResult] = await Promise.all([
       supabase
         .from('groomer_services')
         .select('id', { count: 'exact', head: true })
@@ -50,6 +52,11 @@ export default function SalonWelcomeScreen() {
         .from('groomer_supplies')
         .select('id', { count: 'exact', head: true })
         .eq('groomer_id', groomerProfile.id),
+      supabase
+        .from('salon_staff')
+        .select('id', { count: 'exact', head: true })
+        .eq('salon_id', groomerProfile.id)
+        .eq('active', true),
       supabase.from('groomers').select('hours').eq('id', groomerProfile.id).single(),
     ]);
 
@@ -59,6 +66,7 @@ export default function SalonWelcomeScreen() {
     setState({
       hasServices: (servicesResult.count ?? 0) > 0,
       hasSupplies: (suppliesResult.count ?? 0) > 0,
+      hasStaff: (staffResult.count ?? 0) > 0,
       hasHours,
     });
     setLoading(false);
@@ -106,6 +114,14 @@ export default function SalonWelcomeScreen() {
       route: '/(salon)/payouts',
     },
     {
+      key: 'staff',
+      title: 'Add your groomers',
+      subtitle: "Let customers book a specific groomer (skip if it's just you)",
+      done: Boolean(state?.hasStaff),
+      required: false,
+      route: '/(salon)/staff',
+    },
+    {
       key: 'supplies',
       title: 'Add your supplies',
       subtitle: 'Track inventory and get low-stock reminders',
@@ -121,7 +137,7 @@ export default function SalonWelcomeScreen() {
 
   return (
     <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
-      <ScrollView contentContainerStyle={styles.content}>
+      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.content}>
         <Text style={styles.title}>Welcome to PawBooker</Text>
         <Text style={styles.subtitle}>
           Finish these steps so customers can book you and you get paid. You&apos;re listed as soon as

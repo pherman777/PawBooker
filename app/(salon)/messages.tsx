@@ -128,7 +128,7 @@ export default function SalonMessagesScreen() {
       {loading && <ActivityIndicator style={styles.loading} color={Colors.light.tint} />}
 
       {!loading && (
-        <FlatList
+        <FlatList showsVerticalScrollIndicator={false}
           data={threads}
           keyExtractor={(item) => item.id}
           style={styles.flatList}

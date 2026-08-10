@@ -210,7 +210,7 @@ export default function ProfileScreen() {
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
-      <ScrollView contentContainerStyle={styles.content}>
+      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.content}>
         <AppHeader title="Profile" />
         <Text style={styles.email}>{session?.user.email}</Text>
 

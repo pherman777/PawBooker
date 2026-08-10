@@ -52,7 +52,7 @@ export function BreedPicker({ value, onChange }: Props) {
             autoFocus
           />
 
-          <FlatList
+          <FlatList showsVerticalScrollIndicator={false}
             data={options}
             keyExtractor={(item) => item}
             keyboardShouldPersistTaps="handled"

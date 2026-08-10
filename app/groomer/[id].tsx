@@ -44,7 +44,7 @@ export default function GroomerDetailScreen() {
         supabase
           .from('groomers')
           .select(
-            'id, name, avatar_url, bio, address, latitude, longitude, rating, review_count, phone, email, hours, deactivated_at, groomer_services(id, name, price_cents, duration_minutes)'
+            'id, name, avatar_url, bio, address, latitude, longitude, rating, review_count, phone, email, hours, deactivated_at, groomer_services(id, name, price_cents, duration_minutes, description)'
           )
           .eq('id', id)
           .single(),
@@ -79,6 +79,7 @@ export default function GroomerDetailScreen() {
             name: s.name,
             priceCents: s.price_cents,
             durationMinutes: s.duration_minutes,
+            description: (s as { description?: string | null }).description ?? undefined,
           })),
           phone: data.phone ?? undefined,
           email: data.email ?? undefined,
@@ -128,7 +129,7 @@ export default function GroomerDetailScreen() {
 
   return (
     <SafeAreaView style={styles.container} edges={['bottom']}>
-      <ScrollView contentContainerStyle={styles.content}>
+      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.content}>
         <Text style={styles.name}>{groomer.name}</Text>
         <Text style={styles.address}>{groomer.address}</Text>
 
@@ -163,6 +164,9 @@ export default function GroomerDetailScreen() {
             <View style={styles.serviceInfo}>
               <Text style={styles.serviceName}>{service.name}</Text>
               <Text style={styles.serviceMeta}>{service.durationMinutes} min</Text>
+              {service.description ? (
+                <Text style={styles.serviceDescription}>{service.description}</Text>
+              ) : null}
             </View>
             <View style={styles.serviceAction}>
               <Text style={styles.servicePrice}>${(service.priceCents / 100).toFixed(0)}</Text>
@@ -307,7 +311,7 @@ const styles = StyleSheet.create({
   serviceRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    alignItems: 'center',
+    alignItems: 'flex-start',
     paddingVertical: 14,
     borderBottomWidth: StyleSheet.hairlineWidth,
     borderBottomColor: Colors.light.border,
@@ -323,6 +327,13 @@ const styles = StyleSheet.create({
   serviceMeta: {
     marginTop: 2,
     fontSize: 13,
+    color: Colors.light.textMuted,
+  },
+  serviceDescription: {
+    marginTop: 6,
+    marginRight: 12,
+    fontSize: 13,
+    lineHeight: 18,
     color: Colors.light.textMuted,
   },
   serviceAction: {

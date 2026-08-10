@@ -245,7 +245,7 @@ export default function PetDetailScreen() {
   return (
     <SafeAreaView style={styles.container} edges={['bottom']}>
       <KeyboardAvoidingView style={styles.flex} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-        <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
+        <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
         <Pressable style={styles.photoWrapper} onPress={handleChangePhoto} disabled={uploadingPhoto}>
           {photoUrl ? (
             <Image source={{ uri: photoUrl }} style={styles.photo} contentFit="cover" />

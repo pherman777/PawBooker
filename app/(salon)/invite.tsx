@@ -47,7 +47,7 @@ export default function InviteScreen() {
           ← Back
         </Text>
       </View>
-      <ScrollView contentContainerStyle={styles.content}>
+      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.content}>
         <Text style={styles.title}>Invite your customers</Text>
         <Text style={styles.subtitle}>
           Bring your existing clients onto PawBooker with your personal code. Customers who join with

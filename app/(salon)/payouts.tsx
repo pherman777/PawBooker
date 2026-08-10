@@ -103,7 +103,7 @@ export default function PayoutsScreen() {
         </Text>
       </View>
 
-      <ScrollView contentContainerStyle={styles.content}>
+      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.content}>
         <Text style={styles.title}>Payouts</Text>
         <Text style={styles.subtitle}>
           Connect a bank account so booking payments and tips get deposited directly to you.

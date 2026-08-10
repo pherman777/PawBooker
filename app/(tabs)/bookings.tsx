@@ -252,7 +252,7 @@ export default function BookingsScreen() {
       {error && <Text style={styles.error}>Couldn&apos;t load bookings: {error}</Text>}
 
       {!loading && !error && (
-        <FlatList
+        <FlatList showsVerticalScrollIndicator={false}
           ref={flatListRef}
           data={bookings}
           keyExtractor={(item) => item.id}

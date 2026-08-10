@@ -129,7 +129,7 @@ export default function BrowseScreen() {
       {error && <Text style={styles.error}>Couldn&apos;t load groomers: {error}</Text>}
 
       {!loading && !error && (
-        <FlatList
+        <FlatList showsVerticalScrollIndicator={false}
           data={rows}
           keyExtractor={({ groomer }) => groomer.id}
           style={styles.flatList}

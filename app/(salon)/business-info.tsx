@@ -105,7 +105,7 @@ export default function BusinessInfoScreen() {
             ← Back
           </Text>
         </View>
-        <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
+        <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
           <Text style={styles.title}>Business info</Text>
 
           <Text style={styles.label}>Business name</Text>

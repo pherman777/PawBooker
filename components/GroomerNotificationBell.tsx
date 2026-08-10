@@ -122,7 +122,7 @@ export function GroomerNotificationBell({ groomerId, onSelectBooking }: Props) {
 
             {marking && <ActivityIndicator color={Colors.light.tint} style={styles.marking} />}
 
-            <FlatList
+            <FlatList showsVerticalScrollIndicator={false}
               data={notifications}
               keyExtractor={(item) => item.id}
               style={styles.list}

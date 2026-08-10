@@ -108,7 +108,7 @@ export default function HoursScreen() {
           ← Back
         </Text>
       </View>
-      <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
+      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
         <Text style={styles.title}>Hours</Text>
         <Text style={styles.subtitle}>Turn on the days you&apos;re open and tap a time to set your hours.</Text>
 

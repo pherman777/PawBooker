@@ -61,7 +61,7 @@ export function ChatView({ messages, ownSenderTypes, value, onChangeValue, onSen
         </View>
       )}
 
-      <FlatList
+      <FlatList showsVerticalScrollIndicator={false}
         ref={listRef}
         data={messages}
         keyExtractor={(item) => item.id}

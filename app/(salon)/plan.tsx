@@ -118,7 +118,7 @@ export default function PlanScreen() {
         </Text>
       </View>
 
-      <ScrollView contentContainerStyle={styles.content}>
+      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.content}>
         <Text style={styles.title}>Plan</Text>
 
         <View style={[styles.planCard, isPro && styles.planCardActive]}>

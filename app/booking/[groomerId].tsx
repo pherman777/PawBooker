@@ -270,7 +270,7 @@ export default function BookingScreen() {
 
   return (
     <SafeAreaView style={styles.container} edges={['bottom']}>
-      <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
+      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
         <Text style={styles.serviceName}>{service.name}</Text>
         <Text style={styles.serviceMeta}>
           {service.groomerName} · {service.durationMinutes} min · ${(service.priceCents / 100).toFixed(0)}
