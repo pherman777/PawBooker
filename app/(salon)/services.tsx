@@ -13,6 +13,7 @@ type Service = {
   name: string;
   priceCents: number;
   durationMinutes: number;
+  description: string;
 };
 
 function dollarsToCents(text: string): number {
@@ -40,6 +41,7 @@ export default function ServicesScreen() {
   const [newName, setNewName] = useState('');
   const [newPrice, setNewPrice] = useState('');
   const [newDuration, setNewDuration] = useState('');
+  const [newDescription, setNewDescription] = useState('');
 
   const load = useCallback(async () => {
     if (!groomerProfile) return;
@@ -47,7 +49,7 @@ export default function ServicesScreen() {
 
     const { data, error: queryError } = await supabase
       .from('groomer_services')
-      .select('id, name, price_cents, duration_minutes')
+      .select('id, name, price_cents, duration_minutes, description')
       .eq('groomer_id', groomerProfile.id)
       .order('name', { ascending: true });
 
@@ -60,6 +62,7 @@ export default function ServicesScreen() {
           name: row.name,
           priceCents: row.price_cents,
           durationMinutes: row.duration_minutes,
+          description: row.description ?? '',
         }))
       );
     }
@@ -76,10 +79,24 @@ export default function ServicesScreen() {
     setServices((current) => current.map((s) => (s.id === id ? { ...s, [field]: value } : s)));
   }
 
+  function updateLocalDescription(id: string, value: string) {
+    setServices((current) => current.map((s) => (s.id === id ? { ...s, description: value } : s)));
+  }
+
   async function persistField(id: string, field: 'price_cents' | 'duration_minutes', value: number) {
     const { error: updateError } = await supabase
       .from('groomer_services')
       .update({ [field]: value })
+      .eq('id', id);
+    if (updateError) {
+      notify('Could not save', updateError.message);
+    }
+  }
+
+  async function persistDescription(id: string, value: string) {
+    const { error: updateError } = await supabase
+      .from('groomer_services')
+      .update({ description: value.trim() || null })
       .eq('id', id);
     if (updateError) {
       notify('Could not save', updateError.message);
@@ -122,8 +139,9 @@ export default function ServicesScreen() {
         name: newName.trim(),
         price_cents: priceCents,
         duration_minutes: durationMinutes,
+        description: newDescription.trim() || null,
       })
-      .select('id, name, price_cents, duration_minutes')
+      .select('id, name, price_cents, duration_minutes, description')
       .single();
     setAdding(false);
 
@@ -139,11 +157,13 @@ export default function ServicesScreen() {
         name: data.name,
         priceCents: data.price_cents,
         durationMinutes: data.duration_minutes,
+        description: data.description ?? '',
       },
     ]);
     setNewName('');
     setNewPrice('');
     setNewDuration('');
+    setNewDescription('');
     setShowAddForm(false);
   }
 
@@ -196,6 +216,14 @@ export default function ServicesScreen() {
                   keyboardType="numeric"
                 />
               </View>
+              <TextInput
+                style={[styles.input, styles.descriptionInput]}
+                placeholder="Description (optional) — what this service includes"
+                placeholderTextColor={Colors.light.textMuted}
+                value={newDescription}
+                onChangeText={setNewDescription}
+                multiline
+              />
               <Pressable style={styles.saveButton} onPress={handleAdd} disabled={adding}>
                 {adding ? (
                   <ActivityIndicator color="#fff" size="small" />
@@ -237,6 +265,16 @@ export default function ServicesScreen() {
                   />
                 </View>
               </View>
+              <Text style={[styles.fieldLabel, styles.descriptionLabel]}>Description (optional)</Text>
+              <TextInput
+                style={[styles.fieldInput, styles.descriptionInput]}
+                defaultValue={service.description}
+                placeholder="What this service includes"
+                placeholderTextColor={Colors.light.textMuted}
+                multiline
+                onChangeText={(text) => updateLocalDescription(service.id, text)}
+                onBlur={() => persistDescription(service.id, service.description)}
+              />
               <Pressable style={styles.deleteLink} onPress={() => handleDelete(service)}>
                 <Text style={styles.deleteLinkText}>Remove</Text>
               </Pressable>
@@ -371,6 +409,14 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     paddingHorizontal: 10,
     paddingVertical: 6,
+  },
+  descriptionInput: {
+    minHeight: 60,
+    paddingTop: 8,
+    textAlignVertical: 'top',
+  },
+  descriptionLabel: {
+    marginTop: 12,
   },
   deleteLink: {
     marginTop: 12,

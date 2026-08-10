@@ -11,6 +11,7 @@ import { GroomerNotificationBell } from '@/components/GroomerNotificationBell';
 import { MessagesIconButton } from '@/components/MessagesIconButton';
 import { ReportModal } from '@/components/ReportModal';
 import { Colors } from '@/constants/theme';
+import { fetchActiveStaff, type SalonStaff } from '@/services/availability';
 import { useAuth } from '@/services/auth-context';
 import { sendBookingEmail } from '@/services/notifications';
 import { submitReport } from '@/services/support';
@@ -37,6 +38,7 @@ type SalonBookingRow = {
   serviceName: string;
   petName: string;
   staffName?: string;
+  staffId?: string;
   cancellationReason?: string;
   invoiceTotalCents?: number;
   platformFeeCents?: number;
@@ -69,6 +71,7 @@ export default function SalonDashboardScreen() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [updatingId, setUpdatingId] = useState<string | null>(null);
+  const [staffList, setStaffList] = useState<SalonStaff[]>([]);
   const [cancelTargetId, setCancelTargetId] = useState<string | null>(null);
   const [declineTargetId, setDeclineTargetId] = useState<string | null>(null);
   const [viewMode, setViewMode] = useState<ViewMode>('list');
@@ -94,10 +97,12 @@ export default function SalonDashboardScreen() {
     if (!groomerProfile) return;
     setLoading(true);
 
+    fetchActiveStaff(groomerProfile.id).then(setStaffList);
+
     const { data, error: queryError } = await supabase
       .from('bookings')
       .select(
-        'id, customer_id, starts_at, status, payment_status, service_completed_at, cancellation_reason, invoice_total_cents, platform_fee_cents, pets(name), groomer_services(name), salon_staff(name)'
+        'id, customer_id, starts_at, status, payment_status, service_completed_at, cancellation_reason, invoice_total_cents, platform_fee_cents, staff_id, pets(name), groomer_services(name), salon_staff(name)'
       )
       .eq('groomer_id', groomerProfile.id)
       .order('starts_at', { ascending: false });
@@ -119,6 +124,7 @@ export default function SalonDashboardScreen() {
           serviceName: (row.groomer_services as unknown as { name: string })?.name ?? 'Service',
           petName: (row.pets as unknown as { name: string })?.name ?? 'Pet',
           staffName: (row.salon_staff as unknown as { name: string } | null)?.name ?? undefined,
+          staffId: row.staff_id ?? undefined,
         }))
       );
     }
@@ -217,12 +223,12 @@ export default function SalonDashboardScreen() {
     ]);
   }
 
-  async function handleAccept(bookingId: string) {
+  async function confirmBooking(bookingId: string, staffId: string | null) {
     setUpdatingId(bookingId);
-    const { error: updateError } = await supabase
-      .from('bookings')
-      .update({ status: 'confirmed' })
-      .eq('id', bookingId);
+    const update: { status: 'confirmed'; staff_id?: string } = { status: 'confirmed' };
+    if (staffId) update.staff_id = staffId;
+
+    const { error: updateError } = await supabase.from('bookings').update(update).eq('id', bookingId);
     setUpdatingId(null);
 
     if (updateError) {
@@ -231,6 +237,23 @@ export default function SalonDashboardScreen() {
     }
     await load();
     sendBookingEmail(bookingId, 'accepted');
+  }
+
+  function handleAccept(bookingId: string) {
+    const booking = bookings.find((b) => b.id === bookingId);
+    // A "first available" request comes in unassigned - if the salon has 2+
+    // groomers, ask which one before confirming. Otherwise just confirm.
+    if (booking && !booking.staffId && staffList.length >= 2) {
+      showActionSheet('Assign a groomer', [
+        ...staffList.map((member) => ({
+          label: member.name,
+          onPress: () => confirmBooking(bookingId, member.id),
+        })),
+        { label: 'Leave unassigned', onPress: () => confirmBooking(bookingId, null) },
+      ]);
+      return;
+    }
+    confirmBooking(bookingId, null);
   }
 
   async function handleCompleteService(bookingId: string) {

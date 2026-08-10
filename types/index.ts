@@ -27,6 +27,7 @@ export type GroomerService = {
   name: string;
   priceCents: number;
   durationMinutes: number;
+  description?: string;
 };
 
 export type DayHours = { open: string; close: string } | null;
