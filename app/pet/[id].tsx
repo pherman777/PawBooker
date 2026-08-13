@@ -31,6 +31,7 @@ import { deleteStorageFile, getSignedUrl, uploadPetDocument, uploadPetPhoto } fr
 import type { Pet, PetDocument, PetDocumentType } from '@/types';
 import { confirmAsync, notify } from '@/utils/confirm';
 import { formatDateInputAsTyped, formatIsoDateAsMonthDayYear, parseMonthDayYear } from '@/utils/date';
+import { formatPhoneForDisplay } from '@/utils/phone';
 
 const PET_SPECIES: Pet['species'][] = ['dog', 'cat', 'other'];
 
@@ -138,7 +139,7 @@ export default function PetDetailScreen() {
       isMicrochipped: petRow.is_microchipped ?? false,
       microchipNumber: petRow.microchip_number ?? '',
       vetName: petRow.vet_name ?? '',
-      vetPhone: petRow.vet_phone ?? '',
+      vetPhone: formatPhoneForDisplay(petRow.vet_phone),
     });
 
     setPhotoUrl(petRow.photo_path ? await getSignedUrl('pet-photos', petRow.photo_path) : null);

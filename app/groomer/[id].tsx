@@ -10,6 +10,7 @@ import { supabase } from '@/services/supabase';
 import type { Groomer, SalonReview } from '@/types';
 import { notify } from '@/utils/confirm';
 import { DAYS_OF_WEEK, dayLabel, formatDayHours, todayKey } from '@/utils/hours';
+import { formatPhoneForDisplay, phoneToTelHref } from '@/utils/phone';
 import { StarRating } from '@/components/StarRating';
 import { DirectionsButton } from '@/components/DirectionsButton';
 
@@ -207,8 +208,8 @@ export default function GroomerDetailScreen() {
           <>
             <Text style={styles.sectionTitle}>Contact</Text>
             {groomer.phone && (
-              <Pressable onPress={() => Linking.openURL(`tel:${groomer.phone}`)}>
-                <Text style={styles.contactText}>{groomer.phone}</Text>
+              <Pressable onPress={() => Linking.openURL(`tel:${phoneToTelHref(groomer.phone)}`)}>
+                <Text style={styles.contactText}>{formatPhoneForDisplay(groomer.phone)}</Text>
               </Pressable>
             )}
             {groomer.email && (

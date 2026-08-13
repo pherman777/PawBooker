@@ -20,6 +20,7 @@ import { Colors } from '@/constants/theme';
 import { useAuth } from '@/services/auth-context';
 import { createGroomer, savePendingGroomer, type CreateGroomerInput } from '@/services/groomer';
 import { supabase } from '@/services/supabase';
+import { formatPhoneAsTyped } from '@/utils/phone';
 
 export default function GroomerSignupScreen() {
   const router = useRouter();
@@ -165,8 +166,9 @@ export default function GroomerSignupScreen() {
             placeholder="Contact number for customers"
             placeholderTextColor={Colors.light.textMuted}
             keyboardType="phone-pad"
+            maxLength={14}
             value={phone}
-            onChangeText={setPhone}
+            onChangeText={(text) => setPhone(formatPhoneAsTyped(text))}
           />
 
           {loggedIn ? (

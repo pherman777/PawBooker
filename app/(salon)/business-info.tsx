@@ -18,6 +18,7 @@ import { Colors } from '@/constants/theme';
 import { useAuth } from '@/services/auth-context';
 import { supabase } from '@/services/supabase';
 import { notify } from '@/utils/confirm';
+import { formatPhoneAsTyped, formatPhoneForDisplay } from '@/utils/phone';
 
 export default function BusinessInfoScreen() {
   const router = useRouter();
@@ -43,7 +44,7 @@ export default function BusinessInfoScreen() {
         .single();
       if (cancelled || !data) return;
       setName(data.name ?? '');
-      setPhone(data.phone ?? '');
+      setPhone(formatPhoneForDisplay(data.phone));
       setEmail(data.email ?? '');
       setBio(data.bio ?? '');
       setAddress(data.address ?? '');
@@ -115,8 +116,9 @@ export default function BusinessInfoScreen() {
           <TextInput
             style={styles.input}
             value={phone}
-            onChangeText={setPhone}
+            onChangeText={(text) => setPhone(formatPhoneAsTyped(text))}
             keyboardType="phone-pad"
+            maxLength={14}
           />
 
           <Text style={styles.label}>Contact email</Text>

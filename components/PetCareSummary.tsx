@@ -1,6 +1,7 @@
 import { StyleSheet, Text, View } from 'react-native';
 
 import { Colors } from '@/constants/theme';
+import { formatPhoneForDisplay } from '@/utils/phone';
 
 export type PetCareInfo = {
   isAnxious?: boolean;
@@ -28,7 +29,9 @@ export function PetCareSummary({ info }: { info: PetCareInfo }) {
 
   if (!hasCare && !hasEmergency) return null;
 
-  const vetLine = [info.vetName?.trim(), info.vetPhone?.trim()].filter(Boolean).join(' · ');
+  const vetLine = [info.vetName?.trim(), formatPhoneForDisplay(info.vetPhone)]
+    .filter(Boolean)
+    .join(' · ');
 
   return (
     <View style={styles.container}>

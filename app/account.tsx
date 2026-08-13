@@ -16,6 +16,7 @@ import { Colors } from '@/constants/theme';
 import { useAuth } from '@/services/auth-context';
 import { supabase } from '@/services/supabase';
 import { notify } from '@/utils/confirm';
+import { formatPhoneAsTyped, formatPhoneForDisplay } from '@/utils/phone';
 
 export default function AccountScreen() {
   const { session } = useAuth();
@@ -40,7 +41,7 @@ export default function AccountScreen() {
         .eq('user_id', session.user.id)
         .maybeSingle();
       if (!cancelled) {
-        setPhone(data?.phone ?? '');
+        setPhone(formatPhoneForDisplay(data?.phone));
         setLoading(false);
       }
     }
@@ -144,8 +145,9 @@ export default function AccountScreen() {
             placeholder="(555) 123-4567"
             placeholderTextColor={Colors.light.textMuted}
             keyboardType="phone-pad"
+            maxLength={14}
             value={phone}
-            onChangeText={setPhone}
+            onChangeText={(text) => setPhone(formatPhoneAsTyped(text))}
           />
 
           <Pressable

@@ -1,6 +1,7 @@
 import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 
 import { Colors } from '@/constants/theme';
+import { formatPhoneAsTyped } from '@/utils/phone';
 
 export type PetIdentity = {
   isMicrochipped: boolean;
@@ -60,8 +61,9 @@ export function PetIdEmergencyFields({ value, onChange }: Props) {
         placeholder="Vet phone (optional)"
         placeholderTextColor={Colors.light.textMuted}
         keyboardType="phone-pad"
+        maxLength={14}
         value={value.vetPhone}
-        onChangeText={(text) => onChange({ ...value, vetPhone: text })}
+        onChangeText={(text) => onChange({ ...value, vetPhone: formatPhoneAsTyped(text) })}
       />
     </View>
   );
