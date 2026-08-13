@@ -1,0 +1,12 @@
+[
+  {
+    "relation": ["delegate_permission/common.get_login_creds"],
+    "target": {
+      "namespace": "android_app",
+      "package_name": "com.professionalhomebody.PawBooker",
+      "sha256_cert_fingerprints": [
+        "AF:CD:0F:14:7E:67:08:3F:99:F4:DA:99:22:18:4B:3F:6D:BC:0E:5F:CD:69:B3:7C:AD:A6:2A:8B:F2:31:4C:B3"
+      ]
+    }
+  }
+]
