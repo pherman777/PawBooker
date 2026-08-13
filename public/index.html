@@ -4,427 +4,299 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>PawBooker &mdash; Book trusted pet groomers</title>
-  <meta name="description" content="PawBooker connects pet owners with local groomers for easy booking, messaging, and payment &mdash; all in one app." />
+  <meta name="description" content="PawBooker connects pet owners with local groomers for easy booking, reminders, and payment &mdash; and gives groomers one calm place to run their business." />
+  <meta name="theme-color" content="#141814" />
 
   <meta property="og:type" content="website" />
   <meta property="og:url" content="https://paw-booker.com/" />
   <meta property="og:title" content="PawBooker &mdash; Book trusted pet groomers" />
-  <meta property="og:description" content="PawBooker connects pet owners with local groomers for easy booking, messaging, and payment &mdash; all in one app." />
+  <meta property="og:description" content="PawBooker connects pet owners with local groomers for easy booking, reminders, and payment &mdash; all in one app." />
   <meta property="og:image" content="https://paw-booker.com/images/og-image.png" />
   <meta property="og:image:width" content="1024" />
   <meta property="og:image:height" content="500" />
   <meta name="twitter:card" content="summary_large_image" />
+
+  <link rel="icon" href="/images/icon.png" />
   <style>
+    /* Committed dark "black & green" theme — same look for every visitor. */
     :root {
-      --bg: #F7F8F3;
-      --text: #2B332C;
-      --muted: #6F766A;
-      --accent: #6B8F72;
-      --card: #EBEDE2;
-      --border: #DADECB;
+      --ground: #141814;
+      --surface: #1E241F;
+      --surface-2: #232A24;
+      --border: #333B32;
+      --ink: #ECEFE6;
+      --muted: #A0A897;
+      --sage: #8FB894;
+      --sage-deep: #A9CBAD;
+      --clay: #D08E7B;
+      --clay-deep: #DCA091;
+      --band: #1A201B;
+      --shadow: 0 1px 2px rgba(0,0,0,.4), 0 16px 40px -16px rgba(0,0,0,.6);
+      --serif: 'Iowan Old Style', 'Palatino Linotype', Palatino, 'Book Antiqua', Georgia, serif;
+      --sans: -apple-system, BlinkMacSystemFont, system-ui, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
     }
     * { box-sizing: border-box; }
+    html { -webkit-text-size-adjust: 100%; scroll-behavior: smooth; }
     body {
       margin: 0;
-      background: var(--bg);
-      color: var(--text);
-      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      font-family: var(--sans);
+      background: var(--ground);
+      color: var(--ink);
+      line-height: 1.6;
+      -webkit-font-smoothing: antialiased;
     }
-    a { color: var(--accent); }
-    .wrap {
-      max-width: 1080px;
-      margin: 0 auto;
-      padding: 0 24px;
+    .wrap { width: 100%; max-width: 1080px; margin: 0 auto; padding: 0 24px; }
+    a { color: var(--sage-deep); }
+
+    h1, h2, h3 { font-family: var(--serif); font-weight: 600; color: var(--ink); text-wrap: balance; margin: 0; }
+    .eyebrow {
+      font-size: 12px; font-weight: 700; letter-spacing: .14em; text-transform: uppercase;
+      color: var(--sage); margin: 0 0 14px;
     }
 
-    /* Header */
-    header {
+    /* Buttons */
+    .btn {
+      display: inline-flex; align-items: center; gap: 8px; justify-content: center;
+      font-family: var(--sans); font-weight: 650; font-size: 16px; text-decoration: none;
+      padding: 13px 22px; border-radius: 12px; border: 1px solid transparent; cursor: pointer;
+      transition: transform .12s ease, background .12s ease, border-color .12s ease, color .12s ease;
+    }
+    .btn:active { transform: translateY(1px); }
+    .btn-primary { background: var(--sage); color: #121611; }
+    .btn-primary:hover { background: #A3CBA7; }
+    .btn-ghost { background: transparent; color: var(--ink); border-color: var(--border); }
+    .btn-ghost:hover { border-color: var(--sage); color: var(--sage); }
+    .btn-clay { background: var(--clay); color: #1B120E; }
+    .btn-clay:hover { background: var(--clay-deep); }
+    .btn-sm { padding: 9px 16px; font-size: 15px; border-radius: 10px; }
+
+    /* Nav */
+    header.nav {
+      position: sticky; top: 0; z-index: 20;
+      background: rgba(20, 24, 20, 0.82);
+      backdrop-filter: saturate(1.4) blur(10px);
+      -webkit-backdrop-filter: saturate(1.4) blur(10px);
       border-bottom: 1px solid var(--border);
     }
-    .header-inner {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      padding: 20px 0;
-    }
-    .brand {
-      display: flex;
-      align-items: center;
-      gap: 10px;
-    }
-    .brand img {
-      width: 36px;
-      height: 36px;
-      border-radius: 9px;
-      display: block;
-    }
-    .brand-name {
-      font-size: 18px;
-      font-weight: 700;
-    }
-    .header-actions {
-      display: flex;
-      align-items: center;
-      gap: 12px;
-    }
-    .btn {
-      display: inline-block;
-      font-size: 15px;
-      font-weight: 600;
-      border-radius: 8px;
-      padding: 10px 18px;
-      cursor: pointer;
-      border: none;
-      text-decoration: none;
-      font-family: inherit;
-    }
-    .btn-primary {
-      background: var(--accent);
-      color: #fff;
-    }
-    .btn-primary:hover { opacity: 0.92; }
-    .btn-ghost {
-      background: transparent;
-      color: var(--text);
-      border: 1px solid var(--border);
-    }
-    .btn-ghost:hover { background: var(--card); }
+    .nav-inner { display: flex; align-items: center; justify-content: space-between; height: 66px; }
+    .brand { display: flex; align-items: center; gap: 10px; font-weight: 700; font-size: 18px; letter-spacing: -.01em; color: var(--ink); text-decoration: none; }
+    .brand img { width: 30px; height: 30px; border-radius: 8px; display: block; }
+    .nav-links { display: flex; align-items: center; gap: 26px; }
+    .nav-links a:not(.btn) { text-decoration: none; color: var(--muted); font-weight: 600; font-size: 15px; }
+    .nav-links a:not(.btn):hover { color: var(--ink); }
 
     /* Hero */
-    .hero {
-      padding: 72px 0 88px;
-      display: grid;
-      grid-template-columns: 1.1fr 0.9fr;
-      gap: 48px;
-      align-items: center;
+    .hero { position: relative; overflow: hidden; }
+    .hero::before {
+      content: ""; position: absolute; inset: -32% -12% auto auto; width: 660px; height: 660px;
+      background: radial-gradient(circle at 70% 30%, rgba(143,184,148,.22), transparent 62%);
+      pointer-events: none;
     }
-    .hero h1 {
-      font-size: 42px;
-      line-height: 1.15;
-      margin: 0 0 18px;
+    .hero-inner {
+      position: relative; padding: 84px 0 76px;
+      display: grid; grid-template-columns: 1.05fr .95fr; gap: 52px; align-items: center;
     }
-    .hero p.lead {
-      font-size: 18px;
-      line-height: 1.6;
-      color: var(--muted);
-      margin: 0 0 32px;
-      max-width: 460px;
-    }
-    .hero-actions {
-      display: flex;
-      gap: 12px;
-      flex-wrap: wrap;
-    }
-    .hero-actions .btn { padding: 14px 24px; font-size: 16px; }
-    .hero-image {
-      display: flex;
-      justify-content: center;
-    }
-    .hero-image img {
-      width: 100%;
-      max-width: 300px;
-      border-radius: 28px;
-      border: 1px solid var(--border);
-      box-shadow: 0 24px 48px -24px rgba(43, 51, 44, 0.35);
-      display: block;
+    h1 { font-size: clamp(36px, 5.4vw, 56px); line-height: 1.06; letter-spacing: -.015em; }
+    .lede { font-size: clamp(17px, 2.2vw, 20px); color: var(--muted); margin: 22px 0 30px; max-width: 30em; }
+    .cta-row { display: flex; flex-wrap: wrap; gap: 14px; align-items: center; }
+    .avail { margin-top: 20px; font-size: 14px; color: var(--muted); display: flex; align-items: center; gap: 8px; }
+    .avail svg { width: 15px; height: 15px; opacity: .85; }
+    .hero-shot { display: flex; justify-content: center; }
+    .hero-shot img {
+      width: 100%; max-width: 290px; border-radius: 30px; border: 1px solid var(--border);
+      box-shadow: 0 30px 64px -28px rgba(0,0,0,.7); display: block;
     }
 
     /* Sections */
-    section { padding: 64px 0; }
-    .section-header {
-      text-align: center;
-      max-width: 560px;
-      margin: 0 auto 40px;
-    }
-    .section-header h2 {
-      font-size: 28px;
-      margin: 0 0 12px;
-    }
-    .section-header p {
-      color: var(--muted);
-      font-size: 16px;
-      line-height: 1.6;
-      margin: 0;
-    }
+    section { padding: 72px 0; }
+    .sec-head { max-width: 640px; margin-bottom: 40px; }
+    .sec-head.center { margin-left: auto; margin-right: auto; text-align: center; }
+    .sec-head h2 { font-size: clamp(28px, 4vw, 40px); line-height: 1.1; letter-spacing: -.01em; }
+    .sec-head p { color: var(--muted); font-size: 17px; margin: 14px 0 0; }
 
-    /* Services */
-    .services-note {
-      text-align: center;
-      color: var(--muted);
-      font-size: 14px;
-      margin: -20px 0 32px;
+    .grid-3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; }
+    .card {
+      background: var(--surface-2); border: 1px solid var(--border); border-radius: 16px;
+      padding: 26px; box-shadow: var(--shadow);
     }
-    .service-grid {
-      display: grid;
-      grid-template-columns: repeat(3, 1fr);
-      gap: 20px;
+    .card .ic {
+      width: 44px; height: 44px; border-radius: 12px; display: grid; place-items: center;
+      background: rgba(143,184,148,.16); margin-bottom: 16px;
     }
-    .service-card {
-      background: var(--card);
-      border: 1px solid var(--border);
-      border-radius: 14px;
-      padding: 24px;
-    }
-    .service-card .icon {
-      font-size: 28px;
-      margin-bottom: 12px;
-      display: block;
-    }
-    .service-card h3 {
-      font-size: 17px;
-      margin: 0 0 6px;
-    }
-    .service-card p {
-      font-size: 14px;
-      line-height: 1.6;
-      color: var(--muted);
-      margin: 0;
-    }
+    .card .ic svg { width: 22px; height: 22px; stroke: var(--sage); fill: none; }
+    .card h3 { font-size: 20px; margin-bottom: 8px; }
+    .card p { margin: 0; color: var(--muted); font-size: 15.5px; }
 
     /* Screenshots */
-    .shots {
-      display: grid;
-      grid-template-columns: repeat(3, 1fr);
-      gap: 24px;
-    }
-    .shot {
-      background: var(--card);
-      border: 1px solid var(--border);
-      border-radius: 20px;
-      padding: 16px;
-      text-align: center;
-    }
-    .shot img {
-      width: 100%;
-      max-width: 220px;
-      border-radius: 16px;
-      display: block;
-      margin: 0 auto 14px;
-    }
-    .shot p {
-      font-size: 14px;
-      font-weight: 600;
-      margin: 0;
-      color: var(--text);
-    }
+    .shots { display: grid; grid-template-columns: repeat(3, 1fr); gap: 24px; }
+    .shot { background: var(--surface); border: 1px solid var(--border); border-radius: 20px; padding: 18px; text-align: center; }
+    .shot img { width: 100%; max-width: 210px; border-radius: 16px; display: block; margin: 0 auto 14px; }
+    .shot p { font-size: 14.5px; font-weight: 600; margin: 0; color: var(--ink); }
 
-    /* CTA band */
-    .cta-band {
-      background: var(--accent);
-      border-radius: 20px;
-      padding: 48px;
-      text-align: center;
-      color: #fff;
+    /* Groomer band */
+    .band { background: var(--band); border-top: 1px solid var(--border); border-bottom: 1px solid var(--border); }
+    .band-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 48px; align-items: center; }
+    .band .eyebrow { color: var(--clay); }
+    .band h2 { font-size: clamp(28px, 4vw, 40px); line-height: 1.1; letter-spacing: -.01em; }
+    .band .pitch { color: var(--muted); font-size: 17px; margin: 16px 0 26px; }
+    .upgrade-existing { margin: 16px 0 0; font-size: 14px; color: var(--muted); }
+    .upgrade-existing a { font-weight: 600; }
+    .price-card { background: var(--surface-2); border: 1px solid var(--border); border-radius: 18px; padding: 30px; box-shadow: var(--shadow); }
+    .price-card .tier { font-weight: 700; letter-spacing: .02em; color: var(--clay); font-size: 14px; text-transform: uppercase; }
+    .price { display: flex; align-items: baseline; gap: 6px; margin: 10px 0 4px; }
+    .price .amt { font-family: var(--serif); font-size: 46px; font-weight: 600; color: var(--ink); font-variant-numeric: tabular-nums; }
+    .price .per { color: var(--muted); font-size: 16px; }
+    .feat { list-style: none; padding: 0; margin: 22px 0 26px; display: flex; flex-direction: column; gap: 13px; }
+    .feat li { display: flex; gap: 11px; align-items: flex-start; font-size: 15.5px; }
+    .feat svg { width: 20px; height: 20px; flex: none; stroke: var(--sage); fill: none; margin-top: 1px; }
+    .free-note { font-size: 13.5px; color: var(--muted); text-align: center; margin: 12px 0 0; }
+
+    /* Steps */
+    .steps { display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; }
+    .step .num {
+      font-family: var(--serif); font-size: 15px; font-weight: 700; color: var(--sage);
+      width: 34px; height: 34px; border-radius: 50%; border: 1.5px solid var(--sage);
+      display: grid; place-items: center; margin-bottom: 16px; font-variant-numeric: tabular-nums;
     }
-    .cta-band h2 {
-      margin: 0 0 10px;
-      font-size: 26px;
-    }
-    .cta-band p {
-      margin: 0 0 24px;
-      color: rgba(255,255,255,0.9);
-      font-size: 16px;
-    }
-    .cta-band .btn-primary {
-      background: #fff;
-      color: var(--accent);
-    }
+    .step h3 { font-size: 19px; margin-bottom: 6px; }
+    .step p { margin: 0; color: var(--muted); font-size: 15.5px; }
+
+    /* Notify band */
+    .notify-band { background: var(--sage); border-radius: 22px; padding: 52px 40px; text-align: center; color: #141814; }
+    .notify-band h2 { color: #141814; font-size: clamp(26px, 3.4vw, 34px); }
+    .notify-band p { margin: 12px auto 26px; color: rgba(20,24,20,.82); font-size: 17px; max-width: 32em; }
+    .notify-band .btn-primary { background: #141814; color: var(--sage); }
+    .notify-band .btn-primary:hover { background: #20271F; }
 
     /* Footer */
-    footer {
-      border-top: 1px solid var(--border);
-      padding: 32px 0;
-    }
-    .footer-inner {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      flex-wrap: wrap;
-      gap: 16px;
-    }
-    .footer-links {
-      display: flex;
-      gap: 20px;
-      flex-wrap: wrap;
-    }
-    .footer-links a {
-      color: var(--muted);
-      font-size: 14px;
-      text-decoration: none;
-      font-weight: 600;
-    }
-    .footer-links a:hover { color: var(--accent); }
-    .footer-copy {
-      color: var(--muted);
-      font-size: 14px;
-    }
+    footer { border-top: 1px solid var(--border); padding: 40px 0; }
+    .foot-inner { display: flex; flex-wrap: wrap; gap: 22px; justify-content: space-between; align-items: center; }
+    .foot-links { display: flex; flex-wrap: wrap; gap: 22px; }
+    .foot-links a { color: var(--muted); text-decoration: none; font-size: 15px; font-weight: 600; }
+    .foot-links a:hover { color: var(--sage); }
+    .copy { color: var(--muted); font-size: 14px; }
 
     /* Modal */
     .modal-overlay {
-      display: none;
-      position: fixed;
-      inset: 0;
-      background: rgba(43, 51, 44, 0.45);
-      align-items: center;
-      justify-content: center;
-      padding: 24px;
-      z-index: 10;
+      display: none; position: fixed; inset: 0; background: rgba(0,0,0,.6);
+      align-items: center; justify-content: center; padding: 24px; z-index: 40;
     }
     .modal-overlay.open { display: flex; }
-    .modal {
-      background: #fff;
-      border-radius: 16px;
-      padding: 28px;
-      max-width: 380px;
-      width: 100%;
-    }
-    .modal h3 {
-      margin: 0 0 8px;
-      font-size: 20px;
-    }
-    .modal p {
-      margin: 0 0 20px;
-      color: var(--muted);
-      font-size: 15px;
-      line-height: 1.5;
-    }
-    .modal label {
-      display: block;
-      font-size: 13px;
-      font-weight: 600;
-      margin-bottom: 6px;
-    }
+    .modal { background: var(--surface-2); border: 1px solid var(--border); border-radius: 18px; padding: 30px; max-width: 400px; width: 100%; box-shadow: var(--shadow); }
+    .modal h3 { font-size: 22px; margin: 0 0 8px; }
+    .modal p { margin: 0 0 20px; color: var(--muted); font-size: 15px; line-height: 1.55; }
+    .modal label { display: block; font-size: 13px; font-weight: 600; margin-bottom: 6px; }
     .modal input[type="email"] {
-      width: 100%;
-      font-size: 16px;
-      padding: 12px 14px;
-      border-radius: 8px;
-      border: 1px solid var(--border);
-      background: #fff;
-      margin-bottom: 14px;
+      width: 100%; font-size: 16px; padding: 12px 14px; border-radius: 10px;
+      border: 1px solid var(--border); background: var(--ground); margin-bottom: 14px; font-family: inherit; color: var(--ink);
     }
-    .checkbox-row {
-      display: flex;
-      align-items: center;
-      gap: 8px;
-      font-size: 14px;
-      font-weight: 400;
-      color: var(--text);
-      margin-bottom: 18px;
-      cursor: pointer;
-    }
-    .checkbox-row input[type="checkbox"] {
-      width: 16px;
-      height: 16px;
-      margin: 0;
-      accent-color: var(--accent);
-    }
-    .modal-actions {
-      display: flex;
-      gap: 10px;
-    }
-    .modal-actions .btn { flex: 1; text-align: center; }
-    .modal-success {
-      display: none;
-      text-align: center;
-    }
+    .checkbox-row { display: flex; align-items: center; gap: 8px; font-size: 14px; color: var(--ink); margin-bottom: 18px; cursor: pointer; }
+    .checkbox-row input[type="checkbox"] { width: 16px; height: 16px; margin: 0; accent-color: var(--sage); }
+    .modal-actions { display: flex; gap: 10px; }
+    .modal-actions .btn { flex: 1; }
+    .modal-success { display: none; text-align: center; }
     .modal-success.open { display: block; }
     .modal-form.hidden { display: none; }
-    .modal-error {
-      display: none;
-      color: #B3452C;
-      font-size: 13px;
-      margin: -8px 0 14px;
-    }
+    .modal-error { display: none; color: var(--clay-deep); font-size: 13px; margin: -8px 0 14px; }
     .modal-error.open { display: block; }
 
-    @media (max-width: 760px) {
-      .hero { grid-template-columns: 1fr; padding: 48px 0 56px; }
-      .hero-image { order: -1; }
-      .hero h1 { font-size: 32px; }
-      .service-grid { grid-template-columns: 1fr 1fr; }
-      .shots { grid-template-columns: 1fr; }
-      .header-actions .btn-ghost { display: none; }
+    @media (max-width: 900px) {
+      .hero-inner { grid-template-columns: 1fr; gap: 36px; padding: 60px 0 56px; }
+      .hero-shot { order: -1; }
+      .hero-shot img { max-width: 230px; }
+      .band-grid { grid-template-columns: 1fr; gap: 32px; }
     }
+    @media (max-width: 680px) {
+      .grid-3, .steps { grid-template-columns: 1fr; }
+      .shots { grid-template-columns: 1fr; }
+      .nav-links a:not(.btn) { display: none; }
+      section { padding: 56px 0; }
+    }
+    @media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } }
   </style>
 </head>
 <body>
 
-  <header>
-    <div class="wrap header-inner">
-      <div class="brand">
+  <!-- reusable paw glyph -->
+  <svg width="0" height="0" style="position:absolute" aria-hidden="true">
+    <symbol id="paw" viewBox="0 0 32 32">
+      <g fill="currentColor">
+        <ellipse cx="16" cy="20.5" rx="7.4" ry="6.2"/>
+        <ellipse cx="8.6" cy="12.4" rx="2.7" ry="3.5"/>
+        <ellipse cx="13.4" cy="8.6" rx="2.6" ry="3.6"/>
+        <ellipse cx="18.6" cy="8.6" rx="2.6" ry="3.6"/>
+        <ellipse cx="23.4" cy="12.4" rx="2.7" ry="3.5"/>
+      </g>
+    </symbol>
+  </svg>
+
+  <header class="nav">
+    <div class="wrap nav-inner">
+      <a class="brand" href="#top">
         <img src="/images/icon.png" alt="PawBooker" />
-        <span class="brand-name">PawBooker</span>
-      </div>
-      <div class="header-actions">
-        <button class="btn btn-ghost" data-open-modal>Log in</button>
-        <button class="btn btn-primary" data-open-modal>Sign up</button>
-      </div>
+        PawBooker
+      </a>
+      <nav class="nav-links">
+        <a href="#owners">For pet owners</a>
+        <a href="#groomers">For groomers</a>
+        <button class="btn btn-primary btn-sm" data-open-modal>Get notified</button>
+      </nav>
     </div>
   </header>
 
-  <div class="wrap">
-    <section class="hero">
+  <div class="hero" id="top">
+    <div class="wrap hero-inner">
       <div>
-        <h1>Book trusted pet groomers, all in one place.</h1>
-        <p class="lead">PawBooker makes it easy to find local groomers, book an appointment, message your groomer, and pay &mdash; right from your phone.</p>
-        <div class="hero-actions">
+        <p class="eyebrow">Grooming, booked in a tap</p>
+        <h1>The easiest way to book &mdash; and run &mdash; pet grooming.</h1>
+        <p class="lede">Pet owners book, reschedule, and pay for grooming in seconds. Groomers get one calm place to manage their whole day. No phone tag, no paper calendar.</p>
+        <div class="cta-row">
           <button class="btn btn-primary" data-open-modal>Get notified at launch</button>
+          <a class="btn btn-ghost" href="#groomers">I'm a groomer &rarr;</a>
         </div>
+        <p class="avail">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="7" y="2" width="10" height="20" rx="2"/><path d="M11 18h2"/></svg>
+          Coming soon to iPhone and Android
+        </p>
       </div>
-      <div class="hero-image">
-        <img src="/images/screenshot-browse.png" alt="Browsing groomers in the PawBooker app" />
+      <div class="hero-shot">
+        <img src="/images/screenshot-browse.png" alt="Browsing nearby groomers in the PawBooker app" />
       </div>
-    </section>
+    </div>
   </div>
 
-  <div class="wrap">
-    <section id="services">
-      <div class="section-header">
-        <h2>Grooming services, all in one place</h2>
-        <p>Groomers on PawBooker offer a range of services for every dog and cat.</p>
+  <section id="owners">
+    <div class="wrap">
+      <div class="sec-head">
+        <p class="eyebrow">For pet owners</p>
+        <h2>Booking that respects your time.</h2>
+        <p>Your groomer, your pet's schedule, your card on file &mdash; all in one place. Here's what that feels like.</p>
       </div>
-      <p class="services-note">A preview of what groomers offer &mdash; download the app to browse real groomers and book.</p>
-      <div class="service-grid">
-        <div class="service-card">
-          <span class="icon">🛁</span>
-          <h3>Bath &amp; Brush</h3>
-          <p>A full wash, blow-dry, and brush-out to keep your pet's coat clean and tangle-free.</p>
+      <div class="grid-3">
+        <div class="card">
+          <div class="ic"><svg viewBox="0 0 24 24" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 6v6l4 2"/><circle cx="12" cy="12" r="9"/></svg></div>
+          <h3>Book in seconds</h3>
+          <p>Pick a service, choose an open time, and you're done. No calling, no waiting for a callback.</p>
         </div>
-        <div class="service-card">
-          <span class="icon">✂️</span>
-          <h3>Full Groom</h3>
-          <p>Bath, haircut, and styling tailored to your pet's breed and coat type.</p>
+        <div class="card">
+          <div class="ic"><svg viewBox="0 0 24 24" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="5" width="20" height="14" rx="2"/><path d="M2 10h20"/></svg></div>
+          <h3>Pay right in the app</h3>
+          <p>Your card stays on file. When the cut's done, payment just happens &mdash; no cash, no chasing an invoice.</p>
         </div>
-        <div class="service-card">
-          <span class="icon">💅</span>
-          <h3>Nail Trim</h3>
-          <p>Quick, careful nail trimming to keep paws healthy and comfortable.</p>
-        </div>
-        <div class="service-card">
-          <span class="icon">🦷</span>
-          <h3>Teeth Brushing</h3>
-          <p>Gentle dental care to help freshen breath and support oral health.</p>
-        </div>
-        <div class="service-card">
-          <span class="icon">🐾</span>
-          <h3>De-shedding Treatment</h3>
-          <p>Reduces loose undercoat for pets that shed heavily between full grooms.</p>
-        </div>
-        <div class="service-card">
-          <span class="icon">👂</span>
-          <h3>Ear Cleaning</h3>
-          <p>Careful cleaning to help prevent buildup and irritation.</p>
+        <div class="card">
+          <div class="ic"><svg viewBox="0 0 24 24" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8A6 6 0 1 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M10.3 21a1.9 1.9 0 0 0 3.4 0"/></svg></div>
+          <h3>Never miss an appointment</h3>
+          <p>A friendly reminder before every visit, so your pet's next groom never sneaks up on you.</p>
         </div>
       </div>
-    </section>
-  </div>
+    </div>
+  </section>
 
-  <div class="wrap">
-    <section id="app">
-      <div class="section-header">
-        <h2>See PawBooker in action</h2>
-        <p>Find a groomer, check the details, and manage your bookings &mdash; all from the app.</p>
+  <section id="app" style="padding-top:0">
+    <div class="wrap">
+      <div class="sec-head center">
+        <p class="eyebrow">See it in action</p>
+        <h2>Find a groomer, check the details, book the visit.</h2>
       </div>
       <div class="shots">
         <div class="shot">
@@ -440,12 +312,68 @@
           <p>Manage your appointments</p>
         </div>
       </div>
+    </div>
+  </section>
+
+  <div class="band" id="groomers">
+    <section>
+      <div class="wrap band-grid">
+        <div>
+          <p class="eyebrow">For groomers</p>
+          <h2>Run your grooming business, not your front desk.</h2>
+          <p class="pitch">Take bookings, collect payment automatically, and keep clients coming back &mdash; without the paper calendar and the missed calls. Start free, and upgrade to Pro when you're ready to grow.</p>
+          <div class="cta-row">
+            <button class="btn btn-clay" data-open-modal data-groomer>Get early access</button>
+            <a class="btn btn-ghost" href="#how">See how it works</a>
+          </div>
+          <p class="upgrade-existing">Already on PawBooker? <a href="/upgrade">Upgrade to Pro &rarr;</a></p>
+        </div>
+        <div class="price-card">
+          <div class="tier">PawBooker Pro</div>
+          <div class="price"><span class="amt">$35</span><span class="per">/ month</span></div>
+          <p style="margin:0;color:var(--muted);font-size:14.5px">Everything in Free, plus the tools that pay for themselves.</p>
+          <ul class="feat">
+            <li><svg viewBox="0 0 24 24" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12l5 5L20 7"/></svg>Keep 100% of every booking &mdash; no per-client fee</li>
+            <li><svg viewBox="0 0 24 24" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12l5 5L20 7"/></svg>Automatic win-back reminders for lapsed clients</li>
+            <li><svg viewBox="0 0 24 24" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12l5 5L20 7"/></svg>Business insights on revenue and repeat visits</li>
+            <li><svg viewBox="0 0 24 24" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12l5 5L20 7"/></svg>Your own AI assistant for the day-to-day</li>
+          </ul>
+          <button class="btn btn-clay" data-open-modal data-groomer style="width:100%">Get early access</button>
+          <p class="free-note">Start free &mdash; no contract, cancel anytime.</p>
+        </div>
+      </div>
     </section>
   </div>
 
+  <section id="how">
+    <div class="wrap">
+      <div class="sec-head">
+        <p class="eyebrow">How it works</p>
+        <h2>From "my dog needs a bath" to booked.</h2>
+      </div>
+      <div class="steps">
+        <div class="step">
+          <div class="num">1</div>
+          <h3>Find your groomer</h3>
+          <p>Search groomers nearby, or enter your groomer's invite code to connect with them directly.</p>
+        </div>
+        <div class="step">
+          <div class="num">2</div>
+          <h3>Pick a time</h3>
+          <p>Choose the service your pet needs and grab an open slot that works for your schedule.</p>
+        </div>
+        <div class="step">
+          <div class="num">3</div>
+          <h3>Show up relaxed</h3>
+          <p>We'll remind you before the appointment and handle payment automatically. That's it.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
   <div class="wrap">
-    <section>
-      <div class="cta-band">
+    <section style="padding-top:0">
+      <div class="notify-band">
         <h2>PawBooker is almost ready.</h2>
         <p>Leave your email and we'll let you know the moment it's available to download.</p>
         <button class="btn btn-primary" data-open-modal>Get notified at launch</button>
@@ -454,21 +382,27 @@
   </div>
 
   <footer>
-    <div class="wrap footer-inner">
-      <div class="footer-copy">&copy; 2026 PawBooker. All rights reserved.</div>
-      <div class="footer-links">
+    <div class="wrap foot-inner">
+      <a class="brand" href="#top" style="font-size:16px">
+        <img src="/images/icon.png" alt="PawBooker" style="width:26px;height:26px" />
+        PawBooker
+      </a>
+      <nav class="foot-links">
+        <a href="#owners">For pet owners</a>
+        <a href="#groomers">For groomers</a>
         <a href="/support">Support</a>
         <a href="/privacy">Privacy</a>
         <a href="mailto:support@paw-booker.com">Contact</a>
-      </div>
+      </nav>
+      <span class="copy">&copy; 2026 PawBooker</span>
     </div>
   </footer>
 
   <div class="modal-overlay" id="modal-overlay">
     <div class="modal">
       <div class="modal-form" id="modal-form-view">
-        <h3>Get notified at launch</h3>
-        <p>PawBooker isn't available to download just yet &mdash; leave your email and we'll let you know the moment it is.</p>
+        <h3 id="modal-title">Get notified at launch</h3>
+        <p id="modal-copy">PawBooker isn't available to download just yet &mdash; leave your email and we'll let you know the moment it is.</p>
         <form id="notify-form">
           <label for="notify-email">Email</label>
           <input type="email" id="notify-email" name="email" placeholder="you@example.com" required />
@@ -485,7 +419,7 @@
       </div>
       <div class="modal-success" id="modal-success-view">
         <h3>You're on the list!</h3>
-        <p>We'll email you as soon as PawBooker is ready to download.</p>
+        <p>We'll email you as soon as PawBooker is ready for you.</p>
         <div class="modal-actions">
           <button type="button" class="btn btn-primary" data-close-modal>Close</button>
         </div>
@@ -501,10 +435,19 @@
     var formView = document.getElementById('modal-form-view');
     var successView = document.getElementById('modal-success-view');
     var errorEl = document.getElementById('notify-error');
+    var titleEl = document.getElementById('modal-title');
+    var copyEl = document.getElementById('modal-copy');
+    var groomerCheck = document.getElementById('notify-groomer');
 
     document.querySelectorAll('[data-open-modal]').forEach(function (btn) {
       btn.addEventListener('click', function () {
+        var isGroomer = btn.hasAttribute('data-groomer');
         document.getElementById('notify-form').reset();
+        groomerCheck.checked = isGroomer;
+        titleEl.textContent = isGroomer ? 'Get early access' : 'Get notified at launch';
+        copyEl.textContent = isGroomer
+          ? "Tell us where to reach you and we'll help you get set up on PawBooker as we bring on new groomers."
+          : "PawBooker isn't available to download just yet — leave your email and we'll let you know the moment it is.";
         formView.classList.remove('hidden');
         successView.classList.remove('open');
         errorEl.classList.remove('open');
@@ -513,13 +456,14 @@
     });
 
     document.querySelectorAll('[data-close-modal]').forEach(function (btn) {
-      btn.addEventListener('click', function () {
-        overlay.classList.remove('open');
-      });
+      btn.addEventListener('click', function () { overlay.classList.remove('open'); });
     });
 
     overlay.addEventListener('click', function (e) {
       if (e.target === overlay) overlay.classList.remove('open');
+    });
+    document.addEventListener('keydown', function (e) {
+      if (e.key === 'Escape') overlay.classList.remove('open');
     });
 
     document.getElementById('notify-form').addEventListener('submit', function (e) {
@@ -527,7 +471,7 @@
       errorEl.classList.remove('open');
       var email = document.getElementById('notify-email').value.trim();
       if (!email) return;
-      var isGroomer = document.getElementById('notify-groomer').checked;
+      var isGroomer = groomerCheck.checked;
 
       fetch(SUPABASE_URL + '/rest/v1/marketing_leads', {
         method: 'POST',
