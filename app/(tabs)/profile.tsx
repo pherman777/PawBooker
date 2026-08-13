@@ -212,7 +212,10 @@ export default function ProfileScreen() {
     <SafeAreaView style={styles.container} edges={['top']}>
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.content}>
         <AppHeader title="Profile" />
-        <Text style={styles.email}>{session?.user.email}</Text>
+        <Pressable onPress={() => router.push('/account')}>
+          <Text style={styles.email}>{session?.user.email}</Text>
+          <Text style={styles.emailAction}>Manage email, phone &amp; password ›</Text>
+        </Pressable>
 
         <View style={styles.section}>
           <Text style={styles.sectionLabel}>Your pets</Text>
@@ -373,6 +376,12 @@ const styles = StyleSheet.create({
     marginTop: 6,
     fontSize: 15,
     color: Colors.light.textMuted,
+  },
+  emailAction: {
+    marginTop: 2,
+    fontSize: 14,
+    fontWeight: '600',
+    color: Colors.light.tint,
   },
   section: {
     marginTop: 24,

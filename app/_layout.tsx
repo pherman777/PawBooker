@@ -139,6 +139,14 @@ export default function RootLayout() {
                 }}
               />
               <Stack.Screen
+                name="account"
+                options={{
+                  headerShown: true,
+                  headerTitle: () => <HeaderBrand title="Account" />,
+                  headerRight: () => <HomeHeaderButton />,
+                }}
+              />
+              <Stack.Screen
                 name="chat/[threadId]"
                 options={{
                   headerShown: true,

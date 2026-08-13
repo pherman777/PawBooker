@@ -46,7 +46,7 @@ Deno.serve(async (req) => {
     const { data: booking, error } = await supabase
       .from('bookings')
       .select(
-        'customer_id, starts_at, cancellation_reason, customer_email, groomers(name, address, email, user_id, timezone), groomer_services(name, duration_minutes), pets(name)'
+        'customer_id, starts_at, cancellation_reason, customer_email, groomers(name, address, email, user_id, timezone), groomer_services(name, duration_minutes), pets(name, is_anxious, is_matted, needs_extra_care, care_notes, is_microchipped, microchip_number, vet_name, vet_phone)'
       )
       .eq('id', bookingId)
       .single();
@@ -63,7 +63,40 @@ Deno.serve(async (req) => {
       timezone: string;
     };
     const service = booking.groomer_services as unknown as { name: string; duration_minutes: number };
-    const pet = booking.pets as unknown as { name: string };
+    const pet = booking.pets as unknown as {
+      name: string;
+      is_anxious?: boolean;
+      is_matted?: boolean;
+      needs_extra_care?: boolean;
+      care_notes?: string | null;
+      is_microchipped?: boolean;
+      microchip_number?: string | null;
+      vet_name?: string | null;
+      vet_phone?: string | null;
+    };
+
+    // Groomer-facing grooming-needs summary. `inline` is a short one-liner for
+    // the push body; `block` is the fuller multi-line version for the email.
+    const careFlags = [
+      pet.is_anxious ? 'may be nervous / nip' : null,
+      pet.is_matted ? 'matting / tangled coat' : null,
+      pet.needs_extra_care ? 'needs extra time / care' : null,
+    ].filter(Boolean) as string[];
+
+    const careInline = careFlags.length > 0 ? `Heads up: ${careFlags.join(' · ')}` : '';
+
+    const careEmailLines: string[] = [];
+    if (careFlags.length > 0) {
+      careEmailLines.push('Heads up before this appointment:');
+      for (const flag of careFlags) careEmailLines.push(`• ${flag}`);
+    }
+    if (pet.care_notes?.trim()) careEmailLines.push(`Notes from the owner: ${pet.care_notes.trim()}`);
+    if (pet.is_microchipped) {
+      careEmailLines.push(`Microchipped${pet.microchip_number?.trim() ? `: ${pet.microchip_number.trim()}` : ''}`);
+    }
+    const vetLine = [pet.vet_name?.trim(), pet.vet_phone?.trim()].filter(Boolean).join(' · ');
+    if (vetLine) careEmailLines.push(`Vet: ${vetLine}`);
+    const careEmailBlock = careEmailLines.length > 0 ? `\n\n${careEmailLines.join('\n')}` : '';
     const when = new Date(booking.starts_at).toLocaleString('en-US', {
       weekday: 'long',
       month: 'long',
@@ -113,9 +146,12 @@ Deno.serve(async (req) => {
       pushTitle = 'Booking cancelled';
       pushBody = `A customer cancelled their ${service.name} appointment for ${pet.name}.`;
     } else if (action === 'booking_requested') {
+      emailTo = groomer.email;
+      subject = `New booking request: ${service.name} for ${pet.name}`;
+      text = `${pet.name} needs a ${service.name} on ${when}.${careEmailBlock}\n\nOpen PawBooker to accept or decline this request.`;
       pushUserId = groomer.user_id;
       pushTitle = 'New booking request';
-      pushBody = `${pet.name} needs a ${service.name} on ${when}.`;
+      pushBody = `${pet.name} needs a ${service.name} on ${when}.${careInline ? `\n⚠ ${careInline}` : ''}`;
     } else if (action === 'service_completed') {
       emailTo = booking.customer_email;
       subject = `${pet.name} is ready for pickup at ${groomer.name}!`;

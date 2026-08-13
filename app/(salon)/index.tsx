@@ -9,6 +9,7 @@ import { BookingCalendar } from '@/components/BookingCalendar';
 import { CancelBookingModal } from '@/components/CancelBookingModal';
 import { GroomerNotificationBell } from '@/components/GroomerNotificationBell';
 import { MessagesIconButton } from '@/components/MessagesIconButton';
+import { PetCareSummary, type PetCareInfo } from '@/components/PetCareSummary';
 import { ReportModal } from '@/components/ReportModal';
 import { Colors } from '@/constants/theme';
 import { fetchActiveStaff, type SalonStaff } from '@/services/availability';
@@ -37,6 +38,7 @@ type SalonBookingRow = {
   serviceCompletedAt?: string;
   serviceName: string;
   petName: string;
+  petCare: PetCareInfo;
   staffName?: string;
   staffId?: string;
   cancellationReason?: string;
@@ -102,7 +104,7 @@ export default function SalonDashboardScreen() {
     const { data, error: queryError } = await supabase
       .from('bookings')
       .select(
-        'id, customer_id, starts_at, status, payment_status, service_completed_at, cancellation_reason, invoice_total_cents, platform_fee_cents, staff_id, pets(name), groomer_services(name), salon_staff(name)'
+        'id, customer_id, starts_at, status, payment_status, service_completed_at, cancellation_reason, invoice_total_cents, platform_fee_cents, staff_id, pets(name, is_anxious, is_matted, needs_extra_care, care_notes, is_microchipped, microchip_number, vet_name, vet_phone), groomer_services(name), salon_staff(name)'
       )
       .eq('groomer_id', groomerProfile.id)
       .order('starts_at', { ascending: false });
@@ -110,8 +112,21 @@ export default function SalonDashboardScreen() {
     if (queryError) {
       setError(queryError.message);
     } else {
+      type PetCareRow = {
+        name: string;
+        is_anxious?: boolean;
+        is_matted?: boolean;
+        needs_extra_care?: boolean;
+        care_notes?: string | null;
+        is_microchipped?: boolean;
+        microchip_number?: string | null;
+        vet_name?: string | null;
+        vet_phone?: string | null;
+      };
       setBookings(
-        (data ?? []).map((row) => ({
+        (data ?? []).map((row) => {
+          const petRow = row.pets as unknown as PetCareRow | null;
+          return {
           id: row.id,
           customerId: row.customer_id,
           startsAt: row.starts_at,
@@ -122,10 +137,21 @@ export default function SalonDashboardScreen() {
           invoiceTotalCents: row.invoice_total_cents ?? undefined,
           platformFeeCents: row.platform_fee_cents ?? undefined,
           serviceName: (row.groomer_services as unknown as { name: string })?.name ?? 'Service',
-          petName: (row.pets as unknown as { name: string })?.name ?? 'Pet',
+          petName: petRow?.name ?? 'Pet',
+          petCare: {
+            isAnxious: petRow?.is_anxious ?? false,
+            isMatted: petRow?.is_matted ?? false,
+            needsExtraCare: petRow?.needs_extra_care ?? false,
+            careNotes: petRow?.care_notes ?? undefined,
+            isMicrochipped: petRow?.is_microchipped ?? false,
+            microchipNumber: petRow?.microchip_number ?? undefined,
+            vetName: petRow?.vet_name ?? undefined,
+            vetPhone: petRow?.vet_phone ?? undefined,
+          },
           staffName: (row.salon_staff as unknown as { name: string } | null)?.name ?? undefined,
           staffId: row.staff_id ?? undefined,
-        }))
+          };
+        })
       );
     }
     setLoading(false);
@@ -527,6 +553,10 @@ export default function SalonDashboardScreen() {
                   minute: '2-digit',
                 })}
               </Text>
+
+              {item.status !== 'cancelled' && item.status !== 'declined' && (
+                <PetCareSummary info={item.petCare} />
+              )}
 
               {item.status === 'declined' && item.cancellationReason && (
                 <Text style={styles.reasonText}>Your note: {item.cancellationReason}</Text>

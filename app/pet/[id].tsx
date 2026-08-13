@@ -17,6 +17,13 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { BreedPicker } from '@/components/BreedPicker';
+import {
+  CareNeeds,
+  PetCareNeedsFields,
+  careNeedsValid,
+} from '@/components/PetCareNeedsFields';
+import { PetIdEmergencyFields, PetIdentity } from '@/components/PetIdEmergencyFields';
 import { Colors } from '@/constants/theme';
 import { useAuth } from '@/services/auth-context';
 import { supabase } from '@/services/supabase';
@@ -24,6 +31,8 @@ import { deleteStorageFile, getSignedUrl, uploadPetDocument, uploadPetPhoto } fr
 import type { Pet, PetDocument, PetDocumentType } from '@/types';
 import { confirmAsync, notify } from '@/utils/confirm';
 import { formatDateInputAsTyped, formatIsoDateAsMonthDayYear, parseMonthDayYear } from '@/utils/date';
+
+const PET_SPECIES: Pet['species'][] = ['dog', 'cat', 'other'];
 
 type PendingDocument = {
   uri: string;
@@ -44,6 +53,27 @@ export default function PetDetailScreen() {
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
   const [uploadingDoc, setUploadingDoc] = useState(false);
 
+  // Editable pet details, initialized from the loaded row.
+  const [name, setName] = useState('');
+  const [species, setSpecies] = useState<Pet['species']>('dog');
+  const [dogBreed, setDogBreed] = useState('');
+  const [otherBreed, setOtherBreed] = useState('');
+  const [color, setColor] = useState('');
+  const [weight, setWeight] = useState('');
+  const [careNeeds, setCareNeeds] = useState<CareNeeds>({
+    isAnxious: false,
+    isMatted: false,
+    needsExtraCare: false,
+    careNotes: '',
+  });
+  const [identity, setIdentity] = useState<PetIdentity>({
+    isMicrochipped: false,
+    microchipNumber: '',
+    vetName: '',
+    vetPhone: '',
+  });
+  const [savingDetails, setSavingDetails] = useState(false);
+
   const [pendingDocument, setPendingDocument] = useState<PendingDocument | null>(null);
   const [documentLabel, setDocumentLabel] = useState('');
   const [documentType, setDocumentType] = useState<PetDocumentType>('other');
@@ -53,7 +83,9 @@ export default function PetDetailScreen() {
     const [petResult, documentsResult] = await Promise.all([
       supabase
         .from('pets')
-        .select('id, owner_id, name, species, breed, color, weight_lbs, photo_path')
+        .select(
+          'id, owner_id, name, species, breed, color, weight_lbs, photo_path, is_anxious, is_matted, needs_extra_care, care_notes, is_microchipped, microchip_number, vet_name, vet_phone'
+        )
         .eq('id', id)
         .single(),
       supabase
@@ -79,6 +111,34 @@ export default function PetDetailScreen() {
       color: petRow.color ?? undefined,
       weightLbs: petRow.weight_lbs ?? undefined,
       photoPath: petRow.photo_path ?? undefined,
+      isAnxious: petRow.is_anxious ?? false,
+      isMatted: petRow.is_matted ?? false,
+      needsExtraCare: petRow.needs_extra_care ?? false,
+      careNotes: petRow.care_notes ?? undefined,
+      isMicrochipped: petRow.is_microchipped ?? false,
+      microchipNumber: petRow.microchip_number ?? undefined,
+      vetName: petRow.vet_name ?? undefined,
+      vetPhone: petRow.vet_phone ?? undefined,
+    });
+
+    const isDogRow = petRow.species === 'dog';
+    setName(petRow.name);
+    setSpecies(petRow.species);
+    setDogBreed(isDogRow ? petRow.breed ?? '' : '');
+    setOtherBreed(isDogRow ? '' : petRow.breed ?? '');
+    setColor(petRow.color ?? '');
+    setWeight(petRow.weight_lbs != null ? String(petRow.weight_lbs) : '');
+    setCareNeeds({
+      isAnxious: petRow.is_anxious ?? false,
+      isMatted: petRow.is_matted ?? false,
+      needsExtraCare: petRow.needs_extra_care ?? false,
+      careNotes: petRow.care_notes ?? '',
+    });
+    setIdentity({
+      isMicrochipped: petRow.is_microchipped ?? false,
+      microchipNumber: petRow.microchip_number ?? '',
+      vetName: petRow.vet_name ?? '',
+      vetPhone: petRow.vet_phone ?? '',
     });
 
     setPhotoUrl(petRow.photo_path ? await getSignedUrl('pet-photos', petRow.photo_path) : null);
@@ -226,6 +286,56 @@ export default function PetDetailScreen() {
     router.back();
   }
 
+  function handleSpeciesChange(next: Pet['species']) {
+    setSpecies(next);
+    if (next !== 'dog') {
+      setDogBreed('');
+    } else {
+      setOtherBreed('');
+    }
+  }
+
+  const isDog = species === 'dog';
+  const weightValue = Number(weight);
+  const isValidWeight = weight.trim().length > 0 && Number.isFinite(weightValue) && weightValue > 0;
+
+  const canSaveDetails =
+    name.trim().length > 0 &&
+    careNeedsValid(careNeeds) &&
+    (!isDog || (dogBreed.length > 0 && color.trim().length > 0 && isValidWeight));
+
+  async function handleSaveDetails() {
+    if (!pet || !canSaveDetails) return;
+    setSavingDetails(true);
+    try {
+      const { error: updateError } = await supabase
+        .from('pets')
+        .update({
+          name: name.trim(),
+          species,
+          breed: isDog ? dogBreed : otherBreed.trim() || null,
+          color: isDog ? color.trim() : null,
+          weight_lbs: isDog ? weightValue : null,
+          is_anxious: careNeeds.isAnxious,
+          is_matted: careNeeds.isMatted,
+          needs_extra_care: careNeeds.needsExtraCare,
+          care_notes: careNeeds.careNotes.trim() || null,
+          is_microchipped: identity.isMicrochipped,
+          microchip_number: identity.isMicrochipped ? identity.microchipNumber.trim() || null : null,
+          vet_name: identity.vetName.trim() || null,
+          vet_phone: identity.vetPhone.trim() || null,
+        })
+        .eq('id', pet.id);
+      if (updateError) throw updateError;
+      await load();
+      notify('Saved', `${name.trim()}'s profile has been updated.`);
+    } catch (err) {
+      notify('Could not save', err instanceof Error ? err.message : 'Please try again.');
+    } finally {
+      setSavingDetails(false);
+    }
+  }
+
   if (loading) {
     return (
       <SafeAreaView style={styles.container}>
@@ -263,15 +373,74 @@ export default function PetDetailScreen() {
         </Pressable>
 
         <Text style={styles.name}>{pet.name}</Text>
-        <Text style={styles.meta}>
-          {pet.species[0].toUpperCase() + pet.species.slice(1)}
-          {pet.breed ? ` · ${pet.breed}` : ''}
-        </Text>
-        {(pet.color || pet.weightLbs != null) && (
-          <Text style={styles.meta}>
-            {[pet.color, pet.weightLbs != null ? `${pet.weightLbs} lbs` : null].filter(Boolean).join(' · ')}
-          </Text>
+
+        <Text style={styles.sectionTitle}>Details</Text>
+
+        <TextInput
+          style={styles.input}
+          placeholder="Pet's name"
+          placeholderTextColor={Colors.light.textMuted}
+          value={name}
+          onChangeText={setName}
+        />
+
+        <View style={styles.speciesRow}>
+          {PET_SPECIES.map((option) => {
+            const isSelected = species === option;
+            return (
+              <Pressable
+                key={option}
+                style={[styles.speciesChip, isSelected && styles.chipSelected]}
+                onPress={() => handleSpeciesChange(option)}>
+                <Text style={[styles.speciesChipText, isSelected && styles.chipTextSelected]}>
+                  {option[0].toUpperCase() + option.slice(1)}
+                </Text>
+              </Pressable>
+            );
+          })}
+        </View>
+
+        {isDog ? (
+          <>
+            <BreedPicker value={dogBreed} onChange={setDogBreed} />
+            <TextInput
+              style={styles.input}
+              placeholder="Color"
+              placeholderTextColor={Colors.light.textMuted}
+              value={color}
+              onChangeText={setColor}
+            />
+            <TextInput
+              style={styles.input}
+              placeholder="Weight (lbs)"
+              placeholderTextColor={Colors.light.textMuted}
+              keyboardType="decimal-pad"
+              value={weight}
+              onChangeText={setWeight}
+            />
+            <PetCareNeedsFields value={careNeeds} onChange={setCareNeeds} />
+            <PetIdEmergencyFields value={identity} onChange={setIdentity} />
+          </>
+        ) : (
+          <TextInput
+            style={styles.input}
+            placeholder="Breed (optional)"
+            placeholderTextColor={Colors.light.textMuted}
+            value={otherBreed}
+            onChangeText={setOtherBreed}
+          />
         )}
+
+        <Pressable
+          style={[styles.saveDetailsButton, (!canSaveDetails || savingDetails) && styles.buttonDisabled]}
+          onPress={handleSaveDetails}
+          disabled={!canSaveDetails || savingDetails}>
+          {savingDetails ? (
+            <ActivityIndicator color="#fff" />
+          ) : (
+            <Text style={styles.saveDetailsButtonText}>Save changes</Text>
+          )}
+        </Pressable>
 
         <Text style={styles.sectionTitle}>Documents</Text>
         {documents.map((document) => {
@@ -519,6 +688,37 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     fontSize: 15,
     color: Colors.light.text,
+    marginBottom: 14,
+  },
+  speciesRow: {
+    flexDirection: 'row',
+    gap: 8,
+    marginBottom: 14,
+  },
+  speciesChip: {
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    borderRadius: 10,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: Colors.light.border,
+    backgroundColor: Colors.light.surface,
+  },
+  speciesChipText: {
+    fontSize: 14,
+    color: Colors.light.text,
+  },
+  saveDetailsButton: {
+    height: 48,
+    borderRadius: 10,
+    backgroundColor: Colors.light.tint,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: 4,
+  },
+  saveDetailsButtonText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: '600',
   },
   typeRow: {
     flexDirection: 'row',

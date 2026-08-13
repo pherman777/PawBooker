@@ -4,6 +4,7 @@ import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, TextInput, 
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { Logo } from '@/components/Logo';
+import { PetCareSummary, type PetCareInfo } from '@/components/PetCareSummary';
 import { Colors } from '@/constants/theme';
 import { supabase } from '@/services/supabase';
 import { chargeBooking, markBookingPaidCash } from '@/services/stripe';
@@ -19,6 +20,7 @@ export default function CompleteBookingScreen() {
   const router = useRouter();
 
   const [petName, setPetName] = useState('');
+  const [petCare, setPetCare] = useState<PetCareInfo>({});
   const [serviceName, setServiceName] = useState('');
   const [lineItems, setLineItems] = useState<LineItem[]>([]);
   const [newDescription, setNewDescription] = useState('');
@@ -36,7 +38,9 @@ export default function CompleteBookingScreen() {
       const [bookingResult, existingItemsResult] = await Promise.all([
         supabase
           .from('bookings')
-          .select('customer_id, groomer_id, pets(name), groomer_services(name, price_cents), groomers(plan)')
+          .select(
+            'customer_id, groomer_id, pets(name, is_anxious, is_matted, needs_extra_care, care_notes, is_microchipped, microchip_number, vet_name, vet_phone), groomer_services(name, price_cents), groomers(plan)'
+          )
           .eq('id', bookingId)
           .single(),
         supabase.from('booking_line_items').select('description, amount_cents').eq('booking_id', bookingId),
@@ -50,13 +54,33 @@ export default function CompleteBookingScreen() {
         return;
       }
 
-      const pet = bookingResult.data.pets as unknown as { name: string };
+      const pet = bookingResult.data.pets as unknown as {
+        name: string;
+        is_anxious?: boolean;
+        is_matted?: boolean;
+        needs_extra_care?: boolean;
+        care_notes?: string | null;
+        is_microchipped?: boolean;
+        microchip_number?: string | null;
+        vet_name?: string | null;
+        vet_phone?: string | null;
+      };
       const service = bookingResult.data.groomer_services as unknown as {
         name: string;
         price_cents: number;
       };
       const groomer = bookingResult.data.groomers as unknown as { plan: string };
       setPetName(pet?.name ?? 'Pet');
+      setPetCare({
+        isAnxious: pet?.is_anxious ?? false,
+        isMatted: pet?.is_matted ?? false,
+        needsExtraCare: pet?.needs_extra_care ?? false,
+        careNotes: pet?.care_notes ?? undefined,
+        isMicrochipped: pet?.is_microchipped ?? false,
+        microchipNumber: pet?.microchip_number ?? undefined,
+        vetName: pet?.vet_name ?? undefined,
+        vetPhone: pet?.vet_phone ?? undefined,
+      });
       setServiceName(service?.name ?? 'Service');
 
       // An app-acquired customer's first booking must be paid by card so the 5%
@@ -192,6 +216,8 @@ export default function CompleteBookingScreen() {
         <Text style={styles.subtitle}>
           {serviceName} for {petName}
         </Text>
+
+        <PetCareSummary info={petCare} />
 
         <Text style={styles.sectionTitle}>Invoice items</Text>
         {lineItems.map((item, index) => (
