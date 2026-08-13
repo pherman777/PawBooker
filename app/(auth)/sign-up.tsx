@@ -14,6 +14,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { Logo } from '@/components/Logo';
+import { PasswordInput } from '@/components/PasswordInput';
 import { Wordmark } from '@/components/Wordmark';
 import { Colors } from '@/constants/theme';
 import { supabase } from '@/services/supabase';
@@ -80,14 +81,17 @@ export default function SignUpScreen() {
             placeholderTextColor={Colors.light.textMuted}
             autoCapitalize="none"
             keyboardType="email-address"
+            textContentType="username"
+            autoComplete="email"
             value={email}
             onChangeText={setEmail}
           />
-          <TextInput
+          <PasswordInput
             style={styles.input}
             placeholder="Password"
             placeholderTextColor={Colors.light.textMuted}
-            secureTextEntry
+            textContentType="newPassword"
+            autoComplete="password-new"
             value={password}
             onChangeText={setPassword}
           />

@@ -14,9 +14,11 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { Logo } from '@/components/Logo';
+import { PasswordInput } from '@/components/PasswordInput';
 import { Wordmark } from '@/components/Wordmark';
 import { Colors } from '@/constants/theme';
 import { supabase } from '@/services/supabase';
+import { notify } from '@/utils/confirm';
 
 export default function ForgotPasswordScreen() {
   const router = useRouter();
@@ -73,14 +75,20 @@ export default function ForgotPasswordScreen() {
     }
 
     const { error: updateError } = await supabase.auth.updateUser({ password });
-    setLoading(false);
 
     if (updateError) {
+      setLoading(false);
       setError(updateError.message);
       return;
     }
 
-    router.replace('/');
+    // Verifying the recovery code signs the user in. After resetting the
+    // password, sign back out and make them log in with the new password —
+    // it confirms they know it and lets the OS offer to save it at login.
+    await supabase.auth.signOut();
+    setLoading(false);
+    notify('Password updated', 'Sign in with your new password.');
+    router.replace('/(auth)/sign-in');
   }
 
   return (
@@ -103,6 +111,8 @@ export default function ForgotPasswordScreen() {
                 placeholderTextColor={Colors.light.textMuted}
                 autoCapitalize="none"
                 keyboardType="email-address"
+                textContentType="username"
+                autoComplete="email"
                 value={email}
                 onChangeText={setEmail}
               />
@@ -131,19 +141,21 @@ export default function ForgotPasswordScreen() {
                 value={code}
                 onChangeText={setCode}
               />
-              <TextInput
+              <PasswordInput
                 style={styles.input}
                 placeholder="New password"
                 placeholderTextColor={Colors.light.textMuted}
-                secureTextEntry
+                textContentType="newPassword"
+                autoComplete="password-new"
                 value={password}
                 onChangeText={setPassword}
               />
-              <TextInput
+              <PasswordInput
                 style={styles.input}
                 placeholder="Confirm new password"
                 placeholderTextColor={Colors.light.textMuted}
-                secureTextEntry
+                textContentType="newPassword"
+                autoComplete="password-new"
                 value={confirmPassword}
                 onChangeText={setConfirmPassword}
               />

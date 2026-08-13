@@ -12,6 +12,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { PasswordInput } from '@/components/PasswordInput';
 import { Colors } from '@/constants/theme';
 import { useAuth } from '@/services/auth-context';
 import { supabase } from '@/services/supabase';
@@ -132,6 +133,8 @@ export default function AccountScreen() {
             autoCapitalize="none"
             keyboardType="email-address"
             autoCorrect={false}
+            textContentType="username"
+            autoComplete="email"
             value={email}
             onChangeText={setEmail}
           />
@@ -164,23 +167,23 @@ export default function AccountScreen() {
           <Text style={[styles.sectionTitle, styles.sectionSpacing]}>Change password</Text>
 
           <Text style={styles.label}>New password</Text>
-          <TextInput
+          <PasswordInput
             style={styles.input}
             placeholder="At least 8 characters"
             placeholderTextColor={Colors.light.textMuted}
-            secureTextEntry
-            autoCapitalize="none"
+            textContentType="newPassword"
+            autoComplete="password-new"
             value={newPassword}
             onChangeText={setNewPassword}
           />
 
           <Text style={styles.label}>Confirm new password</Text>
-          <TextInput
+          <PasswordInput
             style={styles.input}
             placeholder="Re-enter new password"
             placeholderTextColor={Colors.light.textMuted}
-            secureTextEntry
-            autoCapitalize="none"
+            textContentType="newPassword"
+            autoComplete="password-new"
             value={confirmPassword}
             onChangeText={setConfirmPassword}
           />

@@ -10,6 +10,7 @@
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.professionalhomebody.PawBooker",
+      "associatedDomains": ["webcredentials:paw-booker.com"],
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false
       }
