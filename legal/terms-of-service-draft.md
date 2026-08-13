@@ -34,6 +34,12 @@ This section applies specifically to Users registered as Groomers.
 ### 2.1 Independent Business Status
 You represent that you operate as an independent business (whether a sole proprietor, LLC, or other entity) and are not an employee, agent, or partner of PawBooker. You are solely responsible for determining how you perform your services, your own pricing (within what you list on the Platform), your own supplies and equipment, and your own business operations.
 
+**Control over your schedule and bookings.** You set your own business hours and availability, and you decide in your sole discretion which booking requests to accept, decline, reschedule, or cancel. PawBooker does not assign, dispatch, or require you to accept any particular booking, and does not direct the methods, sequence, or manner in which you perform grooming services.
+
+**No exclusivity.** Nothing in these Terms requires you to use the Platform exclusively. You remain free to offer grooming services through other channels or platforms, accept walk-in or off-Platform clients, maintain and solicit your own pre-existing clientele, and operate any competing or independent business. (This does not permit diverting a Customer you met through the Platform to book or pay off-Platform in order to avoid Platform fees, as described in Section 2.5.)
+
+**No employment relationship.** These Terms do not create an employment, agency, partnership, joint-venture, or franchise relationship. PawBooker does not pay you wages, a salary, or an hourly rate; does not provide employee benefits (such as health insurance, paid leave, workers' compensation, or unemployment insurance); does not withhold income or payroll taxes on your behalf; and does not provide the tools, equipment, or workspace used to perform your services. You are compensated by Customers for the services you provide, net of the Platform fees described in these Terms, and you are responsible for your own taxes as described in Section 2.4.
+
 ### 2.2 Licensing, Insurance, and Compliance
 You are solely responsible for obtaining and maintaining any business license, permit, certification, or insurance required by your local, state, or federal law to lawfully operate a pet grooming business. PawBooker does not verify licensing or insurance and makes no representation that any Groomer is licensed, certified, or insured.
 
