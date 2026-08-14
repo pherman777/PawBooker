@@ -14,11 +14,18 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Colors } from '@/constants/theme';
 import { fetchActiveStaff, fetchBusyIntervals, type SalonStaff } from '@/services/availability';
 import { useAuth } from '@/services/auth-context';
+import { createGroupBooking } from '@/services/bookings';
 import { notifyGroomer, sendBookingEmail } from '@/services/notifications';
 import { supabase } from '@/services/supabase';
 import type { GroomerHours, Pet } from '@/types';
 import { computeAvailableTimes, type BusyInterval, type StaffSelection } from '@/utils/availability';
 import { notify } from '@/utils/confirm';
+import {
+  computeGroupDiscountCents,
+  describeMultiPetDiscount,
+  parseMultiPetDiscount,
+  type MultiPetDiscount,
+} from '@/utils/discount';
 import { hasCurrentRabiesVaccination } from '@/utils/vaccination';
 import { formatTime } from '@/utils/hours';
 
@@ -63,10 +70,11 @@ export default function BookingScreen() {
   const [staff, setStaff] = useState<SalonStaff[]>([]);
   const [busy, setBusy] = useState<BusyInterval[]>([]);
   const [staffSelection, setStaffSelection] = useState<string>('any'); // 'any' or a staff id
+  const [discountRule, setDiscountRule] = useState<MultiPetDiscount | null>(null);
 
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
   const [selectedTime, setSelectedTime] = useState<string | null>(null);
-  const [selectedPetId, setSelectedPetId] = useState<string | null>(null);
+  const [selectedPetIds, setSelectedPetIds] = useState<Set<string>>(new Set());
 
   const [addingPet, setAddingPet] = useState(false);
   const [newPetName, setNewPetName] = useState('');
@@ -78,6 +86,12 @@ export default function BookingScreen() {
 
   const days = useMemo(() => nextDays(DAYS_AHEAD), []);
 
+  const petCount = Math.max(selectedPetIds.size, 1);
+  // The whole group is one contiguous block: total time = per-pet service length
+  // times how many pets are coming, so we only offer arrival slots that fit them
+  // all back-to-back.
+  const totalDurationMinutes = service ? service.durationMinutes * petCount : 0;
+
   const availableTimes = useMemo(() => {
     if (!selectedDate || !service) return [];
     const selection: StaffSelection =
@@ -87,11 +101,15 @@ export default function BookingScreen() {
     return computeAvailableTimes({
       date: selectedDate,
       hours: salonHours,
-      durationMinutes: service.durationMinutes,
+      durationMinutes: totalDurationMinutes,
       busy,
       selection,
     });
-  }, [selectedDate, service, staffSelection, staff.length, salonHours, busy]);
+  }, [selectedDate, service, staffSelection, staff.length, salonHours, busy, totalDurationMinutes]);
+
+  const subtotalCents = service ? service.priceCents * selectedPetIds.size : 0;
+  const discountCents = computeGroupDiscountCents(subtotalCents, selectedPetIds.size, discountRule);
+  const totalCents = subtotalCents - discountCents;
 
   useEffect(() => {
     let cancelled = false;
@@ -115,7 +133,7 @@ export default function BookingScreen() {
           .select('id, owner_id, name, species, breed, pet_documents(document_type, expires_at)')
           .eq('owner_id', session.user.id),
         supabase.from('customer_billing').select('user_id').eq('user_id', session.user.id).maybeSingle(),
-        supabase.from('groomers').select('hours').eq('id', groomerId).single(),
+        supabase.from('groomers').select('hours, multi_pet_discount').eq('id', groomerId).single(),
         fetchActiveStaff(groomerId),
         fetchBusyIntervals(groomerId, windowStart, windowEnd),
       ]);
@@ -123,6 +141,7 @@ export default function BookingScreen() {
       if (!cancelled) {
         setHasPaymentMethod(billingResult.data != null);
         setSalonHours((hoursResult.data?.hours ?? null) as GroomerHours | null);
+        setDiscountRule(parseMultiPetDiscount(hoursResult.data?.multi_pet_discount));
         setStaff(staffResult);
         setBusy(busyResult);
       }
@@ -169,7 +188,7 @@ export default function BookingScreen() {
         // On a rebook we're handed the original pet - preselect it if it's still
         // eligible so the customer only has to pick a new time.
         if (petId && eligible.has(petId)) {
-          setSelectedPetId(petId);
+          setSelectedPetIds(new Set([petId]));
         }
       }
 
@@ -213,7 +232,7 @@ export default function BookingScreen() {
   }
 
   async function handleConfirm() {
-    if (!selectedDate || !selectedTime || !selectedPetId || !service || !session) return;
+    if (!selectedDate || !selectedTime || selectedPetIds.size === 0 || !service || !session) return;
 
     setSubmitting(true);
     setSubmitError(null);
@@ -222,31 +241,63 @@ export default function BookingScreen() {
     const startsAt = new Date(selectedDate);
     startsAt.setHours(hours, minutes, 0, 0);
 
-    const { data: inserted, error } = await supabase
-      .from('bookings')
-      .insert({
-        customer_id: session.user.id,
-        customer_email: session.user.email,
-        groomer_id: groomerId,
-        pet_id: selectedPetId,
-        service_id: service.id,
-        staff_id: staffSelection === 'any' ? null : staffSelection,
-        starts_at: startsAt.toISOString(),
-        status: 'pending',
-      })
-      .select('id')
-      .single();
+    const staffId = staffSelection === 'any' ? null : staffSelection;
+    const petIds = [...selectedPetIds];
 
-    setSubmitting(false);
+    // A single pet stays a plain standalone booking (no group wrapper); two or
+    // more become a group of sequential bookings the salon handles together.
+    if (petIds.length === 1) {
+      const { data: inserted, error } = await supabase
+        .from('bookings')
+        .insert({
+          customer_id: session.user.id,
+          customer_email: session.user.email,
+          groomer_id: groomerId,
+          pet_id: petIds[0],
+          service_id: service.id,
+          staff_id: staffId,
+          starts_at: startsAt.toISOString(),
+          status: 'pending',
+        })
+        .select('id')
+        .single();
 
-    if (error || !inserted) {
-      setSubmitError(error?.message ?? 'Booking failed');
+      setSubmitting(false);
+
+      if (error || !inserted) {
+        setSubmitError(error?.message ?? 'Booking failed');
+        return;
+      }
+
+      notifyGroomer(groomerId, inserted.id, 'booking_requested');
+      sendBookingEmail(inserted.id, 'booking_requested');
+      router.replace('/(tabs)/bookings');
       return;
     }
 
-    notifyGroomer(groomerId, inserted.id, 'booking_requested');
-    sendBookingEmail(inserted.id, 'booking_requested');
-    router.replace('/(tabs)/bookings');
+    try {
+      const { bookingIds } = await createGroupBooking({
+        customerId: session.user.id,
+        customerEmail: session.user.email,
+        groomerId,
+        staffId,
+        serviceId: service.id,
+        petIds,
+        arrivalAt: startsAt,
+        perPetDurationMinutes: service.durationMinutes,
+        discount: discountRule,
+      });
+
+      setSubmitting(false);
+
+      // One notification for the whole group, keyed on the lead booking.
+      notifyGroomer(groomerId, bookingIds[0], 'booking_requested');
+      sendBookingEmail(bookingIds[0], 'booking_requested');
+      router.replace('/(tabs)/bookings');
+    } catch (err) {
+      setSubmitting(false);
+      setSubmitError(err instanceof Error ? err.message : 'Booking failed');
+    }
   }
 
   if (loading) {
@@ -266,7 +317,7 @@ export default function BookingScreen() {
   }
 
   const canConfirm =
-    Boolean(selectedDate && selectedTime && selectedPetId) && hasPaymentMethod && !submitting;
+    Boolean(selectedDate && selectedTime && selectedPetIds.size > 0) && hasPaymentMethod && !submitting;
 
   return (
     <SafeAreaView style={styles.container} edges={['bottom']}>
@@ -365,23 +416,40 @@ export default function BookingScreen() {
           </View>
         )}
 
-        <Text style={styles.sectionTitle}>Which pet?</Text>
+        <Text style={styles.sectionTitle}>Which pets?</Text>
+        {discountRule ? (
+          <Text style={styles.discountHint}>
+            Bringing more than one? This salon offers {describeMultiPetDiscount(discountRule)}.
+          </Text>
+        ) : (
+          <Text style={styles.discountHint}>Select every pet coming in - they&apos;ll be booked as one visit.</Text>
+        )}
         <View style={styles.petRow}>
           {pets.map((pet) => {
-            const isSelected = selectedPetId === pet.id;
+            const isSelected = selectedPetIds.has(pet.id);
             const isEligible = eligiblePetIds.has(pet.id);
             return (
               <Pressable
                 key={pet.id}
                 style={[styles.petChip, isSelected && styles.chipSelected, !isEligible && styles.petChipDisabled]}
-                onPress={() =>
-                  isEligible
-                    ? setSelectedPetId(pet.id)
-                    : notify(
-                        'Rabies vaccination required',
-                        `${pet.name} needs a current rabies vaccination on file before they can be booked. Add one from ${pet.name}'s profile in the Profile tab.`
-                      )
-                }>
+                onPress={() => {
+                  if (!isEligible) {
+                    notify(
+                      'Rabies vaccination required',
+                      `${pet.name} needs a current rabies vaccination on file before they can be booked. Add one from ${pet.name}'s profile in the Profile tab.`
+                    );
+                    return;
+                  }
+                  // Toggling a pet changes the total time, so the chosen slot may no
+                  // longer fit the group - clear it and make them repick.
+                  setSelectedPetIds((prev) => {
+                    const next = new Set(prev);
+                    if (next.has(pet.id)) next.delete(pet.id);
+                    else next.add(pet.id);
+                    return next;
+                  });
+                  setSelectedTime(null);
+                }}>
                 <Text style={[styles.petChipText, isSelected && styles.chipTextSelected]}>{pet.name}</Text>
                 {!isEligible && <Text style={styles.petChipHint}>Vaccination required</Text>}
               </Pressable>
@@ -428,6 +496,32 @@ export default function BookingScreen() {
                 <Text style={styles.saveButtonText}>Save pet</Text>
               )}
             </Pressable>
+          </View>
+        )}
+
+        {selectedPetIds.size > 0 && (
+          <View style={styles.summaryCard}>
+            <View style={styles.summaryRow}>
+              <Text style={styles.summaryLabel}>
+                {selectedPetIds.size} {selectedPetIds.size === 1 ? 'pet' : 'pets'} · {service.name}
+              </Text>
+              <Text style={styles.summaryValue}>${(subtotalCents / 100).toFixed(2)}</Text>
+            </View>
+            {discountCents > 0 && (
+              <View style={styles.summaryRow}>
+                <Text style={styles.summaryDiscountLabel}>Multi-pet discount</Text>
+                <Text style={styles.summaryDiscountValue}>−${(discountCents / 100).toFixed(2)}</Text>
+              </View>
+            )}
+            <View style={[styles.summaryRow, styles.summaryTotalRow]}>
+              <Text style={styles.summaryTotalLabel}>
+                Estimated total{selectedPetIds.size > 1 ? ` · ${totalDurationMinutes} min` : ''}
+              </Text>
+              <Text style={styles.summaryTotalValue}>${(totalCents / 100).toFixed(2)}</Text>
+            </View>
+            <Text style={styles.summaryNote}>
+              Final price is set by the groomer when your appointment is complete.
+            </Text>
           </View>
         )}
 
@@ -570,10 +664,72 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: Colors.light.text,
   },
+  discountHint: {
+    marginTop: -4,
+    marginBottom: 10,
+    fontSize: 13,
+    lineHeight: 18,
+    color: Colors.light.textMuted,
+  },
   petRow: {
     flexDirection: 'row',
     flexWrap: 'wrap',
     gap: 8,
+  },
+  summaryCard: {
+    marginTop: 24,
+    padding: 14,
+    borderRadius: 10,
+    backgroundColor: Colors.light.surface,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: Colors.light.border,
+  },
+  summaryRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  summaryLabel: {
+    flex: 1,
+    fontSize: 14,
+    color: Colors.light.text,
+  },
+  summaryValue: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: Colors.light.text,
+  },
+  summaryDiscountLabel: {
+    fontSize: 14,
+    color: Colors.light.tint,
+  },
+  summaryDiscountValue: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: Colors.light.tint,
+  },
+  summaryTotalRow: {
+    marginBottom: 0,
+    paddingTop: 10,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: Colors.light.border,
+  },
+  summaryTotalLabel: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: Colors.light.text,
+  },
+  summaryTotalValue: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: Colors.light.text,
+  },
+  summaryNote: {
+    marginTop: 10,
+    fontSize: 12,
+    lineHeight: 16,
+    color: Colors.light.textMuted,
   },
   petChip: {
     paddingHorizontal: 14,

@@ -83,6 +83,18 @@ export type Booking = {
   paymentStatus: PaymentStatus;
   invoiceTotalCents?: number;
   taxAmountCents?: number;
+  groupId?: string;
+};
+
+// Ties several single-pet bookings into one multi-pet visit (all pets brought at
+// once). discountType/Value snapshot the salon's multi-pet rule as applied.
+export type BookingGroup = {
+  id: string;
+  groomerId: string;
+  staffId?: string;
+  arrivalAt: string;
+  discountType?: 'percent' | 'flat';
+  discountValue?: number;
 };
 
 export type BookingLineItem = {

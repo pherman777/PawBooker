@@ -80,6 +80,24 @@ export async function chargeBooking(bookingId: string): Promise<ChargeBookingRes
   return data;
 }
 
+export type ChargeGroupResponse = {
+  success: boolean;
+  totalCents: number;
+  petCount: number;
+};
+
+// Charges every ready-to-bill pet in a multi-pet group as ONE payment to the
+// customer's card, while still recording each pet's own itemized invoice. Line
+// items must already be saved per booking before calling.
+export async function chargeBookingGroup(groupId: string): Promise<ChargeGroupResponse> {
+  const { data, error } = await supabase.functions.invoke<ChargeGroupResponse>('stripe-charge-group', {
+    body: { groupId },
+  });
+  if (error) throw await unwrapFunctionError(error);
+  if (!data) throw new Error('No response from stripe-charge-group');
+  return data;
+}
+
 export type ChargeTipResponse = {
   success: boolean;
   tipAmountCents: number;

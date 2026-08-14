@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
 import { ActivityIndicator, FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -33,6 +33,7 @@ type BookingReview = {
 
 type BookingRow = {
   id: string;
+  groupId?: string;
   groomerId: string;
   serviceId: string;
   petId: string;
@@ -51,6 +52,14 @@ type BookingRow = {
   paymentStatus?: PaymentStatus;
 };
 
+// A row in the list is either a standalone booking or a multi-pet group booked
+// as one visit. `bookings` is sorted earliest-first; `lead` is that earliest one.
+type BookingEntry = {
+  key: string;
+  bookings: BookingRow[];
+  lead: BookingRow;
+};
+
 const STATUS_COLORS: Record<BookingStatus, string> = {
   pending: Colors.light.warning,
   confirmed: Colors.light.success,
@@ -59,21 +68,58 @@ const STATUS_COLORS: Record<BookingStatus, string> = {
   declined: Colors.light.warning,
 };
 
+// Collapses linked bookings (same group_id) into one entry, preserving the
+// order groups first appear in the (already sorted) list. Standalone bookings
+// each become an entry of one.
+function groupEntries(rows: BookingRow[]): BookingEntry[] {
+  const entries: BookingEntry[] = [];
+  const indexByGroup = new Map<string, number>();
+  for (const row of rows) {
+    if (row.groupId) {
+      const at = indexByGroup.get(row.groupId);
+      if (at != null) {
+        entries[at].bookings.push(row);
+        continue;
+      }
+      indexByGroup.set(row.groupId, entries.length);
+      entries.push({ key: row.groupId, bookings: [row], lead: row });
+    } else {
+      entries.push({ key: row.id, bookings: [row], lead: row });
+    }
+  }
+  for (const entry of entries) {
+    entry.bookings.sort((a, b) => a.startsAt.localeCompare(b.startsAt));
+    entry.lead = entry.bookings[0];
+  }
+  return entries;
+}
+
+// One representative status for a whole group: done only if every pet is done,
+// otherwise surface the most "active" state the customer should act on.
+function groupStatus(rows: BookingRow[]): BookingStatus {
+  if (rows.every((b) => b.status === 'completed')) return 'completed';
+  const order: BookingStatus[] = ['pending', 'confirmed', 'cancelled', 'declined', 'completed'];
+  for (const status of order) {
+    if (rows.some((b) => b.status === status)) return status;
+  }
+  return rows[0].status;
+}
+
 export default function BookingsScreen() {
   const router = useRouter();
   const { bookingId: notifiedBookingId } = useLocalSearchParams<{ bookingId?: string }>();
   const handledNotificationRef = useRef<string | null>(null);
-  const flatListRef = useRef<FlatList<BookingRow>>(null);
+  const flatListRef = useRef<FlatList<BookingEntry>>(null);
   const [highlightedId, setHighlightedId] = useState<string | null>(null);
   const { session } = useAuth();
   const [bookings, setBookings] = useState<BookingRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [updatingId, setUpdatingId] = useState<string | null>(null);
-  const [cancelTargetId, setCancelTargetId] = useState<string | null>(null);
+  const [cancelTarget, setCancelTarget] = useState<{ ids: string[]; groomerId: string } | null>(null);
   const [reviewTargetId, setReviewTargetId] = useState<string | null>(null);
   const [submittingReview, setSubmittingReview] = useState(false);
-  const [tipTargetId, setTipTargetId] = useState<string | null>(null);
+  const [tipTarget, setTipTarget] = useState<{ bookingId: string; subtotalCents: number } | null>(null);
   const [submittingTip, setSubmittingTip] = useState(false);
   const [reportTargetId, setReportTargetId] = useState<string | null>(null);
   const [submittingReport, setSubmittingReport] = useState(false);
@@ -86,7 +132,7 @@ export default function BookingsScreen() {
       supabase
         .from('bookings')
         .select(
-          'id, groomer_id, service_id, pet_id, starts_at, status, payment_status, cancellation_reason, invoice_total_cents, tax_amount_cents, tip_amount_cents, groomers(name, latitude, longitude), groomer_services(name), pets(name)'
+          'id, group_id, groomer_id, service_id, pet_id, starts_at, status, payment_status, cancellation_reason, invoice_total_cents, tax_amount_cents, tip_amount_cents, groomers(name, latitude, longitude), groomer_services(name), pets(name)'
         )
         .eq('customer_id', session.user.id)
         .order('starts_at', { ascending: false }),
@@ -103,6 +149,7 @@ export default function BookingsScreen() {
       setBookings(
         (bookingsResult.data ?? []).map((row) => ({
           id: row.id,
+          groupId: row.group_id ?? undefined,
           groomerId: row.groomer_id,
           serviceId: row.service_id,
           petId: row.pet_id,
@@ -136,29 +183,29 @@ export default function BookingsScreen() {
     }, [load])
   );
 
+  const entries = useMemo(() => groupEntries(bookings), [bookings]);
+
   async function handleConfirmCancel(reason: string) {
-    if (!cancelTargetId) return;
-    const bookingId = cancelTargetId;
-    const cancelledBooking = bookings.find((b) => b.id === bookingId);
-    setUpdatingId(bookingId);
+    if (!cancelTarget) return;
+    const { ids, groomerId } = cancelTarget;
+    setUpdatingId(ids[0]);
 
     const { error: updateError } = await supabase
       .from('bookings')
       .update({ status: 'cancelled', cancellation_reason: reason, cancelled_by: 'customer' })
-      .eq('id', bookingId);
+      .in('id', ids);
 
     setUpdatingId(null);
-    setCancelTargetId(null);
+    setCancelTarget(null);
 
     if (updateError) {
       notify('Update failed', updateError.message);
       return;
     }
     await load();
-    sendBookingEmail(bookingId, 'customer_cancelled');
-    if (cancelledBooking) {
-      notifyGroomer(cancelledBooking.groomerId, bookingId, 'booking_cancelled');
-    }
+    // One email + groomer notification per visit, keyed on the lead booking.
+    sendBookingEmail(ids[0], 'customer_cancelled');
+    notifyGroomer(groomerId, ids[0], 'booking_cancelled');
   }
 
   async function handleSubmitReview(rating: number, comment: string) {
@@ -190,12 +237,12 @@ export default function BookingsScreen() {
   }
 
   async function handleSubmitTip(tipAmountCents: number) {
-    if (!tipTargetId) return;
+    if (!tipTarget) return;
 
     setSubmittingTip(true);
     try {
-      await chargeTip(tipTargetId, tipAmountCents);
-      setTipTargetId(null);
+      await chargeTip(tipTarget.bookingId, tipAmountCents);
+      setTipTarget(null);
       await load();
     } catch (err) {
       notify('Tip not sent', err instanceof Error ? err.message : 'Something went wrong.');
@@ -221,7 +268,7 @@ export default function BookingsScreen() {
     setHighlightedId(bookingId);
 
     setTimeout(() => {
-      const index = bookings.findIndex((b) => b.id === bookingId);
+      const index = entries.findIndex((e) => e.bookings.some((b) => b.id === bookingId));
       if (index >= 0) {
         flatListRef.current?.scrollToIndex({ index, animated: true, viewPosition: 0.3 });
       }
@@ -236,6 +283,124 @@ export default function BookingsScreen() {
     handledNotificationRef.current = notifiedBookingId;
     handleSelectBookingFromNotification(notifiedBookingId);
   }, [notifiedBookingId, bookings]);
+
+  function renderGroupCard(entry: BookingEntry) {
+    const rows = entry.bookings;
+    const lead = entry.lead;
+    const status = groupStatus(rows);
+    const isHighlighted = rows.some((b) => b.id === highlightedId);
+    const petNames = rows.map((b) => b.petName).join(', ');
+    const ids = rows.map((b) => b.id);
+    const cancellable = status === 'pending' || status === 'confirmed';
+    const allCompleted = rows.every((b) => b.status === 'completed');
+    const totalPaidCents = rows.reduce((sum, b) => sum + (b.invoiceTotalCents ?? 0), 0);
+    const anyPaymentFailed = rows.some((b) => b.paymentStatus === 'failed');
+    // One tip for the whole visit, charged on the lead booking, sized to the
+    // combined pre-tax subtotal across all pets.
+    const tipSubtotalCents = rows.reduce(
+      (sum, b) => sum + ((b.invoiceTotalCents ?? 0) - (b.taxAmountCents ?? 0)),
+      0
+    );
+
+    return (
+      <View style={[styles.card, isHighlighted && styles.cardHighlighted]}>
+        <View style={styles.cardHeader}>
+          <Text style={styles.cardService}>{lead.serviceName}</Text>
+          <Text style={[styles.cardStatus, { color: STATUS_COLORS[status] }]}>{status}</Text>
+        </View>
+        <View style={styles.groupBadge}>
+          <Text style={styles.groupBadgeText}>{rows.length} pets · one visit</Text>
+        </View>
+        <Text style={styles.cardMeta}>
+          {lead.groomerName} · {petNames}
+        </Text>
+        <Text style={styles.cardMeta}>
+          {new Date(lead.startsAt).toLocaleString(undefined, {
+            weekday: 'short',
+            month: 'short',
+            day: 'numeric',
+            hour: 'numeric',
+            minute: '2-digit',
+          })}
+        </Text>
+
+        {status === 'cancelled' && lead.cancellationReason && (
+          <Text style={styles.reasonText}>Reason: {lead.cancellationReason}</Text>
+        )}
+
+        {status === 'declined' && (
+          <View style={styles.declinedBox}>
+            <Text style={styles.declinedLabel}>Note from {lead.groomerName}</Text>
+            <Text style={styles.declinedNote}>
+              {lead.cancellationReason || 'They couldn’t take this time. Try booking another.'}
+            </Text>
+          </View>
+        )}
+
+        {anyPaymentFailed && (
+          <View style={styles.paymentFailedBanner}>
+            <Text style={styles.paymentFailedText}>
+              We couldn&apos;t charge your card for this visit.
+            </Text>
+            <Pressable onPress={() => router.push('/(tabs)/profile')}>
+              <Text style={styles.paymentFailedLink}>Update payment method</Text>
+            </Pressable>
+          </View>
+        )}
+
+        {(status === 'pending' || status === 'confirmed') &&
+          lead.groomerLatitude != null &&
+          lead.groomerLongitude != null && (
+            <View style={styles.directionsWrapper}>
+              <DirectionsButton
+                destination={{ latitude: lead.groomerLatitude, longitude: lead.groomerLongitude }}
+              />
+            </View>
+          )}
+
+        {cancellable && (
+          <Pressable
+            style={styles.cancelButton}
+            onPress={() => setCancelTarget({ ids, groomerId: lead.groomerId })}
+            disabled={updatingId === ids[0]}>
+            {updatingId === ids[0] ? (
+              <ActivityIndicator color={Colors.light.danger} size="small" />
+            ) : (
+              <Text style={styles.cancelButtonText}>Cancel booking</Text>
+            )}
+          </Pressable>
+        )}
+
+        {allCompleted && totalPaidCents > 0 && (
+          <Text style={styles.tippedText}>Paid ${(totalPaidCents / 100).toFixed(2)} total</Text>
+        )}
+
+        {allCompleted && (
+          <Pressable style={styles.reviewButton} onPress={() => setReviewTargetId(lead.id)}>
+            <Text style={styles.reviewButtonText}>{lead.review ? 'Edit review' : 'Leave a review'}</Text>
+          </Pressable>
+        )}
+
+        {allCompleted &&
+          totalPaidCents > 0 &&
+          (lead.tipAmountCents != null ? (
+            <Text style={styles.tippedText}>Tipped ${(lead.tipAmountCents / 100).toFixed(2)} for the visit</Text>
+          ) : (
+            <Pressable
+              style={styles.tipButton}
+              onPress={() => setTipTarget({ bookingId: lead.id, subtotalCents: tipSubtotalCents })}>
+              <Text style={styles.tipButtonText}>Leave a tip for the visit</Text>
+            </Pressable>
+          ))}
+
+        {(status === 'completed' || status === 'cancelled' || status === 'confirmed') && (
+          <Pressable style={styles.reportLink} onPress={() => setReportTargetId(lead.id)}>
+            <Text style={styles.reportLinkText}>Report an issue</Text>
+          </Pressable>
+        )}
+      </View>
+    );
+  }
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
@@ -254,8 +419,8 @@ export default function BookingsScreen() {
       {!loading && !error && (
         <FlatList showsVerticalScrollIndicator={false}
           ref={flatListRef}
-          data={bookings}
-          keyExtractor={(item) => item.id}
+          data={entries}
+          keyExtractor={(entry) => entry.key}
           onScrollToIndexFailed={({ index }) => {
             setTimeout(() => {
               flatListRef.current?.scrollToIndex({ index, animated: true, viewPosition: 0.3 });
@@ -263,7 +428,10 @@ export default function BookingsScreen() {
           }}
           style={styles.flatList}
           contentContainerStyle={styles.list}
-          renderItem={({ item }) => (
+          renderItem={({ item: entry }) => {
+            if (entry.bookings.length > 1) return renderGroupCard(entry);
+            const item = entry.bookings[0];
+            return (
             <View style={[styles.card, item.id === highlightedId && styles.cardHighlighted]}>
               <View style={styles.cardHeader}>
                 <Text style={styles.cardService}>{item.serviceName}</Text>
@@ -334,7 +502,7 @@ export default function BookingsScreen() {
               {(item.status === 'pending' || item.status === 'confirmed') && (
                 <Pressable
                   style={styles.cancelButton}
-                  onPress={() => setCancelTargetId(item.id)}
+                  onPress={() => setCancelTarget({ ids: [item.id], groomerId: item.groomerId })}
                   disabled={updatingId === item.id}>
                   {updatingId === item.id ? (
                     <ActivityIndicator color={Colors.light.danger} size="small" />
@@ -356,7 +524,14 @@ export default function BookingsScreen() {
                 item.tipAmountCents != null ? (
                   <Text style={styles.tippedText}>Tipped ${(item.tipAmountCents / 100).toFixed(2)}</Text>
                 ) : (
-                  <Pressable style={styles.tipButton} onPress={() => setTipTargetId(item.id)}>
+                  <Pressable
+                    style={styles.tipButton}
+                    onPress={() =>
+                      setTipTarget({
+                        bookingId: item.id,
+                        subtotalCents: (item.invoiceTotalCents ?? 0) - (item.taxAmountCents ?? 0),
+                      })
+                    }>
                     <Text style={styles.tipButtonText}>Leave a tip</Text>
                   </Pressable>
                 )
@@ -368,7 +543,8 @@ export default function BookingsScreen() {
                 </Pressable>
               )}
             </View>
-          )}
+            );
+          }}
           ListEmptyComponent={
             <View style={styles.empty}>
               <Text style={styles.emptyText}>No bookings yet</Text>
@@ -381,10 +557,15 @@ export default function BookingsScreen() {
       )}
 
       <CancelBookingModal
-        visible={cancelTargetId != null}
-        submitting={updatingId === cancelTargetId}
-        onDismiss={() => setCancelTargetId(null)}
+        visible={cancelTarget != null}
+        submitting={cancelTarget != null && updatingId === cancelTarget.ids[0]}
+        onDismiss={() => setCancelTarget(null)}
         onConfirm={handleConfirmCancel}
+        subtitle={
+          cancelTarget && cancelTarget.ids.length > 1
+            ? `This cancels all ${cancelTarget.ids.length} pets booked in this visit.`
+            : undefined
+        }
       />
 
       <ReviewModal
@@ -399,13 +580,10 @@ export default function BookingsScreen() {
       />
 
       <TipModal
-        visible={tipTargetId != null}
-        subtotalCents={
-          (bookings.find((b) => b.id === tipTargetId)?.invoiceTotalCents ?? 0) -
-          (bookings.find((b) => b.id === tipTargetId)?.taxAmountCents ?? 0)
-        }
+        visible={tipTarget != null}
+        subtotalCents={tipTarget?.subtotalCents ?? 0}
         submitting={submittingTip}
-        onDismiss={() => setTipTargetId(null)}
+        onDismiss={() => setTipTarget(null)}
         onSubmit={handleSubmitTip}
       />
 
@@ -473,6 +651,19 @@ const styles = StyleSheet.create({
     fontSize: 17,
     fontWeight: '600',
     color: Colors.light.text,
+  },
+  groupBadge: {
+    alignSelf: 'flex-start',
+    marginTop: 8,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 999,
+    backgroundColor: Colors.light.tint,
+  },
+  groupBadgeText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#fff',
   },
   cardMeta: {
     marginTop: 4,

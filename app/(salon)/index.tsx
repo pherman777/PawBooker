@@ -31,6 +31,7 @@ const REPORT_REASONS = [
 
 type SalonBookingRow = {
   id: string;
+  groupId?: string;
   customerId: string;
   startsAt: string;
   status: BookingStatus;
@@ -46,13 +47,57 @@ type SalonBookingRow = {
   platformFeeCents?: number;
 };
 
+// A multi-pet visit (same group_id) shown as one card; standalone bookings are
+// an entry of one. `bookings` is earliest-first; `lead` is the earliest.
+type SalonEntry = {
+  key: string;
+  bookings: SalonBookingRow[];
+  lead: SalonBookingRow;
+};
+
 type ViewMode = 'list' | 'calendar';
 type StatFilter = 'pending' | 'upcoming' | 'ready_to_bill' | null;
 
-function matchesStatFilter(booking: SalonBookingRow, filter: StatFilter): boolean {
-  if (filter === 'pending') return booking.status === 'pending';
-  if (filter === 'upcoming') return booking.status === 'confirmed' && !booking.serviceCompletedAt;
-  if (filter === 'ready_to_bill') return booking.status === 'confirmed' && Boolean(booking.serviceCompletedAt);
+function groupSalonEntries(rows: SalonBookingRow[]): SalonEntry[] {
+  const entries: SalonEntry[] = [];
+  const indexByGroup = new Map<string, number>();
+  for (const row of rows) {
+    if (row.groupId) {
+      const at = indexByGroup.get(row.groupId);
+      if (at != null) {
+        entries[at].bookings.push(row);
+        continue;
+      }
+      indexByGroup.set(row.groupId, entries.length);
+      entries.push({ key: row.groupId, bookings: [row], lead: row });
+    } else {
+      entries.push({ key: row.id, bookings: [row], lead: row });
+    }
+  }
+  for (const entry of entries) {
+    entry.bookings.sort((a, b) => a.startsAt.localeCompare(b.startsAt));
+    entry.lead = entry.bookings[0];
+  }
+  return entries;
+}
+
+function groupSalonStatus(rows: SalonBookingRow[]): BookingStatus {
+  if (rows.every((b) => b.status === 'completed')) return 'completed';
+  const order: BookingStatus[] = ['pending', 'confirmed', 'cancelled', 'declined', 'completed'];
+  for (const status of order) {
+    if (rows.some((b) => b.status === status)) return status;
+  }
+  return rows[0].status;
+}
+
+// A group is "ready to bill" once the groomer has marked the service done on
+// every pet; "upcoming" while any pet still needs the service performed.
+function matchesStatFilterEntry(entry: SalonEntry, filter: StatFilter): boolean {
+  const status = groupSalonStatus(entry.bookings);
+  const allServiceCompleted = entry.bookings.every((b) => b.serviceCompletedAt);
+  if (filter === 'pending') return status === 'pending';
+  if (filter === 'upcoming') return status === 'confirmed' && !allServiceCompleted;
+  if (filter === 'ready_to_bill') return status === 'confirmed' && allServiceCompleted;
   return true;
 }
 
@@ -74,8 +119,8 @@ export default function SalonDashboardScreen() {
   const [error, setError] = useState<string | null>(null);
   const [updatingId, setUpdatingId] = useState<string | null>(null);
   const [staffList, setStaffList] = useState<SalonStaff[]>([]);
-  const [cancelTargetId, setCancelTargetId] = useState<string | null>(null);
-  const [declineTargetId, setDeclineTargetId] = useState<string | null>(null);
+  const [cancelTargetIds, setCancelTargetIds] = useState<string[] | null>(null);
+  const [declineTargetIds, setDeclineTargetIds] = useState<string[] | null>(null);
   const [viewMode, setViewMode] = useState<ViewMode>('list');
   const [calendarMonth, setCalendarMonth] = useState(() => new Date());
   const [selectedDay, setSelectedDay] = useState(() => new Date());
@@ -84,7 +129,7 @@ export default function SalonDashboardScreen() {
   const [reportTargetId, setReportTargetId] = useState<string | null>(null);
   const [submittingReport, setSubmittingReport] = useState(false);
   const [lowStockCount, setLowStockCount] = useState(0);
-  const flatListRef = useRef<FlatList<SalonBookingRow>>(null);
+  const flatListRef = useRef<FlatList<SalonEntry>>(null);
 
   const loadLowStockCount = useCallback(async () => {
     if (!groomerProfile) return;
@@ -104,7 +149,7 @@ export default function SalonDashboardScreen() {
     const { data, error: queryError } = await supabase
       .from('bookings')
       .select(
-        'id, customer_id, starts_at, status, payment_status, service_completed_at, cancellation_reason, invoice_total_cents, platform_fee_cents, staff_id, pets(name, is_anxious, is_matted, needs_extra_care, care_notes, is_microchipped, microchip_number, vet_name, vet_phone), groomer_services(name), salon_staff(name)'
+        'id, group_id, customer_id, starts_at, status, payment_status, service_completed_at, cancellation_reason, invoice_total_cents, platform_fee_cents, staff_id, pets(name, is_anxious, is_matted, needs_extra_care, care_notes, is_microchipped, microchip_number, vet_name, vet_phone), groomer_services(name), salon_staff(name)'
       )
       .eq('groomer_id', groomerProfile.id)
       .order('starts_at', { ascending: false });
@@ -128,6 +173,7 @@ export default function SalonDashboardScreen() {
           const petRow = row.pets as unknown as PetCareRow | null;
           return {
           id: row.id,
+          groupId: row.group_id ?? undefined,
           customerId: row.customer_id,
           startsAt: row.starts_at,
           status: row.status,
@@ -164,26 +210,26 @@ export default function SalonDashboardScreen() {
     }, [load, loadLowStockCount])
   );
 
+  const entries = useMemo(() => groupSalonEntries(bookings), [bookings]);
+
   const stats = useMemo(() => {
-    const pendingCount = bookings.filter((b) => b.status === 'pending').length;
-    const upcomingCount = bookings.filter((b) => b.status === 'confirmed' && !b.serviceCompletedAt).length;
-    const readyToBillCount = bookings.filter(
-      (b) => b.status === 'confirmed' && b.serviceCompletedAt
-    ).length;
+    const pendingCount = entries.filter((e) => matchesStatFilterEntry(e, 'pending')).length;
+    const upcomingCount = entries.filter((e) => matchesStatFilterEntry(e, 'upcoming')).length;
+    const readyToBillCount = entries.filter((e) => matchesStatFilterEntry(e, 'ready_to_bill')).length;
     const customerCount = new Set(bookings.map((b) => b.customerId)).size;
     return { pendingCount, upcomingCount, readyToBillCount, customerCount };
-  }, [bookings]);
+  }, [entries, bookings]);
 
-  const displayedBookings = useMemo(() => {
-    let result = bookings;
+  const displayedEntries = useMemo(() => {
+    let result = entries;
     if (viewMode === 'calendar') {
-      result = result.filter((b) => isSameDay(new Date(b.startsAt), selectedDay));
+      result = result.filter((e) => isSameDay(new Date(e.lead.startsAt), selectedDay));
     }
     if (statFilter) {
-      result = result.filter((b) => matchesStatFilter(b, statFilter));
+      result = result.filter((e) => matchesStatFilterEntry(e, statFilter));
     }
     return result;
-  }, [bookings, viewMode, selectedDay, statFilter]);
+  }, [entries, viewMode, selectedDay, statFilter]);
 
   function toggleStatFilter(filter: StatFilter) {
     setStatFilter((current) => (current === filter ? null : filter));
@@ -194,7 +240,7 @@ export default function SalonDashboardScreen() {
     setHighlightedId(bookingId);
 
     setTimeout(() => {
-      const index = bookings.findIndex((b) => b.id === bookingId);
+      const index = entries.findIndex((e) => e.bookings.some((b) => b.id === bookingId));
       if (index >= 0) {
         flatListRef.current?.scrollToIndex({ index, animated: true, viewPosition: 0.3 });
       }
@@ -231,6 +277,7 @@ export default function SalonDashboardScreen() {
       { label: 'Setup checklist', onPress: () => router.push('/(salon)/welcome') },
       { label: 'Business info', onPress: () => router.push('/(salon)/business-info') },
       { label: 'Services & prices', onPress: () => router.push('/(salon)/services') },
+      { label: 'Multi-pet discount', onPress: () => router.push('/(salon)/discount') },
       { label: 'Hours', onPress: () => router.push('/(salon)/hours') },
       { label: 'Groomers', onPress: () => router.push('/(salon)/staff') },
       { label: 'Invite your customers', onPress: () => router.push('/(salon)/invite') },
@@ -249,12 +296,12 @@ export default function SalonDashboardScreen() {
     ]);
   }
 
-  async function confirmBooking(bookingId: string, staffId: string | null) {
-    setUpdatingId(bookingId);
+  async function confirmBookings(ids: string[], staffId: string | null) {
+    setUpdatingId(ids[0]);
     const update: { status: 'confirmed'; staff_id?: string } = { status: 'confirmed' };
     if (staffId) update.staff_id = staffId;
 
-    const { error: updateError } = await supabase.from('bookings').update(update).eq('id', bookingId);
+    const { error: updateError } = await supabase.from('bookings').update(update).in('id', ids);
     setUpdatingId(null);
 
     if (updateError) {
@@ -262,32 +309,32 @@ export default function SalonDashboardScreen() {
       return;
     }
     await load();
-    sendBookingEmail(bookingId, 'accepted');
+    sendBookingEmail(ids[0], 'accepted');
   }
 
-  function handleAccept(bookingId: string) {
-    const booking = bookings.find((b) => b.id === bookingId);
-    // A "first available" request comes in unassigned - if the salon has 2+
-    // groomers, ask which one before confirming. Otherwise just confirm.
-    if (booking && !booking.staffId && staffList.length >= 2) {
+  // Accepts one booking or a whole multi-pet group together. A "first available"
+  // request comes in unassigned - if the salon has 2+ groomers, ask which one to
+  // assign (the same groomer takes every pet in the group) before confirming.
+  function handleAccept(ids: string[], unassigned: boolean) {
+    if (unassigned && staffList.length >= 2) {
       showActionSheet('Assign a groomer', [
         ...staffList.map((member) => ({
           label: member.name,
-          onPress: () => confirmBooking(bookingId, member.id),
+          onPress: () => confirmBookings(ids, member.id),
         })),
-        { label: 'Leave unassigned', onPress: () => confirmBooking(bookingId, null) },
+        { label: 'Leave unassigned', onPress: () => confirmBookings(ids, null) },
       ]);
       return;
     }
-    confirmBooking(bookingId, null);
+    confirmBookings(ids, null);
   }
 
-  async function handleCompleteService(bookingId: string) {
-    setUpdatingId(bookingId);
+  async function handleCompleteService(ids: string[]) {
+    setUpdatingId(ids[0]);
     const { error: updateError } = await supabase
       .from('bookings')
       .update({ service_completed_at: new Date().toISOString() })
-      .eq('id', bookingId);
+      .in('id', ids);
     setUpdatingId(null);
 
     if (updateError) {
@@ -295,49 +342,49 @@ export default function SalonDashboardScreen() {
       return;
     }
     await load();
-    sendBookingEmail(bookingId, 'service_completed');
+    sendBookingEmail(ids[0], 'service_completed');
   }
 
   async function handleConfirmDecline(note: string) {
-    if (!declineTargetId) return;
-    const bookingId = declineTargetId;
-    setUpdatingId(bookingId);
+    if (!declineTargetIds) return;
+    const ids = declineTargetIds;
+    setUpdatingId(ids[0]);
 
     const { error: updateError } = await supabase
       .from('bookings')
       .update({ status: 'declined', cancellation_reason: note, cancelled_by: 'groomer' })
-      .eq('id', bookingId);
+      .in('id', ids);
 
     setUpdatingId(null);
-    setDeclineTargetId(null);
+    setDeclineTargetIds(null);
 
     if (updateError) {
       notify('Update failed', updateError.message);
       return;
     }
     await load();
-    sendBookingEmail(bookingId, 'declined');
+    sendBookingEmail(ids[0], 'declined');
   }
 
   async function handleConfirmCancel(reason: string) {
-    if (!cancelTargetId) return;
-    const bookingId = cancelTargetId;
-    setUpdatingId(bookingId);
+    if (!cancelTargetIds) return;
+    const ids = cancelTargetIds;
+    setUpdatingId(ids[0]);
 
     const { error: updateError } = await supabase
       .from('bookings')
       .update({ status: 'cancelled', cancellation_reason: reason, cancelled_by: 'groomer' })
-      .eq('id', bookingId);
+      .in('id', ids);
 
     setUpdatingId(null);
-    setCancelTargetId(null);
+    setCancelTargetIds(null);
 
     if (updateError) {
       notify('Update failed', updateError.message);
       return;
     }
     await load();
-    sendBookingEmail(bookingId, 'groomer_cancelled');
+    sendBookingEmail(ids[0], 'groomer_cancelled');
   }
 
   async function handleSubmitReport(reason: string, details: string) {
@@ -352,6 +399,129 @@ export default function SalonDashboardScreen() {
       notify('Could not submit report', err instanceof Error ? err.message : 'Something went wrong.');
     }
     setSubmittingReport(false);
+  }
+
+  function renderGroupCard(entry: SalonEntry) {
+    const rows = entry.bookings;
+    const lead = entry.lead;
+    const status = groupSalonStatus(rows);
+    const isHighlighted = rows.some((b) => b.id === highlightedId);
+    const ids = rows.map((b) => b.id);
+    const petNames = rows.map((b) => b.petName).join(', ');
+    const notServiceDone = rows.filter((b) => b.status === 'confirmed' && !b.serviceCompletedAt);
+    const readyToBill = rows.filter((b) => b.status === 'confirmed' && b.serviceCompletedAt);
+    const billed = rows.filter((b) => b.status === 'completed');
+    const active = status === 'pending' || status === 'confirmed';
+    const totalPaidCents = billed.reduce((sum, b) => sum + (b.invoiceTotalCents ?? 0), 0);
+    const busy = updatingId != null && ids.includes(updatingId);
+
+    return (
+      <View style={[styles.card, isHighlighted && styles.cardHighlighted]}>
+        <View style={styles.cardHeader}>
+          <Text style={styles.cardService}>{lead.serviceName}</Text>
+          <Text style={[styles.cardStatus, { color: STATUS_COLORS[status] }]}>{status}</Text>
+        </View>
+        <View style={styles.groupBadge}>
+          <Text style={styles.groupBadgeText}>{rows.length} pets · one visit</Text>
+        </View>
+        <Text style={styles.cardMeta}>
+          {petNames}
+          {lead.staffName ? ` · with ${lead.staffName}` : ''}
+        </Text>
+        <Text style={styles.cardMeta}>
+          {new Date(lead.startsAt).toLocaleString(undefined, {
+            weekday: 'short',
+            month: 'short',
+            day: 'numeric',
+            hour: 'numeric',
+            minute: '2-digit',
+          })}
+        </Text>
+
+        {status !== 'cancelled' &&
+          status !== 'declined' &&
+          rows.map((b) => (
+            <View key={b.id} style={styles.groupPetCare}>
+              <Text style={styles.groupPetName}>{b.petName}</Text>
+              <PetCareSummary info={b.petCare} />
+            </View>
+          ))}
+
+        {status === 'declined' && lead.cancellationReason && (
+          <Text style={styles.reasonText}>Your note: {lead.cancellationReason}</Text>
+        )}
+        {status === 'cancelled' && lead.cancellationReason && (
+          <Text style={styles.reasonText}>Reason: {lead.cancellationReason}</Text>
+        )}
+
+        {billed.length > 0 && totalPaidCents > 0 && (
+          <Text style={styles.paidText}>Paid ${(totalPaidCents / 100).toFixed(2)} total</Text>
+        )}
+
+        {status === 'pending' && (
+          <View style={styles.actions}>
+            <Pressable
+              style={[styles.actionButton, styles.acceptButton]}
+              onPress={() => handleAccept(ids, !lead.staffId)}
+              disabled={busy}>
+              {busy ? (
+                <ActivityIndicator color="#fff" size="small" />
+              ) : (
+                <Text style={styles.acceptButtonText}>Accept all</Text>
+              )}
+            </Pressable>
+            <Pressable
+              style={[styles.actionButton, styles.cancelButton]}
+              onPress={() => setDeclineTargetIds(ids)}
+              disabled={busy}>
+              <Text style={styles.cancelButtonText}>Decline</Text>
+            </Pressable>
+          </View>
+        )}
+
+        {status === 'confirmed' && notServiceDone.length > 0 && (
+          <Pressable
+            style={[styles.groupActionButton, styles.acceptButton]}
+            onPress={() => handleCompleteService(notServiceDone.map((b) => b.id))}
+            disabled={busy}>
+            {busy ? (
+              <ActivityIndicator color="#fff" size="small" />
+            ) : (
+              <Text style={styles.acceptButtonText}>
+                Complete service{notServiceDone.length < rows.length ? ` (${notServiceDone.length} left)` : ''}
+              </Text>
+            )}
+          </Pressable>
+        )}
+
+        {readyToBill.length > 0 && (
+          <Pressable
+            style={[styles.groupActionButton, styles.acceptButton]}
+            onPress={() =>
+              router.push({ pathname: '/(salon)/complete-group/[groupId]', params: { groupId: entry.key } })
+            }>
+            <Text style={styles.acceptButtonText}>
+              Complete &amp; invoice ({readyToBill.length} {readyToBill.length === 1 ? 'pet' : 'pets'})
+            </Text>
+          </Pressable>
+        )}
+
+        {active && (
+          <Pressable
+            style={[styles.groupActionButton, styles.cancelButton]}
+            onPress={() => setCancelTargetIds(ids)}
+            disabled={busy}>
+            <Text style={styles.cancelButtonText}>Cancel visit</Text>
+          </Pressable>
+        )}
+
+        {(status === 'completed' || status === 'cancelled') && (
+          <Pressable style={styles.reportLink} onPress={() => setReportTargetId(lead.id)}>
+            <Text style={styles.reportLinkText}>Report an issue</Text>
+          </Pressable>
+        )}
+      </View>
+    );
   }
 
   return (
@@ -387,8 +557,8 @@ export default function SalonDashboardScreen() {
       {!loading && !error && (
         <FlatList showsVerticalScrollIndicator={false}
           ref={flatListRef}
-          data={displayedBookings}
-          keyExtractor={(item) => item.id}
+          data={displayedEntries}
+          keyExtractor={(entry) => entry.key}
           style={styles.flatList}
           contentContainerStyle={styles.list}
           onScrollToIndexFailed={({ index }) => {
@@ -534,7 +704,10 @@ export default function SalonDashboardScreen() {
               )}
             </View>
           }
-          renderItem={({ item }) => (
+          renderItem={({ item: entry }) => {
+            if (entry.bookings.length > 1) return renderGroupCard(entry);
+            const item = entry.bookings[0];
+            return (
             <View style={[styles.card, item.id === highlightedId && styles.cardHighlighted]}>
               <View style={styles.cardHeader}>
                 <Text style={styles.cardService}>{item.serviceName}</Text>
@@ -587,7 +760,7 @@ export default function SalonDashboardScreen() {
                   {item.status === 'pending' && (
                     <Pressable
                       style={[styles.actionButton, styles.acceptButton]}
-                      onPress={() => handleAccept(item.id)}
+                      onPress={() => handleAccept([item.id], !item.staffId)}
                       disabled={updatingId === item.id}>
                       {updatingId === item.id ? (
                         <ActivityIndicator color="#fff" size="small" />
@@ -599,7 +772,7 @@ export default function SalonDashboardScreen() {
                   {item.status === 'confirmed' && !item.serviceCompletedAt && (
                     <Pressable
                       style={[styles.actionButton, styles.acceptButton]}
-                      onPress={() => handleCompleteService(item.id)}
+                      onPress={() => handleCompleteService([item.id])}
                       disabled={updatingId === item.id}>
                       {updatingId === item.id ? (
                         <ActivityIndicator color="#fff" size="small" />
@@ -619,14 +792,14 @@ export default function SalonDashboardScreen() {
                   {item.status === 'pending' ? (
                     <Pressable
                       style={[styles.actionButton, styles.cancelButton]}
-                      onPress={() => setDeclineTargetId(item.id)}
+                      onPress={() => setDeclineTargetIds([item.id])}
                       disabled={updatingId === item.id}>
                       <Text style={styles.cancelButtonText}>Decline</Text>
                     </Pressable>
                   ) : (
                     <Pressable
                       style={[styles.actionButton, styles.cancelButton]}
-                      onPress={() => setCancelTargetId(item.id)}
+                      onPress={() => setCancelTargetIds([item.id])}
                       disabled={updatingId === item.id}>
                       <Text style={styles.cancelButtonText}>Cancel</Text>
                     </Pressable>
@@ -640,7 +813,8 @@ export default function SalonDashboardScreen() {
                 </Pressable>
               )}
             </View>
-          )}
+            );
+          }}
           ListEmptyComponent={
             <View style={styles.empty}>
               <Text style={styles.emptyText}>
@@ -662,19 +836,28 @@ export default function SalonDashboardScreen() {
       )}
 
       <CancelBookingModal
-        visible={cancelTargetId != null}
-        submitting={updatingId === cancelTargetId}
-        onDismiss={() => setCancelTargetId(null)}
+        visible={cancelTargetIds != null}
+        submitting={cancelTargetIds != null && updatingId === cancelTargetIds[0]}
+        onDismiss={() => setCancelTargetIds(null)}
         onConfirm={handleConfirmCancel}
+        subtitle={
+          cancelTargetIds && cancelTargetIds.length > 1
+            ? `This cancels all ${cancelTargetIds.length} pets in this visit.`
+            : undefined
+        }
       />
 
       <CancelBookingModal
-        visible={declineTargetId != null}
-        submitting={updatingId === declineTargetId}
-        onDismiss={() => setDeclineTargetId(null)}
+        visible={declineTargetIds != null}
+        submitting={declineTargetIds != null && updatingId === declineTargetIds[0]}
+        onDismiss={() => setDeclineTargetIds(null)}
         onConfirm={handleConfirmDecline}
         title="Decline request"
-        subtitle="Let the customer know why, and suggest another day or time. They can rebook from your note."
+        subtitle={
+          declineTargetIds && declineTargetIds.length > 1
+            ? `Declining all ${declineTargetIds.length} pets in this visit. Let the customer know why, and suggest another day or time.`
+            : 'Let the customer know why, and suggest another day or time. They can rebook from your note.'
+        }
         placeholder="e.g. I'm booked that day — I have openings Wed or Thu afternoon"
         confirmLabel="Decline request"
       />
@@ -853,6 +1036,35 @@ const styles = StyleSheet.create({
     fontSize: 17,
     fontWeight: '600',
     color: Colors.light.text,
+  },
+  groupBadge: {
+    alignSelf: 'flex-start',
+    marginTop: 8,
+    marginBottom: 2,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 999,
+    backgroundColor: Colors.light.tint,
+  },
+  groupBadgeText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#fff',
+  },
+  groupPetCare: {
+    marginTop: 8,
+  },
+  groupPetName: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: Colors.light.text,
+  },
+  groupActionButton: {
+    height: 40,
+    borderRadius: 8,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: 10,
   },
   cardStatus: {
     fontSize: 13,

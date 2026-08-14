@@ -9,6 +9,7 @@ import { Colors } from '@/constants/theme';
 import { supabase } from '@/services/supabase';
 import { chargeBooking, markBookingPaidCash } from '@/services/stripe';
 import { notify } from '@/utils/confirm';
+import { perBookingDiscountCents, type GroupDiscountSnapshot } from '@/utils/discount';
 
 type LineItem = {
   description: string;
@@ -39,7 +40,7 @@ export default function CompleteBookingScreen() {
         supabase
           .from('bookings')
           .select(
-            'customer_id, groomer_id, pets(name, is_anxious, is_matted, needs_extra_care, care_notes, is_microchipped, microchip_number, vet_name, vet_phone), groomer_services(name, price_cents), groomers(plan)'
+            'customer_id, groomer_id, group_id, pets(name, is_anxious, is_matted, needs_extra_care, care_notes, is_microchipped, microchip_number, vet_name, vet_phone), groomer_services(name, price_cents), groomers(plan)'
           )
           .eq('id', bookingId)
           .single(),
@@ -106,7 +107,37 @@ export default function CompleteBookingScreen() {
           }))
         );
       } else {
-        setLineItems([{ description: service?.name ?? 'Service', amountCents: service?.price_cents ?? 0 }]);
+        const defaults: LineItem[] = [
+          { description: service?.name ?? 'Service', amountCents: service?.price_cents ?? 0 },
+        ];
+
+        // If this pet is part of a multi-pet group, pre-seed this booking's share
+        // of the group discount as a negative line item the groomer can see and
+        // adjust. Percent applies per-pet; a flat group discount is prorated by
+        // each pet's service price across the group.
+        const groupId = bookingResult.data.group_id as string | null;
+        if (groupId) {
+          const [groupResult, siblingsResult] = await Promise.all([
+            supabase.from('booking_groups').select('discount_type, discount_value').eq('id', groupId).single(),
+            supabase.from('bookings').select('groomer_services(price_cents)').eq('group_id', groupId),
+          ]);
+          const snapshot: GroupDiscountSnapshot | null =
+            groupResult.data?.discount_type && groupResult.data?.discount_value != null
+              ? { type: groupResult.data.discount_type, value: groupResult.data.discount_value }
+              : null;
+          const groupTotalCents = (siblingsResult.data ?? []).reduce(
+            (sum, row) =>
+              sum + ((row.groomer_services as unknown as { price_cents: number } | null)?.price_cents ?? 0),
+            0
+          );
+          const discountCents = perBookingDiscountCents(service?.price_cents ?? 0, groupTotalCents, snapshot);
+          if (discountCents > 0) {
+            defaults.push({ description: 'Multi-pet discount', amountCents: -discountCents });
+          }
+        }
+
+        if (cancelled) return;
+        setLineItems(defaults);
       }
 
       setLoading(false);
@@ -223,7 +254,9 @@ export default function CompleteBookingScreen() {
         {lineItems.map((item, index) => (
           <View key={`${item.description}-${index}`} style={styles.lineItemRow}>
             <Text style={styles.lineItemDescription}>{item.description}</Text>
-            <Text style={styles.lineItemAmount}>${(item.amountCents / 100).toFixed(2)}</Text>
+            <Text style={styles.lineItemAmount}>
+              {item.amountCents < 0 ? '−' : ''}${(Math.abs(item.amountCents) / 100).toFixed(2)}
+            </Text>
             <Pressable onPress={() => handleRemoveLineItem(index)}>
               <Text style={styles.removeText}>Remove</Text>
             </Pressable>
