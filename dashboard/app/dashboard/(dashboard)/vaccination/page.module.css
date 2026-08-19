@@ -1,0 +1,16 @@
+.enableRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 16px 18px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  box-shadow: var(--shadow);
+}
+.enableLabel {
+  flex: 1;
+  font-size: 16px;
+  font-weight: 600;
+}

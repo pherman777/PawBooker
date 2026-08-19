@@ -1,0 +1,139 @@
+.error {
+  margin-top: 24px;
+  font-size: 15px;
+  color: var(--danger);
+}
+
+.addToggle {
+  align-self: flex-start;
+  background: none;
+  border: none;
+  color: var(--sage);
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  padding: 0;
+  margin-bottom: 16px;
+}
+
+.addForm {
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-bottom: 16px;
+}
+
+.inputRow {
+  display: flex;
+  gap: 8px;
+}
+.inputRowField {
+  flex: 1;
+}
+
+.emptyText {
+  font-size: 15px;
+  line-height: 1.4;
+  color: var(--muted);
+}
+
+.emptyCard {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  background: var(--surface);
+  border: 1px dashed var(--border);
+  border-radius: 20px;
+  padding: 56px 36px;
+}
+.emptyIllustration {
+  width: 84px;
+  height: 84px;
+  border-radius: 50%;
+  background: color-mix(in srgb, var(--sage) 14%, var(--surface));
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--sage);
+  margin-bottom: 20px;
+}
+.emptyTitle {
+  font-family: var(--serif);
+  font-size: 19px;
+  font-weight: 600;
+  margin: 0 0 8px;
+}
+.emptyBody {
+  font-size: 14px;
+  color: var(--muted);
+  max-width: 340px;
+  line-height: 1.55;
+  margin: 0 0 22px;
+}
+
+.list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.card {
+  padding: 16px;
+}
+
+.cardLow {
+  border-color: var(--danger);
+}
+
+.cardHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 12px;
+}
+
+.cardName {
+  font-size: 16px;
+  font-weight: 600;
+}
+
+.lowBadge {
+  background: var(--danger);
+  color: var(--ground);
+  border-radius: 6px;
+  padding: 3px 8px;
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.fieldsRow {
+  display: flex;
+  gap: 10px;
+}
+
+.field {
+  flex: 1;
+}
+.fieldLabelSmall {
+  font-size: 11px;
+  margin-bottom: 4px;
+}
+.fieldInputSmall {
+  min-height: 38px;
+  padding: 0 10px;
+  font-size: 14px;
+}
+
+.deleteLink {
+  margin-top: 12px;
+  align-self: flex-start;
+  background: none;
+  border: none;
+  color: var(--muted);
+  font-size: 12px;
+  text-decoration: underline;
+  cursor: pointer;
+  padding: 0;
+}

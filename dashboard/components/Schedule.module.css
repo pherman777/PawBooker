@@ -1,0 +1,266 @@
+/* Light "on the app" palette (see constants/theme.ts's original committed
+   values, before the dashboard's dark Warm Stone redesign - the calendar
+   uses the light theme on purpose for contrast against the dark dashboard
+   chrome around it, while the rest of the dashboard stays dark). Scoped to
+   this wrapper only, so every existing var(--surface)/var(--ink)/etc. rule
+   below just re-themes for free. */
+.scheduleLight {
+  --ground: #f7f8f3;
+  --surface: #ebede2;
+  --surface-2: #f1f2ea;
+  --border: #dadecb;
+  --ink: #2b332c;
+  --muted: #6f766a;
+  --sage: #6b8f72;
+  --clay: #bb7360;
+  --success: #4f8a5b;
+  --warning: #b9852e;
+  --danger: #b14b3e;
+  --shadow: 0 1px 2px rgba(43, 51, 44, 0.08), 0 12px 28px -14px rgba(43, 51, 44, 0.22);
+  /* `color` is inherited, but only as an already-resolved value - redeclaring
+     --ink above doesn't retroactively change what body's `color: var(--ink)`
+     resolved to. Elements here that don't set their own color (columnHeaderName,
+     dateLabel) would otherwise keep the dark theme's light ink color, which is
+     invisible on this light background - setting color once here re-resolves
+     it locally for everything that inherits it. */
+  color: var(--ink);
+  background: var(--ground);
+  border: 1px solid var(--border);
+  border-radius: 18px;
+  padding: 18px;
+  box-shadow: var(--shadow);
+}
+
+.toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-bottom: 14px;
+}
+.nav {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.navBtn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--ink);
+  cursor: pointer;
+}
+.navBtn:hover {
+  border-color: var(--sage);
+}
+.todayBtn {
+  height: 30px;
+  padding: 0 12px;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--ink);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  margin-right: 4px;
+}
+.dateLabel {
+  margin-left: 8px;
+  font-family: var(--serif);
+  font-size: 17px;
+}
+.controls {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.select {
+  height: 34px;
+  padding: 0 10px;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--ink);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.modeToggle {
+  display: flex;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  overflow: hidden;
+}
+.modeBtn {
+  height: 32px;
+  padding: 0 14px;
+  background: var(--surface);
+  color: var(--muted);
+  border: none;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.modeBtnActive {
+  background: var(--sage);
+  color: var(--ink);
+}
+
+.gridWrap {
+  overflow-x: auto;
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  background: var(--surface-2);
+}
+.grid {
+  display: grid;
+  min-width: 100%;
+}
+.gutterHeader {
+  border-bottom: 1px solid var(--border);
+  border-right: 1px solid var(--border);
+}
+.columnHeader {
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--border);
+  border-right: 1px solid var(--border);
+  text-align: center;
+}
+.columnHeader:last-child {
+  border-right: none;
+}
+.columnHeaderName {
+  font-size: 13px;
+  font-weight: 700;
+}
+.columnHeaderSub {
+  margin-top: 2px;
+  font-size: 11px;
+  color: var(--muted);
+}
+.columnHeaderToday {
+  color: var(--sage);
+}
+
+.gutter {
+  position: relative;
+  border-right: 1px solid var(--border);
+}
+.hourLabel {
+  position: absolute;
+  right: 8px;
+  transform: translateY(-50%);
+  font-size: 11px;
+  color: var(--muted);
+  white-space: nowrap;
+}
+
+.column {
+  position: relative;
+  border-right: 1px solid var(--border);
+}
+.column:last-child {
+  border-right: none;
+}
+.hourLine {
+  position: absolute;
+  left: 0;
+  right: 0;
+  border-top: 1px solid var(--border);
+}
+.halfHourLine {
+  border-top: 1px dashed color-mix(in srgb, var(--border) 60%, transparent);
+}
+
+.nowLine {
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: 0;
+  border-top: 2px solid var(--danger);
+  z-index: 3;
+  pointer-events: none;
+}
+.nowDot {
+  position: absolute;
+  right: -4px;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--danger);
+  z-index: 3;
+}
+
+.block {
+  position: absolute;
+  border-radius: 9px;
+  padding: 4px 7px;
+  overflow: hidden;
+  cursor: pointer;
+  border: 1px solid transparent;
+  text-align: left;
+  color: var(--ink);
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  box-shadow: 0 1px 2px rgba(43, 51, 44, 0.08);
+}
+.block:hover {
+  filter: brightness(1.1);
+}
+/* Pending = requested but not yet accepted - a dashed border on top of the
+   warning color so it reads as "not locked in yet" even at a glance, not
+   just a different color someone might not clock. */
+.blockPending {
+  border-style: dashed;
+}
+.blockCompleted {
+  opacity: 0.55;
+}
+.blockRequestedTag {
+  font-size: 9.5px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  opacity: 0.85;
+}
+.blockTitle {
+  font-size: 11.5px;
+  font-weight: 700;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.blockMeta {
+  font-size: 10.5px;
+  opacity: 0.85;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.blockStaffTag {
+  position: absolute;
+  top: 3px;
+  right: 4px;
+  max-width: calc(100% - 8px);
+  font-size: 9.5px;
+  font-weight: 700;
+  opacity: 0.8;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.empty {
+  padding: 40px 0;
+  text-align: center;
+  color: var(--muted);
+  font-size: 13px;
+}

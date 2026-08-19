@@ -1,0 +1,39 @@
+.codeCard {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 28px;
+}
+.codeLabel {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--muted);
+  margin-bottom: 8px;
+}
+.code {
+  font-family: var(--serif);
+  font-size: 32px;
+  font-weight: 700;
+  letter-spacing: 4px;
+}
+.qr {
+  margin-top: 18px;
+  border-radius: 8px;
+}
+.qrCaption {
+  margin-top: 10px;
+  font-size: 12px;
+  color: var(--muted);
+  text-align: center;
+}
+
+.howTo {
+  margin-top: 24px;
+  font-size: 14px;
+  line-height: 1.5;
+  color: var(--muted);
+}
+.howToCode {
+  font-weight: 700;
+  color: var(--ink);
+}

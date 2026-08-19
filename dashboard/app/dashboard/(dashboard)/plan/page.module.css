@@ -1,0 +1,50 @@
+.planCard {
+  padding: 20px;
+  margin-bottom: 24px;
+}
+.planCardActive {
+  background: var(--sage);
+  border-color: var(--sage);
+}
+.planCardActive .planName,
+.planCardActive .planPrice {
+  color: var(--ink);
+}
+.planName {
+  font-family: var(--serif);
+  font-size: 24px;
+  font-weight: 700;
+}
+.planPrice {
+  margin-top: 4px;
+  font-size: 15px;
+  color: var(--muted);
+}
+
+.sectionTitle {
+  font-size: 16px;
+  font-weight: 600;
+  margin-bottom: 12px;
+}
+.featureRow {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  margin-bottom: 12px;
+  font-size: 14px;
+  line-height: 1.4;
+}
+
+.notice {
+  margin-top: 20px;
+  padding: 16px;
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  font-size: 13px;
+  line-height: 1.4;
+  color: var(--muted);
+}
+.notice p {
+  flex: 1;
+}
