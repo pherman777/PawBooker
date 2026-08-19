@@ -1,16 +1,7 @@
 import { useRouter } from 'expo-router';
 import { useState } from 'react';
-import {
-  ActivityIndicator,
-  KeyboardAvoidingView,
-  Platform,
-  Pressable,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TextInput,
-  View,
-} from 'react-native';
+import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { KeyboardAwareScrollView } from 'react-native-keyboard-controller';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { AddressSearchInput, type SelectedLocation } from '@/components/AddressSearchInput';
@@ -20,7 +11,8 @@ import { Colors } from '@/constants/theme';
 import { useAuth } from '@/services/auth-context';
 import { createGroomer, savePendingGroomer, type CreateGroomerInput } from '@/services/groomer';
 import { supabase } from '@/services/supabase';
-import { formatPhoneAsTyped } from '@/utils/phone';
+import { isValidEmail } from '@/utils/email';
+import { formatPhoneAsTyped, isValidPhone } from '@/utils/phone';
 
 export default function GroomerSignupScreen() {
   const router = useRouter();
@@ -60,6 +52,14 @@ export default function GroomerSignupScreen() {
     }
     if (!location) {
       setError('Search for and select your business address.');
+      return;
+    }
+    if (phone.trim() && !isValidPhone(phone)) {
+      setError('Enter a complete 10-digit phone number, or leave it blank.');
+      return;
+    }
+    if (email.trim() && !isValidEmail(email)) {
+      setError('Enter a valid email address.');
       return;
     }
     if (!loggedIn && (!email.trim() || password.length < 6)) {
@@ -126,10 +126,12 @@ export default function GroomerSignupScreen() {
 
   return (
     <SafeAreaView style={styles.container}>
-      <KeyboardAvoidingView
+      <KeyboardAwareScrollView
         style={styles.flex}
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-        <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
+        bottomOffset={24}
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={styles.content}
+        keyboardShouldPersistTaps="handled">
           <View style={styles.brand}>
             <Logo size={64} />
             <Wordmark size={20} style={styles.brandName} />
@@ -228,8 +230,7 @@ export default function GroomerSignupScreen() {
           <Pressable style={styles.secondaryLink} onPress={() => router.back()}>
             <Text style={styles.linkText}>Cancel</Text>
           </Pressable>
-        </ScrollView>
-      </KeyboardAvoidingView>
+      </KeyboardAwareScrollView>
     </SafeAreaView>
   );
 }

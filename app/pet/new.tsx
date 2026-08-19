@@ -1,25 +1,10 @@
 import { useRouter } from 'expo-router';
 import { useState } from 'react';
-import {
-  ActivityIndicator,
-  KeyboardAvoidingView,
-  Platform,
-  Pressable,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TextInput,
-  View,
-} from 'react-native';
+import { ActivityIndicator, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
+import { KeyboardAwareScrollView } from 'react-native-keyboard-controller';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { BreedPicker } from '@/components/BreedPicker';
-import {
-  CareNeeds,
-  EMPTY_CARE_NEEDS,
-  PetCareNeedsFields,
-  careNeedsValid,
-} from '@/components/PetCareNeedsFields';
 import {
   EMPTY_PET_IDENTITY,
   PetIdEmergencyFields,
@@ -29,6 +14,7 @@ import { Colors } from '@/constants/theme';
 import { useAuth } from '@/services/auth-context';
 import { supabase } from '@/services/supabase';
 import type { Pet } from '@/types';
+import { sanitizeDecimalInput } from '@/utils/number';
 
 const PET_SPECIES: Pet['species'][] = ['dog', 'cat', 'other'];
 
@@ -42,7 +28,6 @@ export default function NewPetScreen() {
   const [otherBreed, setOtherBreed] = useState('');
   const [color, setColor] = useState('');
   const [weight, setWeight] = useState('');
-  const [careNeeds, setCareNeeds] = useState<CareNeeds>(EMPTY_CARE_NEEDS);
   const [identity, setIdentity] = useState<PetIdentity>(EMPTY_PET_IDENTITY);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -52,7 +37,6 @@ export default function NewPetScreen() {
     setDogBreed('');
     setColor('');
     setWeight('');
-    setCareNeeds(EMPTY_CARE_NEEDS);
     setIdentity(EMPTY_PET_IDENTITY);
   }
 
@@ -60,12 +44,10 @@ export default function NewPetScreen() {
   const weightValue = Number(weight);
   const isValidWeight = weight.trim().length > 0 && Number.isFinite(weightValue) && weightValue > 0;
 
-  // Dogs must have a breed, color, and weight; care-needs notes are required
-  // whenever a care flag is checked. Cats/other keep the lighter, optional form.
+  // Dogs must have a breed, color, and weight. Cats/other keep the lighter,
+  // optional form.
   const canSave =
-    name.trim().length > 0 &&
-    careNeedsValid(careNeeds) &&
-    (!isDog || (dogBreed.length > 0 && color.trim().length > 0 && isValidWeight));
+    name.trim().length > 0 && (!isDog || (dogBreed.length > 0 && color.trim().length > 0 && isValidWeight));
 
   async function handleSave() {
     if (!canSave || !session) return;
@@ -81,10 +63,6 @@ export default function NewPetScreen() {
         breed: isDog ? dogBreed : otherBreed.trim() || null,
         color: isDog ? color.trim() : null,
         weight_lbs: isDog ? weightValue : null,
-        is_anxious: careNeeds.isAnxious,
-        is_matted: careNeeds.isMatted,
-        needs_extra_care: careNeeds.needsExtraCare,
-        care_notes: careNeeds.careNotes.trim() || null,
         is_microchipped: identity.isMicrochipped,
         microchip_number: identity.isMicrochipped ? identity.microchipNumber.trim() || null : null,
         vet_name: identity.vetName.trim() || null,
@@ -105,80 +83,85 @@ export default function NewPetScreen() {
 
   return (
     <SafeAreaView style={styles.container}>
-      <KeyboardAvoidingView style={styles.flex} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-        <ScrollView
-          showsVerticalScrollIndicator={false}
-          contentContainerStyle={styles.content}
-          keyboardShouldPersistTaps="handled">
-          <Text style={styles.title}>Add a pet</Text>
+      <KeyboardAwareScrollView
+        style={styles.flex}
+        bottomOffset={24}
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={styles.content}
+        keyboardShouldPersistTaps="handled">
+        <Text style={styles.title}>Add a pet</Text>
+        <Text style={styles.subtitle}>
+          You&apos;ll be able to add vaccination records right after you save.
+        </Text>
 
-          <TextInput
-            style={styles.input}
-            placeholder="Pet's name"
-            placeholderTextColor={Colors.light.textMuted}
-            value={name}
-            onChangeText={setName}
-          />
+        <TextInput
+          style={styles.input}
+          placeholder="Pet's name"
+          placeholderTextColor={Colors.light.textMuted}
+          value={name}
+          onChangeText={setName}
+        />
 
-          <View style={styles.speciesRow}>
-            {PET_SPECIES.map((option) => {
-              const isSelected = species === option;
-              return (
-                <Pressable
-                  key={option}
-                  style={[styles.speciesChip, isSelected && styles.chipSelected]}
-                  onPress={() => handleSpeciesChange(option)}>
-                  <Text style={[styles.speciesChipText, isSelected && styles.chipTextSelected]}>
-                    {option[0].toUpperCase() + option.slice(1)}
-                  </Text>
-                </Pressable>
-              );
-            })}
-          </View>
+        <View style={styles.speciesRow}>
+          {PET_SPECIES.map((option) => {
+            const isSelected = species === option;
+            return (
+              <Pressable
+                key={option}
+                style={[styles.speciesChip, isSelected && styles.chipSelected]}
+                onPress={() => handleSpeciesChange(option)}>
+                <Text style={[styles.speciesChipText, isSelected && styles.chipTextSelected]}>
+                  {option[0].toUpperCase() + option.slice(1)}
+                </Text>
+              </Pressable>
+            );
+          })}
+        </View>
 
-          {isDog ? (
-            <>
-              <BreedPicker value={dogBreed} onChange={setDogBreed} />
+        {isDog ? (
+          <>
+            <Text style={styles.label}>Breed</Text>
+            <BreedPicker value={dogBreed} onChange={setDogBreed} />
 
-              <TextInput
-                style={styles.input}
-                placeholder="Color"
-                placeholderTextColor={Colors.light.textMuted}
-                value={color}
-                onChangeText={setColor}
-              />
-              <TextInput
-                style={styles.input}
-                placeholder="Weight (lbs)"
-                placeholderTextColor={Colors.light.textMuted}
-                keyboardType="decimal-pad"
-                value={weight}
-                onChangeText={setWeight}
-              />
-
-              <PetCareNeedsFields value={careNeeds} onChange={setCareNeeds} />
-              <PetIdEmergencyFields value={identity} onChange={setIdentity} />
-            </>
-          ) : (
+            <Text style={styles.label}>Color</Text>
             <TextInput
               style={styles.input}
-              placeholder="Breed (optional)"
+              placeholder="e.g. Golden"
               placeholderTextColor={Colors.light.textMuted}
-              value={otherBreed}
-              onChangeText={setOtherBreed}
+              value={color}
+              onChangeText={setColor}
             />
-          )}
+            <Text style={styles.label}>Weight (lbs)</Text>
+            <TextInput
+              style={styles.input}
+              placeholder="e.g. 45"
+              placeholderTextColor={Colors.light.textMuted}
+              keyboardType="decimal-pad"
+              value={weight}
+              onChangeText={(text) => setWeight(sanitizeDecimalInput(text))}
+            />
 
-          {error && <Text style={styles.error}>{error}</Text>}
+            <PetIdEmergencyFields value={identity} onChange={setIdentity} />
+          </>
+        ) : (
+          <TextInput
+            style={styles.input}
+            placeholder="Breed (optional)"
+            placeholderTextColor={Colors.light.textMuted}
+            value={otherBreed}
+            onChangeText={setOtherBreed}
+          />
+        )}
 
-          <Pressable
-            style={[styles.saveButton, (!canSave || saving) && styles.buttonDisabled]}
-            onPress={handleSave}
-            disabled={!canSave || saving}>
-            {saving ? <ActivityIndicator color="#fff" /> : <Text style={styles.saveButtonText}>Save pet</Text>}
-          </Pressable>
-        </ScrollView>
-      </KeyboardAvoidingView>
+        {error && <Text style={styles.error}>{error}</Text>}
+
+        <Pressable
+          style={[styles.saveButton, (!canSave || saving) && styles.buttonDisabled]}
+          onPress={handleSave}
+          disabled={!canSave || saving}>
+          {saving ? <ActivityIndicator color="#fff" /> : <Text style={styles.saveButtonText}>Save pet</Text>}
+        </Pressable>
+      </KeyboardAwareScrollView>
     </SafeAreaView>
   );
 }
@@ -199,7 +182,19 @@ const styles = StyleSheet.create({
     fontSize: 24,
     fontWeight: '700',
     color: Colors.light.text,
+    marginBottom: 4,
+  },
+  subtitle: {
+    fontSize: 14,
+    lineHeight: 20,
+    color: Colors.light.textMuted,
     marginBottom: 20,
+  },
+  label: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: Colors.light.textMuted,
+    marginBottom: 6,
   },
   input: {
     height: 48,

@@ -4,132 +4,38 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Upgrade to PawBooker Pro</title>
-  <style>
-    body {
-      margin: 0;
-      background: #F7F8F3;
-      color: #2B332C;
-      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-    }
-    .wrap {
-      max-width: 480px;
-      margin: 0 auto;
-      padding: 64px 24px 80px;
-    }
-    .brand {
-      display: flex;
-      align-items: center;
-      gap: 12px;
-      margin-bottom: 40px;
-      text-decoration: none;
-      color: inherit;
-    }
-    .brand-mark {
-      width: 40px;
-      height: 40px;
-      border-radius: 10px;
-      background: #6B8F72;
-    }
-    .brand-name {
-      font-size: 20px;
-      font-weight: 700;
-    }
-    h1 {
-      font-size: 28px;
-      margin: 0 0 12px;
-    }
-    p {
-      font-size: 16px;
-      line-height: 1.6;
-      color: #6F766A;
-    }
-    ul {
-      font-size: 15px;
-      line-height: 1.8;
-      color: #6F766A;
-      padding-left: 20px;
-    }
-    .card {
-      background: #EBEDE2;
-      border: 1px solid #DADECB;
-      border-radius: 14px;
-      padding: 24px;
-      margin-top: 32px;
-    }
-    label {
-      display: block;
-      font-size: 13px;
-      font-weight: 600;
-      margin-bottom: 6px;
-    }
-    input[type="email"] {
-      width: 100%;
-      box-sizing: border-box;
-      font-size: 16px;
-      padding: 12px 14px;
-      border-radius: 8px;
-      border: 1px solid #DADECB;
-      background: #fff;
-    }
-    button {
-      margin-top: 16px;
-      width: 100%;
-      font-size: 16px;
-      font-weight: 600;
-      color: #fff;
-      background: #6B8F72;
-      border: none;
-      border-radius: 8px;
-      padding: 14px;
-      cursor: pointer;
-    }
-    button:hover {
-      opacity: 0.92;
-    }
-    .success {
-      background: #6B8F72;
-      color: #fff;
-      border-radius: 14px;
-      padding: 24px;
-      margin-top: 32px;
-    }
-    .success h2 {
-      margin: 0 0 8px;
-      font-size: 18px;
-    }
-    .success p {
-      color: rgba(255,255,255,0.9);
-      margin: 0;
-    }
-    a {
-      color: #6B8F72;
-      font-weight: 600;
-      text-decoration: none;
-    }
-    a:hover {
-      text-decoration: underline;
-    }
-  </style>
+  <meta name="theme-color" content="#141814" />
+  <link rel="icon" href="/images/icon.png" />
+  <link rel="stylesheet" href="/styles/site.css" />
 </head>
 <body>
-  <div class="wrap">
-    <a class="brand" href="/">
-      <div class="brand-mark"></div>
-      <div class="brand-name">PawBooker</div>
-    </a>
+  <header class="nav">
+    <div class="wrap nav-inner">
+      <a class="brand" href="/">
+        <img src="/images/icon.png" alt="PawBooker" />
+        PawBooker
+      </a>
+      <nav class="nav-links">
+        <a href="/#owners">For pet owners</a>
+        <a href="/#groomers">For groomers</a>
+      </nav>
+    </div>
+  </header>
 
-    <div id="success-view" class="success" style="display: none;">
+  <div class="page" style="max-width: 480px;">
+    <div id="success-view" class="success-card" style="display: none;">
       <h2>You're on Pro!</h2>
       <p>Open the PawBooker app and your Pro features will be active within a few seconds.</p>
     </div>
 
     <div id="form-view">
+      <p class="eyebrow">For groomers</p>
       <h1>Upgrade to Pro</h1>
-      <p>$35/month. Includes:</p>
+      <p class="lede">$35/month. Includes:</p>
       <ul>
         <li>Insights dashboard (revenue, repeat rate, cancellations, service mix)</li>
         <li>AI chat assistant for your customers, with escalation when it needs you</li>
-        <li>Business Assistant - ask about customers, revenue, and supplies</li>
+        <li>Business Assistant &mdash; ask about customers, revenue, and supplies</li>
         <li>Win-back reminders for lapsed customers</li>
         <li>Priority support</li>
       </ul>
@@ -138,11 +44,28 @@
         <form id="upgrade-form">
           <label for="email">Your PawBooker account email</label>
           <input type="email" id="email" name="email" placeholder="you@example.com" required />
-          <button type="submit">Continue to payment</button>
+          <button type="submit" class="btn btn-clay">Continue to payment</button>
         </form>
       </div>
     </div>
   </div>
+
+  <footer class="site-footer">
+    <div class="wrap foot-inner">
+      <a class="brand" href="/" style="font-size:16px">
+        <img src="/images/icon.png" alt="PawBooker" style="width:26px;height:26px" />
+        PawBooker
+      </a>
+      <nav class="foot-links">
+        <a href="/#owners">For pet owners</a>
+        <a href="/#groomers">For groomers</a>
+        <a href="/support">Support</a>
+        <a href="/privacy">Privacy</a>
+        <a href="mailto:support@paw-booker.com">Contact</a>
+      </nav>
+      <span class="copy">&copy; 2026 PawBooker</span>
+    </div>
+  </footer>
 
   <script>
     const params = new URLSearchParams(window.location.search);
@@ -160,8 +83,5 @@
         encodeURIComponent(email);
     });
   </script>
-  <footer style="text-align:center;color:#6F766A;font-size:13px;padding:24px 16px 40px;">
-    &copy; 2026 PawBooker. All rights reserved.
-  </footer>
 </body>
 </html>

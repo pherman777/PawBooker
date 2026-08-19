@@ -1,14 +1,17 @@
 import { useRouter } from 'expo-router';
 import { useCallback, useEffect, useState } from 'react';
 import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-import { Colors } from '@/constants/theme';
-import { sendCustomerReminder } from '@/services/notifications';
-import { useAuth } from '@/services/auth-context';
-import { supabase } from '@/services/supabase';
 import type { CustomerReminder } from '@/types';
+import { Colors } from '@/constants/theme';
 import { notify } from '@/utils/confirm';
+import { sendCustomerReminder } from '@/services/notifications';
+import { supabase } from '@/services/supabase';
+import { useAuth } from '@/services/auth-context';
+import { webContentWidth } from '@/constants/webLayout';
+import { webFlushScroll } from '@/constants/webScroll';
 
 function monthsAgo(dateString: string): string {
   const months = Math.max(1, Math.round((Date.now() - new Date(dateString).getTime()) / (30 * 86400000)));
@@ -103,7 +106,7 @@ export default function RemindersScreen() {
   }
 
   return (
-    <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
+    <SafeAreaView style={[styles.container, webContentWidth('form')]} edges={['top', 'bottom']}>
       <View style={styles.topRow}>
         <Text style={styles.backLink} onPress={() => router.back()}>
           ← Back
@@ -118,7 +121,7 @@ export default function RemindersScreen() {
       {error && <Text style={styles.error}>Couldn&apos;t load reminders: {error}</Text>}
 
       {!loading && !error && (
-        <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+        <ScrollView style={webFlushScroll} contentContainerStyle={[styles.content, webContentWidth('form')]} showsVerticalScrollIndicator={false}>
           {reminders.length === 0 && (
             <Text style={styles.emptyText}>No lapsed customers right now - nice work staying booked up.</Text>
           )}

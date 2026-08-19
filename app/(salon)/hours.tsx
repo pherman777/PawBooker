@@ -1,15 +1,18 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'expo-router';
 import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Switch, Text, View } from 'react-native';
+
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-import { TimePickerModal } from '@/components/TimePickerModal';
-import { Colors } from '@/constants/theme';
-import { useAuth } from '@/services/auth-context';
-import { supabase } from '@/services/supabase';
 import type { GroomerHours } from '@/types';
+import { Colors } from '@/constants/theme';
 import { DAYS_OF_WEEK, dayLabel, formatTime } from '@/utils/hours';
+import { TimePickerModal } from '@/components/TimePickerModal';
 import { notify } from '@/utils/confirm';
+import { supabase } from '@/services/supabase';
+import { useAuth } from '@/services/auth-context';
+import { webContentWidth } from '@/constants/webLayout';
+import { webFlushScroll } from '@/constants/webScroll';
 
 type DayDraft = {
   enabled: boolean;
@@ -95,20 +98,20 @@ export default function HoursScreen() {
 
   if (loading) {
     return (
-      <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
+      <SafeAreaView style={[styles.container, webContentWidth('form')]} edges={['top', 'bottom']}>
         <ActivityIndicator style={styles.loading} color={Colors.light.tint} />
       </SafeAreaView>
     );
   }
 
   return (
-    <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
+    <SafeAreaView style={[styles.container, webContentWidth('form')]} edges={['top', 'bottom']}>
       <View style={styles.topRow}>
         <Text style={styles.backLink} onPress={() => router.back()}>
           ← Back
         </Text>
       </View>
-      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
+      <ScrollView style={webFlushScroll} showsVerticalScrollIndicator={false} contentContainerStyle={[styles.content, webContentWidth('form')]} keyboardShouldPersistTaps="handled">
         <Text style={styles.title}>Hours</Text>
         <Text style={styles.subtitle}>Turn on the days you&apos;re open and tap a time to set your hours.</Text>
 

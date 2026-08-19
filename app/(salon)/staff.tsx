@@ -1,12 +1,15 @@
 import { useFocusEffect, useRouter } from 'expo-router';
 import { useCallback, useState } from 'react';
 import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { Colors } from '@/constants/theme';
-import { useAuth } from '@/services/auth-context';
-import { supabase } from '@/services/supabase';
 import { confirmAsync, notify } from '@/utils/confirm';
+import { supabase } from '@/services/supabase';
+import { useAuth } from '@/services/auth-context';
+import { webContentWidth } from '@/constants/webLayout';
+import { webFlushScroll } from '@/constants/webScroll';
 
 type Staff = {
   id: string;
@@ -89,7 +92,7 @@ export default function StaffScreen() {
   }
 
   return (
-    <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
+    <SafeAreaView style={[styles.container, webContentWidth('content')]} edges={['top', 'bottom']}>
       <View style={styles.topRow}>
         <Text style={styles.backLink} onPress={() => router.back()}>
           ← Back
@@ -105,7 +108,7 @@ export default function StaffScreen() {
       {error && <Text style={styles.error}>Couldn&apos;t load groomers: {error}</Text>}
 
       {!loading && !error && (
-        <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+        <ScrollView style={webFlushScroll} contentContainerStyle={[styles.content, webContentWidth('content')]} showsVerticalScrollIndicator={false}>
           <Pressable style={styles.addToggle} onPress={() => setShowAddForm((v) => !v)}>
             <Text style={styles.addToggleText}>{showAddForm ? 'Cancel' : '+ Add groomer'}</Text>
           </Pressable>

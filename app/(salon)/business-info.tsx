@@ -11,14 +11,18 @@ import {
   TextInput,
   View,
 } from 'react-native';
+
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { AddressSearchInput, type SelectedLocation } from '@/components/AddressSearchInput';
 import { Colors } from '@/constants/theme';
+import { webContentWidth } from '@/constants/webLayout';
+import { webFlushScroll } from '@/constants/webScroll';
 import { useAuth } from '@/services/auth-context';
 import { supabase } from '@/services/supabase';
 import { notify } from '@/utils/confirm';
-import { formatPhoneAsTyped, formatPhoneForDisplay } from '@/utils/phone';
+import { isValidEmail } from '@/utils/email';
+import { formatPhoneAsTyped, formatPhoneForDisplay, isValidPhone } from '@/utils/phone';
 
 export default function BusinessInfoScreen() {
   const router = useRouter();
@@ -62,6 +66,14 @@ export default function BusinessInfoScreen() {
       notify('Name required', 'Enter your business name.');
       return;
     }
+    if (phone.trim() && !isValidPhone(phone)) {
+      notify('Check your phone number', 'Enter a complete 10-digit phone number, or leave it blank.');
+      return;
+    }
+    if (email.trim() && !isValidEmail(email)) {
+      notify('Check your email', 'Enter a valid email address, or leave it blank.');
+      return;
+    }
 
     setSaving(true);
     const update: Record<string, unknown> = {
@@ -90,14 +102,14 @@ export default function BusinessInfoScreen() {
 
   if (loading) {
     return (
-      <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
+      <SafeAreaView style={[styles.container, webContentWidth('form')]} edges={['top', 'bottom']}>
         <ActivityIndicator style={styles.loading} color={Colors.light.tint} />
       </SafeAreaView>
     );
   }
 
   return (
-    <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
+    <SafeAreaView style={[styles.container, webContentWidth('form')]} edges={['top', 'bottom']}>
       <KeyboardAvoidingView
         style={styles.flex}
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
@@ -106,7 +118,7 @@ export default function BusinessInfoScreen() {
             ← Back
           </Text>
         </View>
-        <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
+        <ScrollView style={webFlushScroll} showsVerticalScrollIndicator={false} contentContainerStyle={[styles.content, webContentWidth('form')]} keyboardShouldPersistTaps="handled">
           <Text style={styles.title}>Business info</Text>
 
           <Text style={styles.label}>Business name</Text>

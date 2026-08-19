@@ -1,12 +1,15 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'expo-router';
 import { ActivityIndicator, Pressable, ScrollView, Share, StyleSheet, Text, View } from 'react-native';
+
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { Colors } from '@/constants/theme';
-import { useAuth } from '@/services/auth-context';
-import { supabase } from '@/services/supabase';
 import { notify } from '@/utils/confirm';
+import { supabase } from '@/services/supabase';
+import { useAuth } from '@/services/auth-context';
+import { webContentWidth } from '@/constants/webLayout';
+import { webFlushScroll } from '@/constants/webScroll';
 
 export default function InviteScreen() {
   const router = useRouter();
@@ -41,13 +44,13 @@ export default function InviteScreen() {
   }
 
   return (
-    <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
+    <SafeAreaView style={[styles.container, webContentWidth('form')]} edges={['top', 'bottom']}>
       <View style={styles.topRow}>
         <Text style={styles.backLink} onPress={() => router.back()}>
           ← Back
         </Text>
       </View>
-      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.content}>
+      <ScrollView style={webFlushScroll} showsVerticalScrollIndicator={false} contentContainerStyle={[styles.content, webContentWidth('form')]}>
         <Text style={styles.title}>Invite your customers</Text>
         <Text style={styles.subtitle}>
           Bring your existing clients onto PawBooker with your personal code. Customers who join with

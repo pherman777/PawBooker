@@ -27,7 +27,9 @@ export default function BrowseScreen() {
       const { data, error: queryError } = await supabase
         .from('groomers')
         .select(
-          'id, name, avatar_url, bio, address, zip_code, latitude, longitude, rating, review_count, groomer_services(id, name, price_cents, duration_minutes)'
+          // !inner requires at least one matching service row, so a groomer who
+          // hasn't added any services yet doesn't show up with a broken price.
+          'id, name, avatar_url, bio, address, zip_code, latitude, longitude, rating, review_count, groomer_services!inner(id, name, price_cents, duration_minutes)'
         )
         .is('deactivated_at', null)
         .order('rating', { ascending: false });
@@ -94,9 +96,12 @@ export default function BrowseScreen() {
     };
   }, []);
 
-  const rows = useMemo<{ groomer: Groomer; distance: number | undefined }[]>(() => {
+  const { rows, noneNearby } = useMemo(() => {
     if (!location) {
-      return groomers.map((groomer) => ({ groomer, distance: undefined }));
+      return {
+        rows: groomers.map((groomer) => ({ groomer, distance: undefined as number | undefined })),
+        noneNearby: false,
+      };
     }
 
     const byDistance = groomers
@@ -111,9 +116,11 @@ export default function BrowseScreen() {
 
     // Prefer salons within range, but if there are none nearby (sparse early
     // inventory, or a user far from any salon), fall back to showing all of them
-    // so Browse is never empty when salons exist.
+    // so Browse is never empty when salons exist - just say so, so it isn't
+    // mistaken for actually-nearby results.
     const nearby = byDistance.filter((row) => row.distance <= MAX_DISTANCE_MILES);
-    return nearby.length > 0 ? nearby : byDistance;
+    if (nearby.length > 0) return { rows: nearby, noneNearby: false };
+    return { rows: byDistance, noneNearby: byDistance.length > 0 };
   }, [groomers, location]);
 
   return (
@@ -121,8 +128,15 @@ export default function BrowseScreen() {
       <AppHeader title="Find a groomer" subtitle="Grooming services near you." />
 
       <View style={styles.searchWrapper}>
-        <AddressSearchInput onSelect={setLocation} />
+        <AddressSearchInput onSelect={setLocation} onClear={() => setLocation(null)} />
       </View>
+
+      {noneNearby && (
+        <Text style={styles.noneNearbyHint}>
+          No groomers found within {MAX_DISTANCE_MILES} miles of {location?.label}. Showing all available
+          groomers instead.
+        </Text>
+      )}
 
       {loading && <ActivityIndicator style={styles.loading} color={Colors.light.tint} />}
 
@@ -174,6 +188,12 @@ const styles = StyleSheet.create({
   },
   searchWrapper: {
     marginTop: 16,
+  },
+  noneNearbyHint: {
+    marginTop: 12,
+    fontSize: 13,
+    lineHeight: 18,
+    color: Colors.light.textMuted,
   },
   loading: {
     marginTop: 24,

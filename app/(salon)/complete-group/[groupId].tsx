@@ -1,15 +1,18 @@
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useEffect, useState } from 'react';
 import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { Colors } from '@/constants/theme';
 import { Logo } from '@/components/Logo';
 import { PetCareSummary, type PetCareInfo } from '@/components/PetCareSummary';
-import { Colors } from '@/constants/theme';
-import { supabase } from '@/services/supabase';
 import { chargeBookingGroup, markBookingPaidCash } from '@/services/stripe';
 import { notify } from '@/utils/confirm';
 import { perBookingDiscountCents, type GroupDiscountSnapshot } from '@/utils/discount';
+import { supabase } from '@/services/supabase';
+import { webContentWidth } from '@/constants/webLayout';
+import { webFlushScroll } from '@/constants/webScroll';
 
 type LineItem = { description: string; amountCents: number };
 
@@ -23,10 +26,6 @@ type PetInvoice = {
 
 type PetRow = {
   name: string;
-  is_anxious?: boolean;
-  is_matted?: boolean;
-  needs_extra_care?: boolean;
-  care_notes?: string | null;
   is_microchipped?: boolean;
   microchip_number?: string | null;
   vet_name?: string | null;
@@ -55,7 +54,7 @@ export default function CompleteGroupScreen() {
     const { data: bookingRows, error } = await supabase
       .from('bookings')
       .select(
-        'id, customer_id, groomer_id, starts_at, service_completed_at, status, pets(name, is_anxious, is_matted, needs_extra_care, care_notes, is_microchipped, microchip_number, vet_name, vet_phone), groomer_services(name, price_cents), groomers(plan)'
+        'id, customer_id, groomer_id, starts_at, service_completed_at, status, is_anxious, is_matted, needs_extra_care, care_notes, pets(name, is_microchipped, microchip_number, vet_name, vet_phone), groomer_services(name, price_cents), groomers(plan)'
       )
       .eq('group_id', groupId)
       .eq('status', 'confirmed')
@@ -118,10 +117,10 @@ export default function CompleteGroupScreen() {
         bookingId: b.id,
         petName: pet?.name ?? 'Pet',
         petCare: {
-          isAnxious: pet?.is_anxious ?? false,
-          isMatted: pet?.is_matted ?? false,
-          needsExtraCare: pet?.needs_extra_care ?? false,
-          careNotes: pet?.care_notes ?? undefined,
+          isAnxious: b.is_anxious ?? false,
+          isMatted: b.is_matted ?? false,
+          needsExtraCare: b.needs_extra_care ?? false,
+          careNotes: b.care_notes ?? undefined,
           isMicrochipped: pet?.is_microchipped ?? false,
           microchipNumber: pet?.microchip_number ?? undefined,
           vetName: pet?.vet_name ?? undefined,
@@ -249,7 +248,7 @@ export default function CompleteGroupScreen() {
 
   if (loading) {
     return (
-      <SafeAreaView style={styles.container}>
+      <SafeAreaView style={[styles.container, webContentWidth('form')]}>
         <ActivityIndicator style={styles.loading} color={Colors.light.tint} />
       </SafeAreaView>
     );
@@ -257,7 +256,7 @@ export default function CompleteGroupScreen() {
 
   if (loadError) {
     return (
-      <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
+      <SafeAreaView style={[styles.container, webContentWidth('form')]} edges={['top', 'bottom']}>
         <View style={styles.topRow}>
           <Pressable onPress={() => router.back()}>
             <Text style={styles.backLink}>← Back</Text>
@@ -271,10 +270,10 @@ export default function CompleteGroupScreen() {
   const busy = charging || markingCash;
 
   return (
-    <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
-      <ScrollView
+    <SafeAreaView style={[styles.container, webContentWidth('form')]} edges={['top', 'bottom']}>
+      <ScrollView style={webFlushScroll}
         showsVerticalScrollIndicator={false}
-        contentContainerStyle={styles.content}
+        contentContainerStyle={[styles.content, webContentWidth('form')]}
         keyboardShouldPersistTaps="handled">
         <View style={styles.topRow}>
           <Pressable onPress={() => router.back()}>

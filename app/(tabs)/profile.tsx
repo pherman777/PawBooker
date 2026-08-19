@@ -1,4 +1,3 @@
-import { LinkDisplay, PlatformPay } from '@stripe/stripe-react-native';
 import { Image } from 'expo-image';
 import { useRouter, useFocusEffect } from 'expo-router';
 import { useCallback, useState } from 'react';
@@ -6,6 +5,7 @@ import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, TextInput, 
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { AppHeader } from '@/components/AppHeader';
+import { applePayButtonType, paymentSheetLinkDisplay } from '@/constants/stripePaymentSheetOptions';
 import { Colors } from '@/constants/theme';
 import { useStripePayments } from '@/hooks/useStripePayments';
 import { useAuth } from '@/services/auth-context';
@@ -124,10 +124,10 @@ export default function ProfileScreen() {
         merchantDisplayName: 'PawBooker',
         setupIntentClientSecret,
         allowsDelayedPaymentMethods: false,
-        link: { display: LinkDisplay.NEVER },
+        link: { display: paymentSheetLinkDisplay },
         applePay: {
           merchantCountryCode: 'US',
-          buttonType: PlatformPay.ButtonType.SetUp,
+          buttonType: applePayButtonType,
           cartItems: [{ paymentType: 'Immediate', label: 'No charge today', amount: '0.00' }],
         },
         googlePay: { merchantCountryCode: 'US', currencyCode: 'USD', testEnv: isStripeTestMode },
@@ -333,10 +333,6 @@ export default function ProfileScreen() {
             <Text style={styles.listBusinessText}>Have an invite code?</Text>
           </Pressable>
         )}
-
-        <Pressable style={styles.listBusinessButton} onPress={() => router.push('/groomer-signup')}>
-          <Text style={styles.listBusinessText}>List your grooming business</Text>
-        </Pressable>
 
         <Pressable style={styles.helpButton} onPress={() => router.push('/help')}>
           <Text style={styles.helpButtonText}>Help &amp; support</Text>

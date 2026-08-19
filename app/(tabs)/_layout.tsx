@@ -7,8 +7,17 @@ export default function TabsLayout() {
   return (
     <Tabs
       screenOptions={{
+        // Every tab screen already renders its own in-content header (most
+        // via AppHeader, index.tsx via its own Logo/Wordmark); without this,
+        // React Navigation's default (unthemed) top header rendered a
+        // second, light-colored header above it on web.
+        headerShown: false,
         tabBarActiveTintColor: Colors.light.tabIconSelected,
         tabBarInactiveTintColor: Colors.light.tabIconDefault,
+        tabBarStyle: {
+          backgroundColor: Colors.light.band,
+          borderTopColor: Colors.light.border,
+        },
       }}>
       <Tabs.Screen
         name="index"

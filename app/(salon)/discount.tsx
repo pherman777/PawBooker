@@ -10,13 +10,16 @@ import {
   TextInput,
   View,
 } from 'react-native';
+
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { Colors } from '@/constants/theme';
-import { useAuth } from '@/services/auth-context';
-import { supabase } from '@/services/supabase';
-import { parseMultiPetDiscount } from '@/utils/discount';
 import { notify } from '@/utils/confirm';
+import { parseMultiPetDiscount } from '@/utils/discount';
+import { supabase } from '@/services/supabase';
+import { useAuth } from '@/services/auth-context';
+import { webContentWidth } from '@/constants/webLayout';
+import { webFlushScroll } from '@/constants/webScroll';
 
 const MIN_PET_OPTIONS = [2, 3, 4, 5];
 
@@ -98,22 +101,22 @@ export default function DiscountScreen() {
 
   if (loading) {
     return (
-      <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
+      <SafeAreaView style={[styles.container, webContentWidth('form')]} edges={['top', 'bottom']}>
         <ActivityIndicator style={styles.loading} color={Colors.light.tint} />
       </SafeAreaView>
     );
   }
 
   return (
-    <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
+    <SafeAreaView style={[styles.container, webContentWidth('form')]} edges={['top', 'bottom']}>
       <View style={styles.topRow}>
         <Text style={styles.backLink} onPress={() => router.back()}>
           ← Back
         </Text>
       </View>
-      <ScrollView
+      <ScrollView style={webFlushScroll}
         showsVerticalScrollIndicator={false}
-        contentContainerStyle={styles.content}
+        contentContainerStyle={[styles.content, webContentWidth('form')]}
         keyboardShouldPersistTaps="handled">
         <Text style={styles.title}>Multi-pet discount</Text>
         <Text style={styles.subtitle}>

@@ -4,89 +4,28 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Delete Your PawBooker Account</title>
-  <style>
-    body {
-      margin: 0;
-      background: #F7F8F3;
-      color: #2B332C;
-      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-    }
-    .wrap {
-      max-width: 640px;
-      margin: 0 auto;
-      padding: 64px 24px 80px;
-    }
-    .brand {
-      display: flex;
-      align-items: center;
-      gap: 12px;
-      margin-bottom: 40px;
-      text-decoration: none;
-      color: inherit;
-    }
-    .brand-mark {
-      width: 40px;
-      height: 40px;
-      border-radius: 10px;
-      background: #6B8F72;
-    }
-    .brand-name {
-      font-size: 20px;
-      font-weight: 700;
-    }
-    h1 {
-      font-size: 30px;
-      margin: 0 0 12px;
-    }
-    p {
-      font-size: 16px;
-      line-height: 1.6;
-      color: #6F766A;
-    }
-    .card {
-      background: #EBEDE2;
-      border: 1px solid #DADECB;
-      border-radius: 14px;
-      padding: 24px;
-      margin-top: 32px;
-    }
-    .card h2 {
-      font-size: 17px;
-      margin: 0 0 8px;
-    }
-    .card ol {
-      margin: 0;
-      padding-left: 20px;
-      font-size: 16px;
-      line-height: 1.6;
-      color: #6F766A;
-    }
-    a {
-      color: #6B8F72;
-      font-weight: 600;
-      text-decoration: none;
-    }
-    a:hover {
-      text-decoration: underline;
-    }
-    .section {
-      margin-top: 40px;
-    }
-    .section h3 {
-      font-size: 16px;
-      margin: 0 0 6px;
-    }
-  </style>
+  <meta name="theme-color" content="#141814" />
+  <link rel="icon" href="/images/icon.png" />
+  <link rel="stylesheet" href="/styles/site.css" />
 </head>
 <body>
-  <div class="wrap">
-    <a class="brand" href="/">
-      <div class="brand-mark"></div>
-      <div class="brand-name">PawBooker</div>
-    </a>
+  <header class="nav">
+    <div class="wrap nav-inner">
+      <a class="brand" href="/">
+        <img src="/images/icon.png" alt="PawBooker" />
+        PawBooker
+      </a>
+      <nav class="nav-links">
+        <a href="/#owners">For pet owners</a>
+        <a href="/#groomers">For groomers</a>
+      </nav>
+    </div>
+  </header>
 
+  <div class="page">
+    <p class="eyebrow">Account</p>
     <h1>Delete Your Account</h1>
-    <p>You can permanently delete your PawBooker account and personal data at any time, directly from the app.</p>
+    <p class="lede">You can permanently delete your PawBooker account and personal data at any time, directly from the app.</p>
 
     <div class="card">
       <h2>Pet owners</h2>
@@ -108,26 +47,36 @@
       </ol>
     </div>
 
-    <div class="section">
-      <h3>What gets deleted</h3>
-      <p>
-        Your login, pets, saved payment methods, and messages are permanently deleted immediately. Any active Pro
-        subscription is canceled right away. Completed bookings and reviews are kept, but anonymized — the record of
-        the service and payment stays (so the groomer you booked with keeps accurate business records), but it's no
-        longer linked to your identity.
-      </p>
-    </div>
+    <h2 style="margin-top:44px">What gets deleted</h2>
+    <p>
+      Your login, pets, saved payment methods, and messages are permanently deleted immediately. Any active Pro
+      subscription is canceled right away. Completed bookings and reviews are kept, but anonymized — the record of
+      the service and payment stays (so the groomer you booked with keeps accurate business records), but it's no
+      longer linked to your identity.
+    </p>
 
-    <div class="section">
-      <h3>Can't access the app?</h3>
-      <p style="margin-bottom: 0;">
-        Email <a href="mailto:support@paw-booker.com">support@paw-booker.com</a> from the address on your account and
-        we'll delete it for you.
-      </p>
-    </div>
+    <h3>Can't access the app?</h3>
+    <p style="margin-bottom: 0;">
+      Email <a href="mailto:support@paw-booker.com">support@paw-booker.com</a> from the address on your account and
+      we'll delete it for you.
+    </p>
   </div>
-  <footer style="text-align:center;color:#6F766A;font-size:13px;padding:24px 16px 40px;">
-    &copy; 2026 PawBooker. All rights reserved.
+
+  <footer class="site-footer">
+    <div class="wrap foot-inner">
+      <a class="brand" href="/" style="font-size:16px">
+        <img src="/images/icon.png" alt="PawBooker" style="width:26px;height:26px" />
+        PawBooker
+      </a>
+      <nav class="foot-links">
+        <a href="/#owners">For pet owners</a>
+        <a href="/#groomers">For groomers</a>
+        <a href="/support">Support</a>
+        <a href="/privacy">Privacy</a>
+        <a href="mailto:support@paw-booker.com">Contact</a>
+      </nav>
+      <span class="copy">&copy; 2026 PawBooker</span>
+    </div>
   </footer>
 </body>
 </html>

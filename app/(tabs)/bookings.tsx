@@ -720,7 +720,7 @@ const styles = StyleSheet.create({
     marginTop: 8,
     padding: 10,
     borderRadius: 8,
-    backgroundColor: '#FBEAE8',
+    backgroundColor: 'rgba(224,119,106,0.16)',
   },
   paymentFailedText: {
     fontSize: 13,

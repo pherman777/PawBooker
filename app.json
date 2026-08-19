@@ -6,13 +6,16 @@
     "scheme": "pawbooker",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
-    "userInterfaceStyle": "light",
+    "userInterfaceStyle": "dark",
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.professionalhomebody.PawBooker",
-      "associatedDomains": ["webcredentials:paw-booker.com"],
+      "associatedDomains": [
+        "webcredentials:paw-booker.com"
+      ],
       "infoPlist": {
-        "ITSAppUsesNonExemptEncryption": false
+        "ITSAppUsesNonExemptEncryption": false,
+        "NSLocationWhenInUseUsageDescription": "PawBooker uses your location to show nearby groomers and sort them by distance."
       }
     },
     "android": {
@@ -56,6 +59,14 @@
         "expo-location",
         {
           "locationWhenInUsePermission": "Allow PawBooker to use your location to find groomers near you."
+        }
+      ],
+      [
+        "expo-splash-screen",
+        {
+          "backgroundColor": "#141814",
+          "image": "./assets/splash-icon.png",
+          "imageWidth": 160
         }
       ]
     ],

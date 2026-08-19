@@ -5,6 +5,8 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { AppHeader } from '@/components/AppHeader';
 import { Colors } from '@/constants/theme';
+import { webContentWidth } from '@/constants/webLayout';
+import { webFlushScroll } from '@/constants/webScroll';
 import { useAuth } from '@/services/auth-context';
 import { supabase } from '@/services/supabase';
 import { showActionSheet } from '@/utils/confirm';
@@ -119,7 +121,7 @@ export default function SalonMessagesScreen() {
   }
 
   return (
-    <SafeAreaView style={styles.container} edges={['top']}>
+    <SafeAreaView style={[styles.container, webContentWidth('content')]} edges={['top']}>
       <Pressable onPress={() => router.back()} hitSlop={8} style={styles.backRow}>
         <Text style={styles.backLink}>← Back</Text>
       </Pressable>
@@ -131,8 +133,8 @@ export default function SalonMessagesScreen() {
         <FlatList showsVerticalScrollIndicator={false}
           data={threads}
           keyExtractor={(item) => item.id}
-          style={styles.flatList}
-          contentContainerStyle={styles.list}
+          style={[styles.flatList, webFlushScroll]}
+          contentContainerStyle={[styles.list, webContentWidth('content')]}
           renderItem={({ item }) => (
             <Pressable
               style={styles.row}

@@ -7,10 +7,6 @@ export type Pet = {
   color?: string;
   weightLbs?: number;
   photoPath?: string;
-  isAnxious?: boolean;
-  isMatted?: boolean;
-  needsExtraCare?: boolean;
-  careNotes?: string;
   isMicrochipped?: boolean;
   microchipNumber?: string;
   vetName?: string;

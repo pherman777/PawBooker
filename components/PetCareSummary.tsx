@@ -34,7 +34,7 @@ export function PetCareSummary({ info }: { info: PetCareInfo }) {
     .join(' · ');
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, !hasCare && styles.containerNeutral]}>
       {hasCare && (
         <>
           <View style={styles.flagRow}>
@@ -70,6 +70,12 @@ const styles = StyleSheet.create({
     borderWidth: StyleSheet.hairlineWidth,
     borderColor: Colors.light.warning,
     backgroundColor: `${Colors.light.warning}14`,
+  },
+  // No actual care flags/notes - just routine microchip/vet info, so this
+  // shouldn't compete visually with real alerts for the groomer's attention.
+  containerNeutral: {
+    borderColor: Colors.light.border,
+    backgroundColor: Colors.light.background,
   },
   flagRow: {
     flexDirection: 'row',

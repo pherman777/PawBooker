@@ -1,15 +1,18 @@
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useEffect, useState } from 'react';
 import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { Colors } from '@/constants/theme';
 import { Logo } from '@/components/Logo';
 import { PetCareSummary, type PetCareInfo } from '@/components/PetCareSummary';
-import { Colors } from '@/constants/theme';
-import { supabase } from '@/services/supabase';
 import { chargeBooking, markBookingPaidCash } from '@/services/stripe';
 import { notify } from '@/utils/confirm';
 import { perBookingDiscountCents, type GroupDiscountSnapshot } from '@/utils/discount';
+import { supabase } from '@/services/supabase';
+import { webContentWidth } from '@/constants/webLayout';
+import { webFlushScroll } from '@/constants/webScroll';
 
 type LineItem = {
   description: string;
@@ -40,7 +43,7 @@ export default function CompleteBookingScreen() {
         supabase
           .from('bookings')
           .select(
-            'customer_id, groomer_id, group_id, pets(name, is_anxious, is_matted, needs_extra_care, care_notes, is_microchipped, microchip_number, vet_name, vet_phone), groomer_services(name, price_cents), groomers(plan)'
+            'customer_id, groomer_id, group_id, is_anxious, is_matted, needs_extra_care, care_notes, pets(name, is_microchipped, microchip_number, vet_name, vet_phone), groomer_services(name, price_cents), groomers(plan)'
           )
           .eq('id', bookingId)
           .single(),
@@ -57,10 +60,6 @@ export default function CompleteBookingScreen() {
 
       const pet = bookingResult.data.pets as unknown as {
         name: string;
-        is_anxious?: boolean;
-        is_matted?: boolean;
-        needs_extra_care?: boolean;
-        care_notes?: string | null;
         is_microchipped?: boolean;
         microchip_number?: string | null;
         vet_name?: string | null;
@@ -73,10 +72,10 @@ export default function CompleteBookingScreen() {
       const groomer = bookingResult.data.groomers as unknown as { plan: string };
       setPetName(pet?.name ?? 'Pet');
       setPetCare({
-        isAnxious: pet?.is_anxious ?? false,
-        isMatted: pet?.is_matted ?? false,
-        needsExtraCare: pet?.needs_extra_care ?? false,
-        careNotes: pet?.care_notes ?? undefined,
+        isAnxious: bookingResult.data.is_anxious ?? false,
+        isMatted: bookingResult.data.is_matted ?? false,
+        needsExtraCare: bookingResult.data.needs_extra_care ?? false,
+        careNotes: bookingResult.data.care_notes ?? undefined,
         isMicrochipped: pet?.is_microchipped ?? false,
         microchipNumber: pet?.microchip_number ?? undefined,
         vetName: pet?.vet_name ?? undefined,
@@ -214,7 +213,7 @@ export default function CompleteBookingScreen() {
 
   if (loading) {
     return (
-      <SafeAreaView style={styles.container}>
+      <SafeAreaView style={[styles.container, webContentWidth('form')]}>
         <ActivityIndicator style={styles.loading} color={Colors.light.tint} />
       </SafeAreaView>
     );
@@ -222,15 +221,15 @@ export default function CompleteBookingScreen() {
 
   if (loadError) {
     return (
-      <SafeAreaView style={styles.container}>
+      <SafeAreaView style={[styles.container, webContentWidth('form')]}>
         <Text style={styles.error}>{loadError}</Text>
       </SafeAreaView>
     );
   }
 
   return (
-    <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
-      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
+    <SafeAreaView style={[styles.container, webContentWidth('form')]} edges={['top', 'bottom']}>
+      <ScrollView style={webFlushScroll} showsVerticalScrollIndicator={false} contentContainerStyle={[styles.content, webContentWidth('form')]} keyboardShouldPersistTaps="handled">
         <View style={styles.topRow}>
           <Pressable onPress={() => router.back()}>
             <Text style={styles.backLink}>← Back</Text>

@@ -2,11 +2,14 @@ import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect, useRouter } from 'expo-router';
 import { useCallback, useState } from 'react';
 import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { Colors } from '@/constants/theme';
-import { useAuth } from '@/services/auth-context';
 import { supabase } from '@/services/supabase';
+import { useAuth } from '@/services/auth-context';
+import { webContentWidth } from '@/constants/webLayout';
+import { webFlushScroll } from '@/constants/webScroll';
 
 type StepState = {
   hasServices: boolean;
@@ -21,7 +24,8 @@ type SalonRoute =
   | '/(salon)/hours'
   | '/(salon)/payouts'
   | '/(salon)/supplies'
-  | '/(salon)/staff';
+  | '/(salon)/staff'
+  | '/(salon)/vaccination';
 
 type Step = {
   key: string;
@@ -129,15 +133,26 @@ export default function SalonWelcomeScreen() {
       required: false,
       route: '/(salon)/supplies',
     },
+    {
+      key: 'vaccination',
+      title: 'Vaccination requirement',
+      subtitle: 'Require a current rabies vaccination on file to book (on by default)',
+      done: true,
+      required: false,
+      route: '/(salon)/vaccination',
+    },
   ];
 
   const requiredDone = steps.filter((s) => s.required && s.done).length;
   const requiredTotal = steps.filter((s) => s.required).length;
   const isLive = requiredDone === requiredTotal;
+  const totalDone = steps.filter((s) => s.done).length;
+  const totalSteps = steps.length;
+  const progressPct = totalSteps > 0 ? Math.round((totalDone / totalSteps) * 100) : 0;
 
   return (
-    <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
-      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.content}>
+    <SafeAreaView style={[styles.container, webContentWidth('form')]} edges={['top', 'bottom']}>
+      <ScrollView style={webFlushScroll} showsVerticalScrollIndicator={false} contentContainerStyle={[styles.content, webContentWidth('form')]}>
         <Text style={styles.title}>Welcome to PawBooker</Text>
         <Text style={styles.subtitle}>
           Finish these steps so customers can book you and you get paid. You&apos;re listed as soon as
@@ -145,15 +160,30 @@ export default function SalonWelcomeScreen() {
         </Text>
 
         <View style={[styles.statusBanner, isLive ? styles.statusLive : styles.statusPending]}>
-          <Ionicons
-            name={isLive ? 'checkmark-circle' : 'time-outline'}
-            size={20}
-            color={isLive ? Colors.light.success : Colors.light.warning}
-          />
-          <Text style={styles.statusText}>
-            {isLive
-              ? "You're all set — ready to take bookings and get paid."
-              : `${requiredDone} of ${requiredTotal} required steps done`}
+          <View style={styles.statusHeaderRow}>
+            <Ionicons
+              name={isLive ? 'checkmark-circle' : 'time-outline'}
+              size={20}
+              color={isLive ? Colors.light.success : Colors.light.warning}
+            />
+            <Text style={styles.statusText}>
+              {isLive
+                ? "You're all set — ready to take bookings and get paid."
+                : `${requiredDone} of ${requiredTotal} required steps done`}
+            </Text>
+          </View>
+
+          <View style={styles.progressBarTrack}>
+            <View
+              style={[
+                styles.progressBarFill,
+                { width: `${progressPct}%` },
+                isLive ? styles.progressBarFillLive : styles.progressBarFillPending,
+              ]}
+            />
+          </View>
+          <Text style={styles.progressCaption}>
+            {totalDone} of {totalSteps} steps completed
           </Text>
         </View>
 
@@ -210,24 +240,49 @@ const styles = StyleSheet.create({
     color: Colors.light.textMuted,
   },
   statusBanner: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
     padding: 14,
     borderRadius: 12,
     marginBottom: 20,
   },
   statusLive: {
-    backgroundColor: '#E7F6EC',
+    backgroundColor: 'rgba(169,203,173,0.18)',
   },
   statusPending: {
-    backgroundColor: '#FBF3E2',
+    backgroundColor: 'rgba(208,142,123,0.16)',
+  },
+  statusHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
   },
   statusText: {
     flex: 1,
     fontSize: 14,
     fontWeight: '600',
     color: Colors.light.text,
+  },
+  progressBarTrack: {
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: 'rgba(255,255,255,0.12)',
+    overflow: 'hidden',
+    marginTop: 12,
+  },
+  progressBarFill: {
+    height: '100%',
+    borderRadius: 3,
+  },
+  progressBarFillLive: {
+    backgroundColor: Colors.light.success,
+  },
+  progressBarFillPending: {
+    backgroundColor: Colors.light.warning,
+  },
+  progressCaption: {
+    marginTop: 6,
+    fontSize: 12,
+    fontWeight: '500',
+    color: Colors.light.textMuted,
   },
   loading: {
     marginTop: 24,

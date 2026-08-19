@@ -24,6 +24,7 @@ export default function GroomerDetailScreen() {
   const [error, setError] = useState<string | null>(null);
   const [messaging, setMessaging] = useState(false);
   const [isDeactivated, setIsDeactivated] = useState(false);
+  const [startingBookingFor, setStartingBookingFor] = useState<string | null>(null);
 
   async function handleMessage() {
     if (!session || !groomer) return;
@@ -35,6 +36,32 @@ export default function GroomerDetailScreen() {
       notify('Could not start conversation', err instanceof Error ? err.message : 'Something went wrong.');
     }
     setMessaging(false);
+  }
+
+  // A customer with zero pets can reach the booking screen but has nothing to
+  // select and no way to actually book - check first and send them to add a
+  // pet instead, rather than dropping them into a dead-end screen.
+  async function handleBookPress(serviceId: string) {
+    if (!session || !groomer) return;
+    setStartingBookingFor(serviceId);
+    const { count, error: countError } = await supabase
+      .from('pets')
+      .select('id', { count: 'exact', head: true })
+      .eq('owner_id', session.user.id);
+    setStartingBookingFor(null);
+
+    if (countError) {
+      notify('Something went wrong', countError.message);
+      return;
+    }
+
+    if (!count) {
+      notify('Add a pet first', "You'll need a pet profile before you can book an appointment - let's set one up.");
+      router.push('/pet/new');
+      return;
+    }
+
+    router.push({ pathname: '/booking/[groomerId]', params: { groomerId: groomer.id, serviceId } });
   }
 
   useEffect(() => {
@@ -174,13 +201,13 @@ export default function GroomerDetailScreen() {
               {!isDeactivated && (
                 <Pressable
                   style={styles.bookButton}
-                  onPress={() =>
-                    router.push({
-                      pathname: '/booking/[groomerId]',
-                      params: { groomerId: groomer.id, serviceId: service.id },
-                    })
-                  }>
-                  <Text style={styles.bookButtonText}>Book</Text>
+                  onPress={() => handleBookPress(service.id)}
+                  disabled={startingBookingFor === service.id}>
+                  {startingBookingFor === service.id ? (
+                    <ActivityIndicator color="#fff" size="small" />
+                  ) : (
+                    <Text style={styles.bookButtonText}>Book</Text>
+                  )}
                 </Pressable>
               )}
             </View>

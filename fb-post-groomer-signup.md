@@ -20,4 +20,4 @@ Interested? Sign up at paw-booker.com
 
 ## Note before posting
 
-The "Sign up" button on paw-booker.com opens a general email-capture form — it doesn't currently ask whether someone's a groomer or a pet owner, so groomer signups and customer signups will land in the same list. When you follow up with people who sign up, you'll need to ask which they are. If you end up running this campaign more than once, it'd be worth a few minutes to add a "I'm a groomer" checkbox to that form so the leads come in already labeled — happy to do that whenever.
+Groomers now get a real, working sign-up on the site — "List your business" creates their account and salon directly (name, address, phone, email/password) and takes them straight to the setup checklist at app.paw-booker.com, no waitlist or follow-up needed. The header's "Log in / Sign up" and the "For groomers" section both link there. Pet owners still see the email-capture waitlist modal, since customer booking isn't live on the web yet.
