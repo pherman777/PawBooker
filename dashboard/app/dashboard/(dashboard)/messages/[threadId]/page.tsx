@@ -46,7 +46,14 @@ export default function GroomerChatPage() {
         const row = payload.new as { id: string; thread_id: string; sender_type: ChatMessage['senderType']; sender_id: string | null; body: string; created_at: string };
         setMessages((prev) => {
           if (prev.some((m) => m.id === row.id)) return prev;
-          return [...prev, { id: row.id, threadId: row.thread_id, senderType: row.sender_type, senderId: row.sender_id ?? undefined, body: row.body, createdAt: row.created_at }];
+          const newMessage: ChatMessage = { id: row.id, threadId: row.thread_id, senderType: row.sender_type, senderId: row.sender_id ?? undefined, body: row.body, createdAt: row.created_at };
+          const optimisticIndex = prev.findIndex((m) => m.id.startsWith('optimistic-') && m.senderType === row.sender_type && m.body === row.body);
+          if (optimisticIndex !== -1) {
+            const next = [...prev];
+            next[optimisticIndex] = newMessage;
+            return next;
+          }
+          return [...prev, newMessage];
         });
       })
       .subscribe();

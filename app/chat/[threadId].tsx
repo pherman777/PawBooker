@@ -104,17 +104,27 @@ export default function ChatScreen() {
           };
           setMessages((prev) => {
             if (prev.some((m) => m.id === row.id)) return prev;
-            return [
-              ...prev,
-              {
-                id: row.id,
-                threadId: row.thread_id,
-                senderType: row.sender_type,
-                senderId: row.sender_id ?? undefined,
-                body: row.body,
-                createdAt: row.created_at,
-              },
-            ];
+            const newMessage: ChatMessage = {
+              id: row.id,
+              threadId: row.thread_id,
+              senderType: row.sender_type,
+              senderId: row.sender_id ?? undefined,
+              body: row.body,
+              createdAt: row.created_at,
+            };
+            // Replace the optimistic entry handleSend added (rather than
+            // appending a second copy) - it has a client-only id, so it
+            // never matches row.id above and would otherwise show
+            // duplicated until the post-send load() replaces the whole list.
+            const optimisticIndex = prev.findIndex(
+              (m) => m.id.startsWith('optimistic-') && m.senderType === row.sender_type && m.body === row.body
+            );
+            if (optimisticIndex !== -1) {
+              const next = [...prev];
+              next[optimisticIndex] = newMessage;
+              return next;
+            }
+            return [...prev, newMessage];
           });
         }
       )
