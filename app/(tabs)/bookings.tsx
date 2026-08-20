@@ -1,3 +1,4 @@
+import { Ionicons } from '@expo/vector-icons';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
 import { ActivityIndicator, FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
@@ -547,6 +548,9 @@ export default function BookingsScreen() {
           }}
           ListEmptyComponent={
             <View style={styles.empty}>
+              <View style={styles.emptyIllustration}>
+                <Ionicons name="calendar-outline" size={34} color={Colors.light.tint} />
+              </View>
               <Text style={styles.emptyText}>No bookings yet</Text>
               <Pressable style={styles.emptyButton} onPress={() => router.push('/(tabs)/browse')}>
                 <Text style={styles.emptyButtonText}>Book an appointment</Text>
@@ -611,7 +615,7 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.light.tint,
   },
   newButtonText: {
-    color: '#fff',
+    color: Colors.light.text,
     fontSize: 13,
     fontWeight: '600',
   },
@@ -633,10 +637,15 @@ const styles = StyleSheet.create({
   },
   card: {
     backgroundColor: Colors.light.surface,
-    borderRadius: 12,
+    borderRadius: 16,
     padding: 16,
     borderWidth: StyleSheet.hairlineWidth,
     borderColor: Colors.light.border,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.08,
+    shadowRadius: 16,
+    elevation: 2,
   },
   cardHighlighted: {
     borderColor: Colors.light.tint,
@@ -663,7 +672,7 @@ const styles = StyleSheet.create({
   groupBadgeText: {
     fontSize: 12,
     fontWeight: '700',
-    color: '#fff',
+    color: Colors.light.text,
   },
   cardMeta: {
     marginTop: 4,
@@ -714,13 +723,14 @@ const styles = StyleSheet.create({
   rebookButtonText: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#fff',
+    color: Colors.light.text,
   },
   paymentFailedBanner: {
     marginTop: 8,
     padding: 10,
     borderRadius: 8,
-    backgroundColor: '#FBEAE8',
+    // Danger-tinted wash, recomputed for the new danger hex (#B14B3E).
+    backgroundColor: 'rgba(177,75,62,0.14)',
   },
   paymentFailedText: {
     fontSize: 13,
@@ -772,7 +782,7 @@ const styles = StyleSheet.create({
   tipButtonText: {
     fontSize: 13,
     fontWeight: '600',
-    color: '#fff',
+    color: Colors.light.text,
   },
   tippedText: {
     marginTop: 8,
@@ -797,6 +807,14 @@ const styles = StyleSheet.create({
     marginTop: 80,
     gap: 16,
   },
+  emptyIllustration: {
+    width: 84,
+    height: 84,
+    borderRadius: 42,
+    backgroundColor: 'rgba(107,143,114,0.14)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   emptyText: {
     fontSize: 15,
     color: Colors.light.textMuted,
@@ -808,7 +826,7 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.light.tint,
   },
   emptyButtonText: {
-    color: '#fff',
+    color: Colors.light.text,
     fontSize: 14,
     fontWeight: '600',
   },

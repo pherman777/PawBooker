@@ -46,7 +46,7 @@ Deno.serve(async (req) => {
     const { data: booking, error } = await supabase
       .from('bookings')
       .select(
-        'customer_id, group_id, starts_at, cancellation_reason, customer_email, groomers(name, address, email, user_id, timezone), groomer_services(name, duration_minutes), pets(name, is_anxious, is_matted, needs_extra_care, care_notes, is_microchipped, microchip_number, vet_name, vet_phone)'
+        'customer_id, group_id, starts_at, cancellation_reason, customer_email, is_anxious, is_matted, needs_extra_care, care_notes, groomers(name, address, email, user_id, timezone), groomer_services(name, duration_minutes), pets(name, is_microchipped, microchip_number, vet_name, vet_phone)'
       )
       .eq('id', bookingId)
       .single();
@@ -64,35 +64,74 @@ Deno.serve(async (req) => {
     };
     const service = booking.groomer_services as unknown as { name: string; duration_minutes: number };
 
-    type PetShape = {
+    type PetIdentity = {
       name: string;
-      is_anxious?: boolean;
-      is_matted?: boolean;
-      needs_extra_care?: boolean;
-      care_notes?: string | null;
       is_microchipped?: boolean;
       microchip_number?: string | null;
       vet_name?: string | null;
       vet_phone?: string | null;
     };
+    type BookingCare = {
+      is_anxious?: boolean;
+      is_matted?: boolean;
+      needs_extra_care?: boolean;
+      care_notes?: string | null;
+    };
+    type ServiceShape = { name: string; duration_minutes?: number };
+    type PetShape = PetIdentity & BookingCare & { serviceName: string; serviceDurationMinutes: number };
+
+    function toPetShape(bookingRow: BookingCare, petRow: PetIdentity | null, serviceRow: ServiceShape | null): PetShape {
+      return {
+        name: petRow?.name ?? 'Pet',
+        is_microchipped: petRow?.is_microchipped,
+        microchip_number: petRow?.microchip_number,
+        vet_name: petRow?.vet_name,
+        vet_phone: petRow?.vet_phone,
+        is_anxious: bookingRow.is_anxious,
+        is_matted: bookingRow.is_matted,
+        needs_extra_care: bookingRow.needs_extra_care,
+        care_notes: bookingRow.care_notes,
+        serviceName: serviceRow?.name ?? 'Service',
+        serviceDurationMinutes: serviceRow?.duration_minutes ?? service.duration_minutes,
+      };
+    }
 
     // A multi-pet "group" booking sends a single email for the lead booking, so
-    // pull every pet in the group and name them all. A standalone booking is just
-    // a group of one.
-    let petRows: PetShape[] = [booking.pets as unknown as PetShape];
+    // pull every pet in the group and name them all - each with its own service,
+    // since a group visit can now mix different services per pet. A standalone
+    // booking is just a group of one.
+    let petRows: PetShape[] = [
+      toPetShape(
+        booking,
+        booking.pets as unknown as PetIdentity | null,
+        booking.groomer_services as unknown as ServiceShape | null
+      ),
+    ];
     const groupId = (booking as unknown as { group_id: string | null }).group_id;
     if (groupId) {
       const { data: groupPets } = await supabase
         .from('bookings')
         .select(
-          'starts_at, pets(name, is_anxious, is_matted, needs_extra_care, care_notes, is_microchipped, microchip_number, vet_name, vet_phone)'
+          'starts_at, is_anxious, is_matted, needs_extra_care, care_notes, pets(name, is_microchipped, microchip_number, vet_name, vet_phone), groomer_services(name, duration_minutes)'
         )
         .eq('group_id', groupId)
         .order('starts_at', { ascending: true });
       if (groupPets && groupPets.length > 0) {
-        petRows = groupPets.map((r) => r.pets as unknown as PetShape);
+        petRows = groupPets.map((r) =>
+          toPetShape(r, r.pets as unknown as PetIdentity | null, r.groomer_services as unknown as ServiceShape | null)
+        );
       }
     }
+
+    // The common case is every pet in the visit sharing one service - keep the
+    // simple "service for Maggie and Bella" phrasing then. When they differ,
+    // naming just the lead pet's service would misrepresent what the other
+    // pets are actually getting, so fall back to a neutral count and spell out
+    // the real per-pet breakdown wherever the exact services matter.
+    const uniqueServiceNames = Array.from(new Set(petRows.map((p) => p.serviceName)));
+    const hasMixedServices = uniqueServiceNames.length > 1;
+    const serviceLabel = hasMixedServices ? `${uniqueServiceNames.length} different services` : service.name;
+    const perPetServiceBreakdown = petRows.map((p) => `${p.name}: ${p.serviceName}`).join('\n');
 
     const petNames = petRows.map((p) => p.name);
     const isPlural = petNames.length > 1;
@@ -169,59 +208,65 @@ Deno.serve(async (req) => {
     let pushBody = '';
     let icsAttachment: { filename: string; content: string } | null = null;
 
+    // Appended to email bodies (never push, which stays short) whenever the
+    // visit's pets don't all share one service, so the exact breakdown is
+    // always available even though the headline sentence had to generalize.
+    const breakdownSuffix = hasMixedServices ? `\n\nEach pet's service:\n${perPetServiceBreakdown}` : '';
+
     if (action === 'accepted') {
       emailTo = booking.customer_email;
       subject = `Your appointment at ${groomer.name} is confirmed`;
-      text = `Good news! ${groomer.name} accepted your ${service.name} appointment for ${petsLabel} on ${when}.`;
+      text = `Good news! ${groomer.name} accepted your ${serviceLabel} appointment for ${petsLabel} on ${when}.${breakdownSuffix}`;
       pushUserId = booking.customer_id;
       pushTitle = 'Booking confirmed';
-      pushBody = `${groomer.name} accepted your ${service.name} appointment for ${petsLabel}.`;
+      pushBody = `${groomer.name} accepted your ${serviceLabel} appointment for ${petsLabel}.`;
 
       const icsContent = buildIcsEvent({
         uid: bookingId,
         startsAt: new Date(booking.starts_at),
-        // The whole visit blocks a span of one slot per pet, back-to-back.
-        durationMinutes: service.duration_minutes * petRows.length,
-        summary: `${service.name} for ${petsLabel} at ${groomer.name}`,
+        // The whole visit blocks a span of the sum of each pet's own service
+        // length, back-to-back.
+        durationMinutes: petRows.reduce((sum, p) => sum + p.serviceDurationMinutes, 0),
+        summary: `${serviceLabel} for ${petsLabel} at ${groomer.name}`,
         location: groomer.address,
-        description: `${groomer.name} accepted your ${service.name} appointment for ${petsLabel}.`,
+        description: `${groomer.name} accepted your ${serviceLabel} appointment for ${petsLabel}.${breakdownSuffix}`,
       });
       icsAttachment = { filename: 'appointment.ics', content: base64Encode(icsContent) };
     } else if (action === 'groomer_cancelled') {
       emailTo = booking.customer_email;
       subject = `Your appointment at ${groomer.name} was cancelled`;
-      text = `${groomer.name} cancelled your ${service.name} appointment for ${petsLabel} on ${when}.\n\nReason: ${booking.cancellation_reason ?? 'No reason given'}`;
+      text = `${groomer.name} cancelled your ${serviceLabel} appointment for ${petsLabel} on ${when}.\n\nReason: ${booking.cancellation_reason ?? 'No reason given'}${breakdownSuffix}`;
       pushUserId = booking.customer_id;
       pushTitle = 'Booking cancelled';
-      pushBody = `${groomer.name} cancelled your ${service.name} appointment for ${petsLabel}.`;
+      pushBody = `${groomer.name} cancelled your ${serviceLabel} appointment for ${petsLabel}.`;
     } else if (action === 'customer_cancelled') {
       emailTo = groomer.email;
-      subject = `A booking was cancelled: ${service.name} for ${petsLabel}`;
-      text = `A customer cancelled their ${service.name} appointment for ${petsLabel} on ${when}.\n\nReason: ${booking.cancellation_reason ?? 'No reason given'}`;
+      subject = `A booking was cancelled: ${serviceLabel} for ${petsLabel}`;
+      text = `A customer cancelled their ${serviceLabel} appointment for ${petsLabel} on ${when}.\n\nReason: ${booking.cancellation_reason ?? 'No reason given'}${breakdownSuffix}`;
       pushUserId = groomer.user_id;
       pushTitle = 'Booking cancelled';
-      pushBody = `A customer cancelled their ${service.name} appointment for ${petsLabel}.`;
+      pushBody = `A customer cancelled their ${serviceLabel} appointment for ${petsLabel}.`;
     } else if (action === 'booking_requested') {
       emailTo = groomer.email;
-      subject = `New booking request: ${service.name} for ${petsLabel}`;
-      text = `${petsLabel} ${isPlural ? 'need' : 'needs'} a ${service.name} on ${when}.${careEmailBlock}\n\nOpen PawBooker to accept or decline this request.`;
+      subject = `New booking request: ${serviceLabel} for ${petsLabel}`;
+      text = `${petsLabel} ${isPlural ? 'need' : 'needs'} a ${serviceLabel} on ${when}.${breakdownSuffix}${careEmailBlock}\n\nOpen PawBooker to accept or decline this request.`;
       pushUserId = groomer.user_id;
       pushTitle = 'New booking request';
-      pushBody = `${petsLabel} ${isPlural ? 'need' : 'needs'} a ${service.name} on ${when}.${careInline ? `\n⚠ ${careInline}` : ''}`;
+      pushBody = `${petsLabel} ${isPlural ? 'need' : 'needs'} a ${serviceLabel} on ${when}.${careInline ? `\n⚠ ${careInline}` : ''}`;
     } else if (action === 'service_completed') {
       emailTo = booking.customer_email;
       subject = `${petsLabel} ${isPlural ? 'are' : 'is'} ready for pickup at ${groomer.name}!`;
-      text = `${petsLabel}'s ${service.name} is all done at ${groomer.name} — ready for pickup whenever you can swing by.`;
+      text = `${petsLabel}'s ${serviceLabel} ${isPlural ? 'are' : 'is'} all done at ${groomer.name} — ready for pickup whenever you can swing by.${breakdownSuffix}`;
       pushUserId = booking.customer_id;
       pushTitle = 'Ready for pickup!';
-      pushBody = `${petsLabel}'s ${service.name} is done at ${groomer.name}.`;
+      pushBody = `${petsLabel}'s ${serviceLabel} ${isPlural ? 'are' : 'is'} done at ${groomer.name}.`;
     } else if (action === 'declined') {
       emailTo = booking.customer_email;
       subject = `Your request at ${groomer.name} — a note about timing`;
-      text = `${groomer.name} couldn't take your ${service.name} appointment for ${petsLabel} on ${when}.\n\nNote from ${groomer.name}: ${booking.cancellation_reason ?? 'No note given'}\n\nOpen PawBooker to rebook for a time that works.`;
+      text = `${groomer.name} couldn't take your ${serviceLabel} appointment for ${petsLabel} on ${when}.\n\nNote from ${groomer.name}: ${booking.cancellation_reason ?? 'No note given'}\n\nOpen PawBooker to rebook for a time that works.${breakdownSuffix}`;
       pushUserId = booking.customer_id;
       pushTitle = 'A note about your request';
-      pushBody = `${groomer.name} suggested another time for ${petsLabel}'s ${service.name}. Tap to rebook.`;
+      pushBody = `${groomer.name} suggested another time for ${petsLabel}'s ${serviceLabel}. Tap to rebook.`;
     }
 
     if (pushUserId) {

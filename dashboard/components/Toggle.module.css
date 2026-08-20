@@ -1,0 +1,37 @@
+.track {
+  position: relative;
+  flex-shrink: 0;
+  width: 46px;
+  height: 26px;
+  padding: 0;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  cursor: pointer;
+  transition:
+    background-color 0.15s,
+    border-color 0.15s;
+}
+.track:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+.trackOn {
+  background: var(--sage);
+  border-color: var(--sage);
+}
+
+.thumb {
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: var(--ink);
+  transition: transform 0.15s;
+}
+.thumbOn {
+  transform: translateX(20px);
+  background: var(--ground);
+}

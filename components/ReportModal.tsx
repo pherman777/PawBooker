@@ -81,7 +81,7 @@ export function ReportModal({ visible, reasons, submitting, onDismiss, onSubmit 
                 onPress={handleSubmit}
                 disabled={!selectedReason || submitting}>
                 {submitting ? (
-                  <ActivityIndicator color="#fff" />
+                  <ActivityIndicator color={Colors.light.text} />
                 ) : (
                   <Text style={styles.submitButtonText}>Submit report</Text>
                 )}
@@ -138,7 +138,7 @@ const styles = StyleSheet.create({
     color: Colors.light.text,
   },
   reasonTextSelected: {
-    color: '#fff',
+    color: Colors.light.text,
     fontWeight: '600',
   },
   input: {
@@ -180,7 +180,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   submitButtonText: {
-    color: '#fff',
+    color: Colors.light.text,
     fontSize: 15,
     fontWeight: '600',
   },

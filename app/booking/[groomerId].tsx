@@ -11,10 +11,18 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import {
+  CareNeeds,
+  EMPTY_CARE_NEEDS,
+  PetCareNeedsFields,
+  careNeedsValid,
+} from '@/components/PetCareNeedsFields';
+import { SearchablePicker } from '@/components/SearchablePicker';
+import { Button } from '@/components/ui/Button';
 import { Colors } from '@/constants/theme';
 import { fetchActiveStaff, fetchBusyIntervals, type SalonStaff } from '@/services/availability';
 import { useAuth } from '@/services/auth-context';
-import { createGroupBooking } from '@/services/bookings';
+import { createGroupBooking, type PetBookingInput } from '@/services/bookings';
 import { notifyGroomer, sendBookingEmail } from '@/services/notifications';
 import { supabase } from '@/services/supabase';
 import type { GroomerHours, Pet } from '@/types';
@@ -40,6 +48,16 @@ type ServiceInfo = {
 const DAYS_AHEAD = 14;
 const PET_SPECIES: Pet['species'][] = ['dog', 'cat', 'other'];
 
+function careNeedsToRow(care: CareNeeds | undefined) {
+  const c = care ?? EMPTY_CARE_NEEDS;
+  return {
+    is_anxious: c.isAnxious,
+    is_matted: c.isMatted,
+    needs_extra_care: c.needsExtraCare,
+    care_notes: c.careNotes.trim() || null,
+  };
+}
+
 function nextDays(count: number) {
   return Array.from({ length: count }, (_, i) => {
     const date = new Date();
@@ -60,6 +78,7 @@ export default function BookingScreen() {
   const { session } = useAuth();
 
   const [service, setService] = useState<ServiceInfo | null>(null);
+  const [allServices, setAllServices] = useState<ServiceInfo[]>([]);
   const [pets, setPets] = useState<Pet[]>([]);
   const [eligiblePetIds, setEligiblePetIds] = useState<Set<string>>(new Set());
   const [hasPaymentMethod, setHasPaymentMethod] = useState(false);
@@ -71,10 +90,13 @@ export default function BookingScreen() {
   const [busy, setBusy] = useState<BusyInterval[]>([]);
   const [staffSelection, setStaffSelection] = useState<string>('any'); // 'any' or a staff id
   const [discountRule, setDiscountRule] = useState<MultiPetDiscount | null>(null);
+  const [requiresVaccination, setRequiresVaccination] = useState(true);
 
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
   const [selectedTime, setSelectedTime] = useState<string | null>(null);
   const [selectedPetIds, setSelectedPetIds] = useState<Set<string>>(new Set());
+  const [petCareNeeds, setPetCareNeeds] = useState<Record<string, CareNeeds>>({});
+  const [petServiceIds, setPetServiceIds] = useState<Record<string, string>>({});
 
   const [addingPet, setAddingPet] = useState(false);
   const [newPetName, setNewPetName] = useState('');
@@ -86,11 +108,29 @@ export default function BookingScreen() {
 
   const days = useMemo(() => nextDays(DAYS_AHEAD), []);
 
-  const petCount = Math.max(selectedPetIds.size, 1);
-  // The whole group is one contiguous block: total time = per-pet service length
-  // times how many pets are coming, so we only offer arrival slots that fit them
-  // all back-to-back.
-  const totalDurationMinutes = service ? service.durationMinutes * petCount : 0;
+  function resolveServiceForPet(petId: string): ServiceInfo | undefined {
+    const chosenId = petServiceIds[petId];
+    const found = chosenId ? allServices.find((s) => s.id === chosenId) : undefined;
+    return found ?? service ?? undefined;
+  }
+
+  const selectedPetServices = useMemo(
+    () =>
+      [...selectedPetIds]
+        .map((petId) => ({ petId, service: resolveServiceForPet(petId) }))
+        .filter((row): row is { petId: string; service: ServiceInfo } => row.service != null),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [selectedPetIds, petServiceIds, allServices, service]
+  );
+
+  // The whole group is one contiguous block: total time = the sum of each
+  // selected pet's own service length, so we only offer arrival slots that fit
+  // them all back-to-back. Before any pet is picked, fall back to the default
+  // service so the time picker still shows something sensible.
+  const totalDurationMinutes =
+    selectedPetServices.length > 0
+      ? selectedPetServices.reduce((sum, row) => sum + row.service.durationMinutes, 0)
+      : (service?.durationMinutes ?? 0);
 
   const availableTimes = useMemo(() => {
     if (!selectedDate || !service) return [];
@@ -107,7 +147,7 @@ export default function BookingScreen() {
     });
   }, [selectedDate, service, staffSelection, staff.length, salonHours, busy, totalDurationMinutes]);
 
-  const subtotalCents = service ? service.priceCents * selectedPetIds.size : 0;
+  const subtotalCents = selectedPetServices.reduce((sum, row) => sum + row.service.priceCents, 0);
   const discountCents = computeGroupDiscountCents(subtotalCents, selectedPetIds.size, discountRule);
   const totalCents = subtotalCents - discountCents;
 
@@ -122,26 +162,36 @@ export default function BookingScreen() {
       const windowEnd = new Date(windowStart);
       windowEnd.setDate(windowEnd.getDate() + DAYS_AHEAD);
 
-      const [serviceResult, petsResult, billingResult, hoursResult, staffResult, busyResult] = await Promise.all([
-        supabase
-          .from('groomer_services')
-          .select('id, name, price_cents, duration_minutes, groomers(name)')
-          .eq('id', serviceId)
-          .single(),
-        supabase
-          .from('pets')
-          .select('id, owner_id, name, species, breed, pet_documents(document_type, expires_at)')
-          .eq('owner_id', session.user.id),
-        supabase.from('customer_billing').select('user_id').eq('user_id', session.user.id).maybeSingle(),
-        supabase.from('groomers').select('hours, multi_pet_discount').eq('id', groomerId).single(),
-        fetchActiveStaff(groomerId),
-        fetchBusyIntervals(groomerId, windowStart, windowEnd),
-      ]);
+      const [serviceResult, allServicesResult, petsResult, billingResult, hoursResult, staffResult, busyResult] =
+        await Promise.all([
+          supabase
+            .from('groomer_services')
+            .select('id, name, price_cents, duration_minutes, groomers(name)')
+            .eq('id', serviceId)
+            .single(),
+          supabase
+            .from('groomer_services')
+            .select('id, name, price_cents, duration_minutes')
+            .eq('groomer_id', groomerId),
+          supabase
+            .from('pets')
+            .select('id, owner_id, name, species, breed, pet_documents(document_type, expires_at)')
+            .eq('owner_id', session.user.id),
+          supabase.from('customer_billing').select('user_id').eq('user_id', session.user.id).maybeSingle(),
+          supabase
+            .from('groomers')
+            .select('hours, multi_pet_discount, requires_rabies_vaccination')
+            .eq('id', groomerId)
+            .single(),
+          fetchActiveStaff(groomerId),
+          fetchBusyIntervals(groomerId, windowStart, windowEnd),
+        ]);
 
       if (!cancelled) {
         setHasPaymentMethod(billingResult.data != null);
         setSalonHours((hoursResult.data?.hours ?? null) as GroomerHours | null);
         setDiscountRule(parseMultiPetDiscount(hoursResult.data?.multi_pet_discount));
+        setRequiresVaccination(hoursResult.data?.requires_rabies_vaccination ?? true);
         setStaff(staffResult);
         setBusy(busyResult);
       }
@@ -152,13 +202,26 @@ export default function BookingScreen() {
         setLoadError(serviceResult.error?.message ?? 'Service not found');
       } else {
         const row = serviceResult.data;
+        const groomerName = (row.groomers as unknown as { name: string })?.name ?? '';
         setService({
           id: row.id,
           name: row.name,
           priceCents: row.price_cents,
           durationMinutes: row.duration_minutes,
-          groomerName: (row.groomers as unknown as { name: string })?.name ?? '',
+          groomerName,
         });
+
+        if (allServicesResult.data) {
+          setAllServices(
+            allServicesResult.data.map((s) => ({
+              id: s.id,
+              name: s.name,
+              priceCents: s.price_cents,
+              durationMinutes: s.duration_minutes,
+              groomerName,
+            }))
+          );
+        }
       }
 
       if (!petsResult.error && petsResult.data) {
@@ -171,15 +234,18 @@ export default function BookingScreen() {
             breed: p.breed ?? undefined,
           }))
         );
+        const vaccinationRequired = hoursResult.data?.requires_rabies_vaccination ?? true;
         const eligible = new Set(
           petsResult.data
-            .filter((p) =>
-              hasCurrentRabiesVaccination(
-                p.pet_documents.map((d) => ({
-                  documentType: d.document_type,
-                  expiresAt: d.expires_at ?? undefined,
-                }))
-              )
+            .filter(
+              (p) =>
+                !vaccinationRequired ||
+                hasCurrentRabiesVaccination(
+                  p.pet_documents.map((d) => ({
+                    documentType: d.document_type,
+                    expiresAt: d.expires_at ?? undefined,
+                  }))
+                )
             )
             .map((p) => p.id)
         );
@@ -224,10 +290,14 @@ export default function BookingScreen() {
       setPets((prev) => [...prev, pet]);
       setAddingPet(false);
       setNewPetName('');
-      notify(
-        'Rabies vaccination required',
-        `${pet.name} needs a current rabies vaccination on file before they can be booked. Add one from ${pet.name}'s profile in the Profile tab.`
-      );
+      if (requiresVaccination) {
+        notify(
+          'Rabies vaccination required',
+          `${pet.name} needs a current rabies vaccination on file before they can be booked. Add one from ${pet.name}'s profile in the Profile tab.`
+        );
+      } else {
+        setEligiblePetIds((prev) => new Set(prev).add(pet.id));
+      }
     }
   }
 
@@ -247,6 +317,7 @@ export default function BookingScreen() {
     // A single pet stays a plain standalone booking (no group wrapper); two or
     // more become a group of sequential bookings the salon handles together.
     if (petIds.length === 1) {
+      const petService = resolveServiceForPet(petIds[0]) ?? service;
       const { data: inserted, error } = await supabase
         .from('bookings')
         .insert({
@@ -254,10 +325,11 @@ export default function BookingScreen() {
           customer_email: session.user.email,
           groomer_id: groomerId,
           pet_id: petIds[0],
-          service_id: service.id,
+          service_id: petService.id,
           staff_id: staffId,
           starts_at: startsAt.toISOString(),
           status: 'pending',
+          ...careNeedsToRow(petCareNeeds[petIds[0]]),
         })
         .select('id')
         .single();
@@ -276,16 +348,25 @@ export default function BookingScreen() {
     }
 
     try {
+      const careNeedsByPet = Object.fromEntries(
+        petIds.map((id) => [id, careNeedsToRow(petCareNeeds[id])])
+      );
+      const petServices: Record<string, PetBookingInput> = Object.fromEntries(
+        petIds.map((id) => {
+          const petService = resolveServiceForPet(id) ?? service;
+          return [id, { serviceId: petService.id, durationMinutes: petService.durationMinutes }];
+        })
+      );
       const { bookingIds } = await createGroupBooking({
         customerId: session.user.id,
         customerEmail: session.user.email,
         groomerId,
         staffId,
-        serviceId: service.id,
         petIds,
+        petServices,
         arrivalAt: startsAt,
-        perPetDurationMinutes: service.durationMinutes,
         discount: discountRule,
+        careNeedsByPet,
       });
 
       setSubmitting(false);
@@ -316,8 +397,17 @@ export default function BookingScreen() {
     );
   }
 
+  const selectedCareNeedsValid = [...selectedPetIds].every((id) => {
+    const pet = pets.find((p) => p.id === id);
+    if (pet?.species !== 'dog') return true;
+    return careNeedsValid(petCareNeeds[id] ?? EMPTY_CARE_NEEDS);
+  });
+
   const canConfirm =
-    Boolean(selectedDate && selectedTime && selectedPetIds.size > 0) && hasPaymentMethod && !submitting;
+    Boolean(selectedDate && selectedTime && selectedPetIds.size > 0) &&
+    selectedCareNeedsValid &&
+    hasPaymentMethod &&
+    !submitting;
 
   return (
     <SafeAreaView style={styles.container} edges={['bottom']}>
@@ -360,34 +450,20 @@ export default function BookingScreen() {
         {staff.length >= 2 && (
           <>
             <Text style={styles.sectionTitle}>Choose your groomer</Text>
-            <View style={styles.petRow}>
-              <Pressable
-                style={[styles.groomerChip, staffSelection === 'any' && styles.chipSelected]}
-                onPress={() => {
-                  setStaffSelection('any');
-                  setSelectedTime(null);
-                }}>
-                <Text style={[styles.groomerChipText, staffSelection === 'any' && styles.chipTextSelected]}>
-                  First available
-                </Text>
-              </Pressable>
-              {staff.map((member) => {
-                const isSelected = staffSelection === member.id;
-                return (
-                  <Pressable
-                    key={member.id}
-                    style={[styles.groomerChip, isSelected && styles.chipSelected]}
-                    onPress={() => {
-                      setStaffSelection(member.id);
-                      setSelectedTime(null);
-                    }}>
-                    <Text style={[styles.groomerChipText, isSelected && styles.chipTextSelected]}>
-                      {member.name}
-                    </Text>
-                  </Pressable>
-                );
-              })}
-            </View>
+            <SearchablePicker
+              title="Choose your groomer"
+              placeholder="First available"
+              searchPlaceholder="Search groomers"
+              value={staffSelection}
+              options={[
+                { id: 'any', label: 'First available' },
+                ...staff.map((member) => ({ id: member.id, label: member.name })),
+              ]}
+              onChange={(id) => {
+                setStaffSelection(id);
+                setSelectedTime(null);
+              }}
+            />
           </>
         )}
 
@@ -442,10 +518,26 @@ export default function BookingScreen() {
                   }
                   // Toggling a pet changes the total time, so the chosen slot may no
                   // longer fit the group - clear it and make them repick.
+                  const wasSelected = selectedPetIds.has(pet.id);
                   setSelectedPetIds((prev) => {
                     const next = new Set(prev);
                     if (next.has(pet.id)) next.delete(pet.id);
                     else next.add(pet.id);
+                    return next;
+                  });
+                  setPetCareNeeds((prev) => {
+                    if (!prev[pet.id]) return prev;
+                    const next = { ...prev };
+                    delete next[pet.id];
+                    return next;
+                  });
+                  setPetServiceIds((prev) => {
+                    const next = { ...prev };
+                    if (wasSelected) {
+                      delete next[pet.id];
+                    } else if (service) {
+                      next[pet.id] = service.id;
+                    }
                     return next;
                   });
                   setSelectedTime(null);
@@ -461,6 +553,48 @@ export default function BookingScreen() {
             <Text style={styles.addPetChipText}>{addingPet ? 'Cancel' : '+ Add pet'}</Text>
           </Pressable>
         </View>
+
+        {pets
+          .filter((pet) => selectedPetIds.has(pet.id))
+          .map((pet) => {
+            const showServicePicker = allServices.length > 1;
+            const showCareNeeds = pet.species === 'dog';
+            if (!showServicePicker && !showCareNeeds) return null;
+            const chosenServiceId = petServiceIds[pet.id] ?? service?.id;
+
+            return (
+              <View key={pet.id} style={styles.careNeedsBlock}>
+                <Text style={styles.careNeedsPetLabel}>{pet.name}</Text>
+
+                {showServicePicker && (
+                  <View style={styles.petServiceWrap}>
+                    <Text style={styles.petServiceLabel}>Service</Text>
+                    <SearchablePicker
+                      title={`Service for ${pet.name}`}
+                      placeholder="Select a service..."
+                      searchPlaceholder="Search services"
+                      value={chosenServiceId ?? null}
+                      options={allServices.map((svc) => ({
+                        id: svc.id,
+                        label: `${svc.name} · $${(svc.priceCents / 100).toFixed(0)}`,
+                      }))}
+                      onChange={(id) => {
+                        setPetServiceIds((prev) => ({ ...prev, [pet.id]: id }));
+                        setSelectedTime(null);
+                      }}
+                    />
+                  </View>
+                )}
+
+                {showCareNeeds && (
+                  <PetCareNeedsFields
+                    value={petCareNeeds[pet.id] ?? EMPTY_CARE_NEEDS}
+                    onChange={(next) => setPetCareNeeds((prev) => ({ ...prev, [pet.id]: next }))}
+                  />
+                )}
+              </View>
+            );
+          })}
 
         {addingPet && (
           <View style={styles.addPetForm}>
@@ -491,7 +625,7 @@ export default function BookingScreen() {
               onPress={handleSavePet}
               disabled={!newPetName.trim() || savingPet}>
               {savingPet ? (
-                <ActivityIndicator color="#fff" />
+                <ActivityIndicator color={Colors.light.text} />
               ) : (
                 <Text style={styles.saveButtonText}>Save pet</Text>
               )}
@@ -501,12 +635,17 @@ export default function BookingScreen() {
 
         {selectedPetIds.size > 0 && (
           <View style={styles.summaryCard}>
-            <View style={styles.summaryRow}>
-              <Text style={styles.summaryLabel}>
-                {selectedPetIds.size} {selectedPetIds.size === 1 ? 'pet' : 'pets'} · {service.name}
-              </Text>
-              <Text style={styles.summaryValue}>${(subtotalCents / 100).toFixed(2)}</Text>
-            </View>
+            {selectedPetServices.map(({ petId, service: petService }) => {
+              const pet = pets.find((p) => p.id === petId);
+              return (
+                <View key={petId} style={styles.summaryRow}>
+                  <Text style={styles.summaryLabel}>
+                    {pet?.name ?? 'Pet'} · {petService.name}
+                  </Text>
+                  <Text style={styles.summaryValue}>${(petService.priceCents / 100).toFixed(2)}</Text>
+                </View>
+              );
+            })}
             {discountCents > 0 && (
               <View style={styles.summaryRow}>
                 <Text style={styles.summaryDiscountLabel}>Multi-pet discount</Text>
@@ -539,16 +678,13 @@ export default function BookingScreen() {
 
         {submitError && <Text style={styles.error}>{submitError}</Text>}
 
-        <Pressable
-          style={[styles.confirmButton, !canConfirm && styles.buttonDisabled]}
+        <Button
+          label="Confirm booking"
           onPress={handleConfirm}
-          disabled={!canConfirm}>
-          {submitting ? (
-            <ActivityIndicator color="#fff" />
-          ) : (
-            <Text style={styles.confirmButtonText}>Confirm booking</Text>
-          )}
-        </Pressable>
+          disabled={!canConfirm}
+          loading={submitting}
+          style={styles.confirmButton}
+        />
       </ScrollView>
     </SafeAreaView>
   );
@@ -652,18 +788,6 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: Colors.light.textMuted,
   },
-  groomerChip: {
-    paddingHorizontal: 14,
-    paddingVertical: 10,
-    borderRadius: 10,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: Colors.light.border,
-    backgroundColor: Colors.light.surface,
-  },
-  groomerChipText: {
-    fontSize: 14,
-    color: Colors.light.text,
-  },
   discountHint: {
     marginTop: -4,
     marginBottom: 10,
@@ -676,13 +800,42 @@ const styles = StyleSheet.create({
     flexWrap: 'wrap',
     gap: 8,
   },
-  summaryCard: {
-    marginTop: 24,
+  careNeedsBlock: {
+    marginTop: 16,
     padding: 14,
     borderRadius: 10,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: Colors.light.border,
+  },
+  careNeedsPetLabel: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: Colors.light.textMuted,
+    marginBottom: 8,
+    textTransform: 'uppercase',
+    letterSpacing: 0.4,
+  },
+  petServiceWrap: {
+    marginBottom: 14,
+  },
+  petServiceLabel: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: Colors.light.text,
+    marginBottom: 8,
+  },
+  summaryCard: {
+    marginTop: 24,
+    padding: 16,
+    borderRadius: 16,
     backgroundColor: Colors.light.surface,
     borderWidth: StyleSheet.hairlineWidth,
     borderColor: Colors.light.border,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.08,
+    shadowRadius: 16,
+    elevation: 2,
   },
   summaryRow: {
     flexDirection: 'row',
@@ -802,7 +955,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   saveButtonText: {
-    color: '#fff',
+    color: Colors.light.text,
     fontSize: 14,
     fontWeight: '600',
   },
@@ -811,20 +964,11 @@ const styles = StyleSheet.create({
     borderColor: Colors.light.tint,
   },
   chipTextSelected: {
-    color: '#fff',
+    color: Colors.light.text,
   },
   confirmButton: {
     marginTop: 28,
-    height: 50,
-    borderRadius: 10,
-    backgroundColor: Colors.light.tint,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  confirmButtonText: {
-    color: '#fff',
-    fontSize: 16,
-    fontWeight: '600',
+    width: '100%',
   },
   buttonDisabled: {
     opacity: 0.5,

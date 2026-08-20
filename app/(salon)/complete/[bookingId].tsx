@@ -1,15 +1,19 @@
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useEffect, useState } from 'react';
 import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-import { Logo } from '@/components/Logo';
-import { PetCareSummary, type PetCareInfo } from '@/components/PetCareSummary';
 import { Colors } from '@/constants/theme';
-import { supabase } from '@/services/supabase';
+import { Logo } from '@/components/Logo';
+import { Button } from '@/components/ui/Button';
+import { PetCareSummary, type PetCareInfo } from '@/components/PetCareSummary';
 import { chargeBooking, markBookingPaidCash } from '@/services/stripe';
 import { notify } from '@/utils/confirm';
 import { perBookingDiscountCents, type GroupDiscountSnapshot } from '@/utils/discount';
+import { supabase } from '@/services/supabase';
+import { webContentWidth } from '@/constants/webLayout';
+import { webFlushScroll } from '@/constants/webScroll';
 
 type LineItem = {
   description: string;
@@ -40,7 +44,7 @@ export default function CompleteBookingScreen() {
         supabase
           .from('bookings')
           .select(
-            'customer_id, groomer_id, group_id, pets(name, is_anxious, is_matted, needs_extra_care, care_notes, is_microchipped, microchip_number, vet_name, vet_phone), groomer_services(name, price_cents), groomers(plan)'
+            'customer_id, groomer_id, group_id, is_anxious, is_matted, needs_extra_care, care_notes, pets(name, is_microchipped, microchip_number, vet_name, vet_phone), groomer_services(name, price_cents), groomers(plan)'
           )
           .eq('id', bookingId)
           .single(),
@@ -57,10 +61,6 @@ export default function CompleteBookingScreen() {
 
       const pet = bookingResult.data.pets as unknown as {
         name: string;
-        is_anxious?: boolean;
-        is_matted?: boolean;
-        needs_extra_care?: boolean;
-        care_notes?: string | null;
         is_microchipped?: boolean;
         microchip_number?: string | null;
         vet_name?: string | null;
@@ -73,10 +73,10 @@ export default function CompleteBookingScreen() {
       const groomer = bookingResult.data.groomers as unknown as { plan: string };
       setPetName(pet?.name ?? 'Pet');
       setPetCare({
-        isAnxious: pet?.is_anxious ?? false,
-        isMatted: pet?.is_matted ?? false,
-        needsExtraCare: pet?.needs_extra_care ?? false,
-        careNotes: pet?.care_notes ?? undefined,
+        isAnxious: bookingResult.data.is_anxious ?? false,
+        isMatted: bookingResult.data.is_matted ?? false,
+        needsExtraCare: bookingResult.data.needs_extra_care ?? false,
+        careNotes: bookingResult.data.care_notes ?? undefined,
         isMicrochipped: pet?.is_microchipped ?? false,
         microchipNumber: pet?.microchip_number ?? undefined,
         vetName: pet?.vet_name ?? undefined,
@@ -214,7 +214,7 @@ export default function CompleteBookingScreen() {
 
   if (loading) {
     return (
-      <SafeAreaView style={styles.container}>
+      <SafeAreaView style={[styles.container, webContentWidth('form')]}>
         <ActivityIndicator style={styles.loading} color={Colors.light.tint} />
       </SafeAreaView>
     );
@@ -222,15 +222,15 @@ export default function CompleteBookingScreen() {
 
   if (loadError) {
     return (
-      <SafeAreaView style={styles.container}>
+      <SafeAreaView style={[styles.container, webContentWidth('form')]}>
         <Text style={styles.error}>{loadError}</Text>
       </SafeAreaView>
     );
   }
 
   return (
-    <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
-      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
+    <SafeAreaView style={[styles.container, webContentWidth('form')]} edges={['top', 'bottom']}>
+      <ScrollView style={webFlushScroll} showsVerticalScrollIndicator={false} contentContainerStyle={[styles.content, webContentWidth('form')]} keyboardShouldPersistTaps="handled">
         <View style={styles.topRow}>
           <Pressable onPress={() => router.back()}>
             <Text style={styles.backLink}>← Back</Text>
@@ -279,9 +279,7 @@ export default function CompleteBookingScreen() {
             value={newAmount}
             onChangeText={setNewAmount}
           />
-          <Pressable style={styles.addButton} onPress={handleAddLineItem}>
-            <Text style={styles.addButtonText}>Add</Text>
-          </Pressable>
+          <Button label="Add" onPress={handleAddLineItem} />
         </View>
 
         <View style={styles.totalRow}>
@@ -309,16 +307,13 @@ export default function CompleteBookingScreen() {
           </View>
         )}
 
-        <Pressable
-          style={[styles.chargeButton, (charging || markingCash || totalCents <= 0) && styles.buttonDisabled]}
+        <Button
+          label="Charge & complete"
           onPress={handleChargeAndComplete}
-          disabled={charging || markingCash || totalCents <= 0}>
-          {charging ? (
-            <ActivityIndicator color="#fff" />
-          ) : (
-            <Text style={styles.chargeButtonText}>Charge & complete</Text>
-          )}
-        </Pressable>
+          loading={charging}
+          disabled={markingCash || totalCents <= 0}
+          style={styles.chargeButton}
+        />
 
         {cashBlocked ? (
           <Text style={styles.cashBlockedNote}>
@@ -327,16 +322,14 @@ export default function CompleteBookingScreen() {
           </Text>
         ) : (
           <>
-            <Pressable
-              style={[styles.cashButton, (charging || markingCash || totalCents <= 0) && styles.buttonDisabled]}
+            <Button
+              label="Mark as paid (cash)"
+              variant="ghost"
               onPress={handleMarkPaidCash}
-              disabled={charging || markingCash || totalCents <= 0}>
-              {markingCash ? (
-                <ActivityIndicator color={Colors.light.tint} />
-              ) : (
-                <Text style={styles.cashButtonText}>Mark as paid (cash)</Text>
-              )}
-            </Pressable>
+              loading={markingCash}
+              disabled={charging || totalCents <= 0}
+              style={styles.cashButton}
+            />
             <Text style={styles.cashNote}>Use this if your customer paid you directly in cash.</Text>
           </>
         )}
@@ -424,6 +417,7 @@ const styles = StyleSheet.create({
   },
   addItemForm: {
     flexDirection: 'row',
+    alignItems: 'center',
     gap: 8,
     marginTop: 16,
   },
@@ -442,18 +436,6 @@ const styles = StyleSheet.create({
   },
   amountInput: {
     flex: 1,
-  },
-  addButton: {
-    paddingHorizontal: 16,
-    borderRadius: 8,
-    backgroundColor: Colors.light.tint,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  addButtonText: {
-    color: '#fff',
-    fontSize: 14,
-    fontWeight: '600',
   },
   totalRow: {
     flexDirection: 'row',
@@ -481,10 +463,15 @@ const styles = StyleSheet.create({
   feeCard: {
     marginTop: 16,
     padding: 14,
-    borderRadius: 10,
+    borderRadius: 16,
     backgroundColor: Colors.light.surface,
     borderWidth: StyleSheet.hairlineWidth,
     borderColor: Colors.light.border,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.06,
+    shadowRadius: 12,
+    elevation: 1,
   },
   feeCardTitle: {
     fontSize: 14,
@@ -523,30 +510,11 @@ const styles = StyleSheet.create({
   },
   chargeButton: {
     marginTop: 24,
-    height: 50,
-    borderRadius: 10,
-    backgroundColor: Colors.light.tint,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  chargeButtonText: {
-    color: '#fff',
-    fontSize: 16,
-    fontWeight: '600',
+    width: '100%',
   },
   cashButton: {
     marginTop: 12,
-    height: 50,
-    borderRadius: 10,
-    borderWidth: 1.5,
-    borderColor: Colors.light.tint,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  cashButtonText: {
-    color: Colors.light.tint,
-    fontSize: 16,
-    fontWeight: '600',
+    width: '100%',
   },
   cashNote: {
     marginTop: 8,
@@ -565,8 +533,5 @@ const styles = StyleSheet.create({
     lineHeight: 19,
     color: Colors.light.textMuted,
     textAlign: 'center',
-  },
-  buttonDisabled: {
-    opacity: 0.5,
   },
 });

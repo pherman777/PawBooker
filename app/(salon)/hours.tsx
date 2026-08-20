@@ -1,15 +1,19 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'expo-router';
 import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Switch, Text, View } from 'react-native';
+
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-import { TimePickerModal } from '@/components/TimePickerModal';
-import { Colors } from '@/constants/theme';
-import { useAuth } from '@/services/auth-context';
-import { supabase } from '@/services/supabase';
 import type { GroomerHours } from '@/types';
+import { Button } from '@/components/ui/Button';
+import { Colors } from '@/constants/theme';
 import { DAYS_OF_WEEK, dayLabel, formatTime } from '@/utils/hours';
+import { TimePickerModal } from '@/components/TimePickerModal';
 import { notify } from '@/utils/confirm';
+import { supabase } from '@/services/supabase';
+import { useAuth } from '@/services/auth-context';
+import { webContentWidth } from '@/constants/webLayout';
+import { webFlushScroll } from '@/constants/webScroll';
 
 type DayDraft = {
   enabled: boolean;
@@ -95,20 +99,20 @@ export default function HoursScreen() {
 
   if (loading) {
     return (
-      <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
+      <SafeAreaView style={[styles.container, webContentWidth('form')]} edges={['top', 'bottom']}>
         <ActivityIndicator style={styles.loading} color={Colors.light.tint} />
       </SafeAreaView>
     );
   }
 
   return (
-    <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
+    <SafeAreaView style={[styles.container, webContentWidth('form')]} edges={['top', 'bottom']}>
       <View style={styles.topRow}>
         <Text style={styles.backLink} onPress={() => router.back()}>
           ← Back
         </Text>
       </View>
-      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
+      <ScrollView style={webFlushScroll} showsVerticalScrollIndicator={false} contentContainerStyle={[styles.content, webContentWidth('form')]} keyboardShouldPersistTaps="handled">
         <Text style={styles.title}>Hours</Text>
         <Text style={styles.subtitle}>Turn on the days you&apos;re open and tap a time to set your hours.</Text>
 
@@ -139,12 +143,7 @@ export default function HoursScreen() {
           );
         })}
 
-        <Pressable
-          style={[styles.button, saving && styles.buttonDisabled]}
-          onPress={handleSave}
-          disabled={saving}>
-          {saving ? <ActivityIndicator color="#fff" /> : <Text style={styles.buttonText}>Save</Text>}
-        </Pressable>
+        <Button label="Save" onPress={handleSave} loading={saving} style={styles.button} />
       </ScrollView>
 
       <TimePickerModal
@@ -198,9 +197,17 @@ const styles = StyleSheet.create({
     color: Colors.light.textMuted,
   },
   dayRow: {
-    paddingVertical: 12,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: Colors.light.border,
+    padding: 16,
+    marginBottom: 10,
+    backgroundColor: Colors.light.surface,
+    borderRadius: 14,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: Colors.light.border,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.06,
+    shadowRadius: 12,
+    elevation: 1,
   },
   dayHeader: {
     flexDirection: 'row',
@@ -239,19 +246,7 @@ const styles = StyleSheet.create({
     color: Colors.light.textMuted,
   },
   button: {
-    height: 48,
-    borderRadius: 10,
-    backgroundColor: Colors.light.tint,
-    alignItems: 'center',
-    justifyContent: 'center',
     marginTop: 28,
-  },
-  buttonDisabled: {
-    opacity: 0.6,
-  },
-  buttonText: {
-    color: '#fff',
-    fontSize: 16,
-    fontWeight: '600',
+    width: '100%',
   },
 });

@@ -103,7 +103,7 @@ export function ChatView({ messages, ownSenderTypes, value, onChangeValue, onSen
           style={[styles.sendButton, (!value.trim() || sending) && styles.sendButtonDisabled]}
           onPress={onSend}
           disabled={!value.trim() || sending}>
-          {sending ? <ActivityIndicator color="#fff" size="small" /> : <Text style={styles.sendButtonText}>Send</Text>}
+          {sending ? <ActivityIndicator color={Colors.light.text} size="small" /> : <Text style={styles.sendButtonText}>Send</Text>}
         </Pressable>
       </View>
     </View>
@@ -120,7 +120,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
   },
   bannerText: {
-    color: '#fff',
+    color: Colors.light.text,
     fontSize: 13,
     fontWeight: '600',
     textAlign: 'center',
@@ -163,7 +163,7 @@ const styles = StyleSheet.create({
     color: Colors.light.text,
   },
   bubbleTextOwn: {
-    color: '#fff',
+    color: Colors.light.text,
   },
   inputRow: {
     flexDirection: 'row',
@@ -199,7 +199,7 @@ const styles = StyleSheet.create({
     opacity: 0.5,
   },
   sendButtonText: {
-    color: '#fff',
+    color: Colors.light.text,
     fontSize: 14,
     fontWeight: '600',
   },

@@ -13,11 +13,12 @@ export type SelectedLocation = {
 
 type Props = {
   onSelect: (location: SelectedLocation) => void;
+  onClear?: () => void;
 };
 
 const DEBOUNCE_MS = 300;
 
-export function AddressSearchInput({ onSelect }: Props) {
+export function AddressSearchInput({ onSelect, onClear }: Props) {
   const [query, setQuery] = useState('');
   const [suggestions, setSuggestions] = useState<AddressSuggestion[]>([]);
   const [loading, setLoading] = useState(false);
@@ -99,6 +100,13 @@ export function AddressSearchInput({ onSelect }: Props) {
 
   const showNoResults = searched && !loading && suggestions.length === 0;
 
+  function handleClear() {
+    setQuery('');
+    setSuggestions([]);
+    setSearched(false);
+    onClear?.();
+  }
+
   return (
     <View style={styles.container}>
       <TextInput
@@ -111,6 +119,12 @@ export function AddressSearchInput({ onSelect }: Props) {
       />
 
       {loading && <ActivityIndicator style={styles.loading} color={Colors.light.tint} />}
+
+      {!loading && query.length > 0 && (
+        <Pressable style={styles.clearButton} onPress={handleClear} hitSlop={10}>
+          <Text style={styles.clearButtonText}>✕</Text>
+        </Pressable>
+      )}
 
       {!loading && suggestions.length > 0 && (
         <View style={styles.dropdown}>
@@ -155,6 +169,7 @@ const styles = StyleSheet.create({
     borderColor: Colors.light.border,
     backgroundColor: Colors.light.surface,
     paddingHorizontal: 14,
+    paddingRight: 36,
     fontSize: 16,
     color: Colors.light.text,
   },
@@ -162,6 +177,19 @@ const styles = StyleSheet.create({
     position: 'absolute',
     right: 14,
     top: 12,
+  },
+  clearButton: {
+    position: 'absolute',
+    right: 10,
+    top: 0,
+    bottom: 0,
+    width: 26,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  clearButtonText: {
+    fontSize: 15,
+    color: Colors.light.textMuted,
   },
   dropdown: {
     marginTop: 6,

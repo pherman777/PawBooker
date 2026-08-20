@@ -82,7 +82,7 @@ export default function SignInScreen() {
             style={[styles.button, loading && styles.buttonDisabled]}
             onPress={handleSignIn}
             disabled={loading}>
-            {loading ? <ActivityIndicator color="#fff" /> : <Text style={styles.buttonText}>Sign in</Text>}
+            {loading ? <ActivityIndicator color={Colors.light.text} /> : <Text style={styles.buttonText}>Sign in</Text>}
           </Pressable>
 
           <Link href="/(auth)/sign-up" style={styles.link}>
@@ -169,7 +169,7 @@ const styles = StyleSheet.create({
     opacity: 0.6,
   },
   buttonText: {
-    color: '#fff',
+    color: Colors.light.text,
     fontSize: 16,
     fontWeight: '600',
   },

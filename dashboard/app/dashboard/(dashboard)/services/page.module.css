@@ -1,0 +1,147 @@
+.subtitle {
+  margin-top: 4px;
+  margin-bottom: 20px;
+  font-size: 14px;
+  line-height: 1.5;
+  color: var(--muted);
+}
+
+.error {
+  margin-top: 24px;
+  font-size: 15px;
+  color: var(--danger);
+}
+
+.emptyText {
+  font-size: 15px;
+  line-height: 1.5;
+  color: var(--muted);
+}
+
+.emptyCard {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  background: var(--surface);
+  border: 1px dashed var(--border);
+  border-radius: 20px;
+  padding: 60px 40px;
+}
+.emptyIllustration {
+  width: 84px;
+  height: 84px;
+  border-radius: 50%;
+  background: color-mix(in srgb, var(--sage) 14%, var(--surface));
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--sage);
+  margin-bottom: 20px;
+}
+.emptyTitle {
+  font-family: var(--serif);
+  font-size: 19px;
+  font-weight: 600;
+  margin: 0 0 8px;
+}
+.emptyBody {
+  font-size: 14px;
+  color: var(--muted);
+  max-width: 340px;
+  line-height: 1.55;
+  margin: 0 0 22px;
+}
+
+.addToggle {
+  align-self: flex-start;
+  background: none;
+  border: none;
+  color: var(--sage);
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  padding: 0;
+  margin-bottom: 16px;
+}
+
+.addForm {
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-bottom: 16px;
+}
+
+.inputRow {
+  display: flex;
+  gap: 8px;
+}
+.inputHalf {
+  flex: 1;
+}
+
+.list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.card {
+  padding: 16px;
+}
+
+.cardName {
+  font-size: 16px;
+  font-weight: 600;
+  margin-bottom: 12px;
+}
+
+.fieldsRow {
+  display: flex;
+  gap: 10px;
+}
+.field {
+  flex: 1;
+}
+.fieldLabel {
+  display: block;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--muted);
+  margin-bottom: 4px;
+}
+.fieldInput {
+  width: 100%;
+  font-size: 14px;
+  color: var(--ink);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 6px 10px;
+  min-height: 34px;
+}
+.fieldInput:focus {
+  outline: 2px solid var(--sage);
+  outline-offset: 1px;
+}
+.descriptionInput {
+  min-height: 60px;
+  padding-top: 8px;
+  resize: vertical;
+}
+.descriptionLabel {
+  margin-top: 12px;
+}
+
+.deleteLink {
+  margin-top: 12px;
+  align-self: flex-start;
+  background: none;
+  border: none;
+  font-size: 12px;
+  color: var(--muted);
+  text-decoration: underline;
+  cursor: pointer;
+  padding: 0;
+}

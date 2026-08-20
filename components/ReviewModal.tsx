@@ -87,7 +87,7 @@ export function ReviewModal({
                 onPress={handleSubmit}
                 disabled={rating === 0 || submitting}>
                 {submitting ? (
-                  <ActivityIndicator color="#fff" />
+                  <ActivityIndicator color={Colors.light.text} />
                 ) : (
                   <Text style={styles.submitButtonText}>Submit review</Text>
                 )}
@@ -164,7 +164,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   submitButtonText: {
-    color: '#fff',
+    color: Colors.light.text,
     fontSize: 15,
     fontWeight: '600',
   },

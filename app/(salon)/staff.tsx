@@ -1,17 +1,31 @@
+import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect, useRouter } from 'expo-router';
 import { useCallback, useState } from 'react';
 import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { Button } from '@/components/ui/Button';
 import { Colors } from '@/constants/theme';
-import { useAuth } from '@/services/auth-context';
-import { supabase } from '@/services/supabase';
 import { confirmAsync, notify } from '@/utils/confirm';
+import { supabase } from '@/services/supabase';
+import { useAuth } from '@/services/auth-context';
+import { webContentWidth } from '@/constants/webLayout';
+import { webFlushScroll } from '@/constants/webScroll';
 
 type Staff = {
   id: string;
   name: string;
 };
+
+function initials(name: string): string {
+  return name
+    .split(' ')
+    .map((p) => p[0])
+    .join('')
+    .slice(0, 2)
+    .toUpperCase();
+}
 
 export default function StaffScreen() {
   const router = useRouter();
@@ -89,7 +103,7 @@ export default function StaffScreen() {
   }
 
   return (
-    <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
+    <SafeAreaView style={[styles.container, webContentWidth('content')]} edges={['top', 'bottom']}>
       <View style={styles.topRow}>
         <Text style={styles.backLink} onPress={() => router.back()}>
           ← Back
@@ -105,7 +119,7 @@ export default function StaffScreen() {
       {error && <Text style={styles.error}>Couldn&apos;t load groomers: {error}</Text>}
 
       {!loading && !error && (
-        <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+        <ScrollView style={webFlushScroll} contentContainerStyle={[styles.content, webContentWidth('content')]} showsVerticalScrollIndicator={false}>
           <Pressable style={styles.addToggle} onPress={() => setShowAddForm((v) => !v)}>
             <Text style={styles.addToggleText}>{showAddForm ? 'Cancel' : '+ Add groomer'}</Text>
           </Pressable>
@@ -120,25 +134,32 @@ export default function StaffScreen() {
                 onChangeText={setNewName}
                 autoFocus
               />
-              <Pressable style={styles.saveButton} onPress={handleAdd} disabled={adding}>
-                {adding ? (
-                  <ActivityIndicator color="#fff" size="small" />
-                ) : (
-                  <Text style={styles.saveButtonText}>Save</Text>
-                )}
-              </Pressable>
+              <Button label="Save" onPress={handleAdd} loading={adding} style={styles.saveButton} />
             </View>
           )}
 
           {staff.length === 0 && !showAddForm && (
-            <Text style={styles.emptyText}>
-              No groomers added yet. Until you add some, bookings apply to the salon as a whole.
-            </Text>
+            <View style={styles.emptyCard}>
+              <View style={styles.emptyIllustration}>
+                <Ionicons name="people-outline" size={34} color={Colors.light.tint} />
+              </View>
+              <Text style={styles.emptyTitle}>No groomers added yet</Text>
+              <Text style={styles.emptyBody}>
+                Until you add some, bookings apply to the salon as a whole. Add groomers so customers
+                can request someone specific.
+              </Text>
+              <Button label="+ Add groomer" onPress={() => setShowAddForm(true)} />
+            </View>
           )}
 
           {staff.map((member) => (
             <View key={member.id} style={styles.card}>
-              <Text style={styles.cardName}>{member.name}</Text>
+              <View style={styles.rowLeft}>
+                <View style={styles.avatar}>
+                  <Text style={styles.avatarText}>{initials(member.name)}</Text>
+                </View>
+                <Text style={styles.cardName}>{member.name}</Text>
+              </View>
               <Pressable onPress={() => handleRemove(member)}>
                 <Text style={styles.removeText}>Remove</Text>
               </Pressable>
@@ -189,10 +210,38 @@ const styles = StyleSheet.create({
     paddingBottom: 40,
     gap: 12,
   },
-  emptyText: {
-    fontSize: 15,
-    lineHeight: 21,
+  emptyCard: {
+    alignItems: 'center',
+    backgroundColor: Colors.light.surface,
+    borderWidth: 1,
+    borderStyle: 'dashed',
+    borderColor: Colors.light.border,
+    borderRadius: 20,
+    paddingVertical: 48,
+    paddingHorizontal: 32,
+  },
+  emptyIllustration: {
+    width: 84,
+    height: 84,
+    borderRadius: 42,
+    backgroundColor: 'rgba(107,143,114,0.14)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 20,
+  },
+  emptyTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: Colors.light.text,
+    marginBottom: 8,
+  },
+  emptyBody: {
+    fontSize: 14,
+    lineHeight: 20,
     color: Colors.light.textMuted,
+    textAlign: 'center',
+    maxWidth: 320,
+    marginBottom: 20,
   },
   addToggle: {
     alignSelf: 'flex-start',
@@ -222,26 +271,42 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.light.background,
   },
   saveButton: {
-    height: 40,
-    borderRadius: 8,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: Colors.light.tint,
-  },
-  saveButtonText: {
-    color: '#fff',
-    fontSize: 14,
-    fontWeight: '600',
+    width: '100%',
   },
   card: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     backgroundColor: Colors.light.surface,
-    borderRadius: 12,
+    borderRadius: 16,
     padding: 16,
     borderWidth: StyleSheet.hairlineWidth,
     borderColor: Colors.light.border,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.08,
+    shadowRadius: 16,
+    elevation: 2,
+  },
+  rowLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  avatar: {
+    width: 34,
+    height: 34,
+    borderRadius: 17,
+    backgroundColor: Colors.light.surfaceElevated,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: Colors.light.border,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  avatarText: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: Colors.light.tint,
   },
   cardName: {
     fontSize: 16,

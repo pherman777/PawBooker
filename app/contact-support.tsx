@@ -1,8 +1,9 @@
 import { useRouter } from 'expo-router';
 import { useState } from 'react';
-import { ActivityIndicator, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
+import { StyleSheet, Text, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { Button } from '@/components/ui/Button';
 import { Colors } from '@/constants/theme';
 import { contactSupport } from '@/services/support';
 import { notify } from '@/utils/confirm';
@@ -55,12 +56,7 @@ export default function ContactSupportScreen() {
           textAlignVertical="top"
         />
 
-        <Pressable
-          style={[styles.sendButton, (!canSend || sending) && styles.buttonDisabled]}
-          onPress={handleSend}
-          disabled={!canSend || sending}>
-          {sending ? <ActivityIndicator color="#fff" /> : <Text style={styles.sendButtonText}>Send</Text>}
-        </Pressable>
+        <Button label="Send" onPress={handleSend} disabled={!canSend} loading={sending} style={styles.sendButton} />
       </View>
     </SafeAreaView>
   );
@@ -101,18 +97,6 @@ const styles = StyleSheet.create({
     paddingTop: 12,
   },
   sendButton: {
-    height: 48,
-    borderRadius: 10,
-    backgroundColor: Colors.light.tint,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  sendButtonText: {
-    color: '#fff',
-    fontSize: 15,
-    fontWeight: '600',
-  },
-  buttonDisabled: {
-    opacity: 0.5,
+    width: '100%',
   },
 });

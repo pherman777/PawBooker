@@ -1,3 +1,4 @@
+import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect, useRouter } from 'expo-router';
 import { useCallback, useState } from 'react';
 import { ActivityIndicator, FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
@@ -131,6 +132,9 @@ export default function MessagesScreen() {
           )}
           ListEmptyComponent={
             <View style={styles.empty}>
+              <View style={styles.emptyIllustration}>
+                <Ionicons name="chatbubble-ellipses-outline" size={34} color={Colors.light.tint} />
+              </View>
               <Text style={styles.emptyText}>No conversations yet</Text>
               <Text style={styles.emptySubtext}>
                 Message a groomer from their page to get started.
@@ -164,10 +168,15 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: Colors.light.surface,
-    borderRadius: 12,
+    borderRadius: 16,
     padding: 16,
     borderWidth: StyleSheet.hairlineWidth,
     borderColor: Colors.light.border,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.06,
+    shadowRadius: 12,
+    elevation: 1,
   },
   rowText: {
     flex: 1,
@@ -195,6 +204,15 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     marginTop: 80,
     gap: 6,
+  },
+  emptyIllustration: {
+    width: 84,
+    height: 84,
+    borderRadius: 42,
+    backgroundColor: 'rgba(107,143,114,0.14)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 10,
   },
   emptyText: {
     fontSize: 15,

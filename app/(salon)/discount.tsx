@@ -10,13 +10,17 @@ import {
   TextInput,
   View,
 } from 'react-native';
+
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { Button } from '@/components/ui/Button';
 import { Colors } from '@/constants/theme';
-import { useAuth } from '@/services/auth-context';
-import { supabase } from '@/services/supabase';
-import { parseMultiPetDiscount } from '@/utils/discount';
 import { notify } from '@/utils/confirm';
+import { parseMultiPetDiscount } from '@/utils/discount';
+import { supabase } from '@/services/supabase';
+import { useAuth } from '@/services/auth-context';
+import { webContentWidth } from '@/constants/webLayout';
+import { webFlushScroll } from '@/constants/webScroll';
 
 const MIN_PET_OPTIONS = [2, 3, 4, 5];
 
@@ -98,22 +102,22 @@ export default function DiscountScreen() {
 
   if (loading) {
     return (
-      <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
+      <SafeAreaView style={[styles.container, webContentWidth('form')]} edges={['top', 'bottom']}>
         <ActivityIndicator style={styles.loading} color={Colors.light.tint} />
       </SafeAreaView>
     );
   }
 
   return (
-    <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
+    <SafeAreaView style={[styles.container, webContentWidth('form')]} edges={['top', 'bottom']}>
       <View style={styles.topRow}>
         <Text style={styles.backLink} onPress={() => router.back()}>
           ← Back
         </Text>
       </View>
-      <ScrollView
+      <ScrollView style={webFlushScroll}
         showsVerticalScrollIndicator={false}
-        contentContainerStyle={styles.content}
+        contentContainerStyle={[styles.content, webContentWidth('form')]}
         keyboardShouldPersistTaps="handled">
         <Text style={styles.title}>Multi-pet discount</Text>
         <Text style={styles.subtitle}>
@@ -184,12 +188,7 @@ export default function DiscountScreen() {
           </>
         )}
 
-        <Pressable
-          style={[styles.button, saving && styles.buttonDisabled]}
-          onPress={handleSave}
-          disabled={saving}>
-          {saving ? <ActivityIndicator color="#fff" /> : <Text style={styles.buttonText}>Save</Text>}
-        </Pressable>
+        <Button label="Save" onPress={handleSave} loading={saving} style={styles.button} />
       </ScrollView>
     </SafeAreaView>
   );
@@ -232,10 +231,16 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingVertical: 12,
-    borderTopWidth: StyleSheet.hairlineWidth,
-    borderBottomWidth: StyleSheet.hairlineWidth,
+    padding: 16,
+    backgroundColor: Colors.light.surface,
+    borderWidth: StyleSheet.hairlineWidth,
     borderColor: Colors.light.border,
+    borderRadius: 14,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.06,
+    shadowRadius: 12,
+    elevation: 1,
   },
   enableLabel: {
     fontSize: 16,
@@ -271,7 +276,7 @@ const styles = StyleSheet.create({
     color: Colors.light.text,
   },
   chipTextSelected: {
-    color: '#fff',
+    color: Colors.light.text,
   },
   amountRow: {
     flexDirection: 'row',
@@ -301,19 +306,7 @@ const styles = StyleSheet.create({
     color: Colors.light.textMuted,
   },
   button: {
-    height: 48,
-    borderRadius: 10,
-    backgroundColor: Colors.light.tint,
-    alignItems: 'center',
-    justifyContent: 'center',
     marginTop: 32,
-  },
-  buttonDisabled: {
-    opacity: 0.6,
-  },
-  buttonText: {
-    color: '#fff',
-    fontSize: 16,
-    fontWeight: '600',
+    width: '100%',
   },
 });

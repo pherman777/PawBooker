@@ -1,0 +1,171 @@
+.error {
+  margin-top: 24px;
+  font-size: 15px;
+  color: var(--danger);
+}
+
+.sectionTitle {
+  font-size: 17px;
+  font-weight: 600;
+  margin-bottom: 12px;
+}
+.sectionSpacing {
+  margin-top: 8px;
+}
+
+.sectionTitleRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.legend {
+  display: flex;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+.legendItem {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+.legendSwatch {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  display: inline-block;
+}
+.legendText {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--muted);
+}
+
+.chart {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+  height: 168px;
+  margin-bottom: 28px;
+  padding: 16px;
+}
+.chartCol {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  flex: 1;
+  height: 100%;
+  justify-content: flex-end;
+  cursor: default;
+}
+.chartValue {
+  margin-bottom: 6px;
+  font-size: 10.5px;
+  font-weight: 700;
+  color: var(--muted-2, var(--muted));
+  white-space: nowrap;
+}
+.chartBarTrack {
+  width: 18px;
+  flex: 1;
+  display: flex;
+  align-items: flex-end;
+}
+.chartBarFill {
+  width: 100%;
+  background: var(--sage);
+  border-radius: 4px;
+  min-height: 3px;
+  transition: opacity 0.12s;
+}
+.chartBarStack {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+}
+.chartBarSegment {
+  width: 100%;
+  border-radius: 4px;
+  min-height: 3px;
+  transition: opacity 0.12s;
+}
+.chartBarGap {
+  height: 2px;
+}
+.chartCol:hover .chartBarFill,
+.chartCol:hover .chartBarSegment {
+  opacity: 0.8;
+}
+.chartCol:hover .chartValue {
+  color: var(--ink);
+}
+.chartLabel {
+  margin-top: 6px;
+  font-size: 11px;
+  color: var(--muted);
+}
+
+.dayChart {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+  height: 140px;
+  margin-bottom: 28px;
+  padding: 16px;
+}
+
+.statsGrid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 10px;
+  margin-bottom: 28px;
+}
+@media (min-width: 720px) {
+  .statsGrid {
+    grid-template-columns: repeat(4, 1fr);
+  }
+}
+.statCard {
+  padding: 14px;
+}
+.statValue {
+  font-family: var(--serif);
+  font-size: 22px;
+  font-weight: 700;
+}
+.statLabel {
+  margin-top: 2px;
+  font-size: 12px;
+  color: var(--muted);
+}
+.statSub {
+  margin-top: 6px;
+  font-size: 11px;
+  color: var(--muted);
+}
+
+.emptyText {
+  font-size: 14px;
+  color: var(--muted);
+}
+
+.serviceRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 0;
+  border-bottom: 1px solid var(--border);
+}
+.serviceName {
+  font-size: 15px;
+  font-weight: 600;
+}
+.serviceMeta {
+  margin-top: 2px;
+  font-size: 12px;
+  color: var(--muted);
+}
+.serviceRevenue {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--sage);
+}

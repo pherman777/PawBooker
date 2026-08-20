@@ -2,13 +2,17 @@ import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect, useRouter } from 'expo-router';
 import { useCallback, useState } from 'react';
 import { ActivityIndicator, Linking, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { Button } from '@/components/ui/Button';
 import { Colors } from '@/constants/theme';
-import { useAuth } from '@/services/auth-context';
-import { supabase } from '@/services/supabase';
 import { createConnectDashboardLink, createConnectOnboardingLink } from '@/services/stripe';
 import { notify } from '@/utils/confirm';
+import { supabase } from '@/services/supabase';
+import { useAuth } from '@/services/auth-context';
+import { webContentWidth } from '@/constants/webLayout';
+import { webFlushScroll } from '@/constants/webScroll';
 
 type ConnectStatus = {
   accountId: string | null;
@@ -96,14 +100,14 @@ export default function PayoutsScreen() {
   }
 
   return (
-    <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
+    <SafeAreaView style={[styles.container, webContentWidth('form')]} edges={['top', 'bottom']}>
       <View style={styles.topRow}>
         <Text style={styles.backLink} onPress={() => router.back()}>
           ← Back
         </Text>
       </View>
 
-      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.content}>
+      <ScrollView style={webFlushScroll} showsVerticalScrollIndicator={false} contentContainerStyle={[styles.content, webContentWidth('form')]}>
         <Text style={styles.title}>Payouts</Text>
         <Text style={styles.subtitle}>
           Connect a bank account so booking payments and tips get deposited directly to you.
@@ -117,7 +121,7 @@ export default function PayoutsScreen() {
               <Ionicons
                 name={isFullySetUp ? 'checkmark-circle' : 'time-outline'}
                 size={22}
-                color={isFullySetUp ? '#fff' : Colors.light.textMuted}
+                color={isFullySetUp ? Colors.light.text : Colors.light.textMuted}
               />
               <View style={styles.statusTextWrap}>
                 <Text style={[styles.statusTitle, isFullySetUp && styles.statusTitleActive]}>
@@ -137,18 +141,12 @@ export default function PayoutsScreen() {
               </View>
             </View>
 
-            <Pressable
-              style={[styles.actionButton, working && styles.buttonDisabled]}
+            <Button
+              label={isFullySetUp ? 'View payout details' : status?.accountId ? 'Continue setup' : 'Connect your bank account'}
               onPress={isFullySetUp ? handleViewDashboard : handleSetUpPayouts}
-              disabled={working}>
-              {working ? (
-                <ActivityIndicator color="#fff" />
-              ) : (
-                <Text style={styles.actionButtonText}>
-                  {isFullySetUp ? 'View payout details' : status?.accountId ? 'Continue setup' : 'Connect your bank account'}
-                </Text>
-              )}
-            </Pressable>
+              loading={working}
+              style={styles.actionButton}
+            />
 
             <View style={styles.feeCard}>
               <Text style={styles.feeCardLabel}>PawBooker fees this month</Text>
@@ -214,10 +212,15 @@ const styles = StyleSheet.create({
     alignItems: 'flex-start',
     gap: 12,
     backgroundColor: Colors.light.surface,
-    borderRadius: 14,
+    borderRadius: 16,
     padding: 18,
     borderWidth: StyleSheet.hairlineWidth,
     borderColor: Colors.light.border,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.08,
+    shadowRadius: 16,
+    elevation: 2,
   },
   statusCardActive: {
     backgroundColor: Colors.light.tint,
@@ -232,7 +235,7 @@ const styles = StyleSheet.create({
     color: Colors.light.text,
   },
   statusTitleActive: {
-    color: '#fff',
+    color: Colors.light.text,
   },
   statusSubtitle: {
     marginTop: 4,
@@ -242,19 +245,20 @@ const styles = StyleSheet.create({
   },
   actionButton: {
     marginTop: 20,
-    height: 48,
-    borderRadius: 10,
-    backgroundColor: Colors.light.tint,
-    alignItems: 'center',
-    justifyContent: 'center',
+    width: '100%',
   },
   feeCard: {
     marginTop: 28,
     padding: 18,
-    borderRadius: 14,
+    borderRadius: 16,
     backgroundColor: Colors.light.surface,
     borderWidth: StyleSheet.hairlineWidth,
     borderColor: Colors.light.border,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.08,
+    shadowRadius: 16,
+    elevation: 2,
   },
   feeCardLabel: {
     fontSize: 13,
@@ -278,13 +282,5 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '600',
     color: Colors.light.tint,
-  },
-  actionButtonText: {
-    color: '#fff',
-    fontSize: 15,
-    fontWeight: '600',
-  },
-  buttonDisabled: {
-    opacity: 0.6,
   },
 });

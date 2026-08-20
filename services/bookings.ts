@@ -1,24 +1,37 @@
 import { supabase } from '@/services/supabase';
 import type { MultiPetDiscount } from '@/utils/discount';
 
+type CareNeedsRow = {
+  is_anxious: boolean;
+  is_matted: boolean;
+  needs_extra_care: boolean;
+  care_notes: string | null;
+};
+
+export type PetBookingInput = {
+  serviceId: string;
+  durationMinutes: number;
+};
+
 export type GroupBookingInput = {
   customerId: string;
   customerEmail?: string;
   groomerId: string;
   staffId: string | null;
-  serviceId: string;
   petIds: string[];
+  petServices: Record<string, PetBookingInput>;
   arrivalAt: Date;
-  perPetDurationMinutes: number;
   discount: MultiPetDiscount | null;
+  careNeedsByPet: Record<string, CareNeedsRow>;
 };
 
 // Creates a multi-pet group booking: one booking_groups row plus one bookings
-// row per pet at sequential start times (arrival, arrival + duration, ...), all
-// sharing the group id and assigned groomer. Keeping each pet as its own booking
-// row means availability, completion, invoicing, and payments all keep working
-// per-pet unchanged. Returns the created booking ids ordered by start time - the
-// first is the "lead" booking used for the single group notification.
+// row per pet at sequential start times (arrival, arrival + previous pets'
+// service durations, ...), all sharing the group id and assigned groomer. Each
+// pet can have its own service - keeping each pet as its own booking row means
+// availability, completion, invoicing, and payments all keep working per-pet
+// unchanged. Returns the created booking ids ordered by start time - the first
+// is the "lead" booking used for the single group notification.
 export async function createGroupBooking(
   input: GroupBookingInput
 ): Promise<{ bookingIds: string[]; groupId: string }> {
@@ -42,19 +55,23 @@ export async function createGroupBooking(
     throw new Error(groupError?.message ?? 'Could not create booking group');
   }
 
-  const rows = input.petIds.map((petId, index) => {
+  let elapsedMinutes = 0;
+  const rows = input.petIds.map((petId) => {
+    const petService = input.petServices[petId];
     const startsAt = new Date(input.arrivalAt);
-    startsAt.setMinutes(startsAt.getMinutes() + index * input.perPetDurationMinutes);
+    startsAt.setMinutes(startsAt.getMinutes() + elapsedMinutes);
+    elapsedMinutes += petService.durationMinutes;
     return {
       customer_id: input.customerId,
       customer_email: input.customerEmail,
       groomer_id: input.groomerId,
       pet_id: petId,
-      service_id: input.serviceId,
+      service_id: petService.serviceId,
       staff_id: input.staffId,
       group_id: group.id,
       starts_at: startsAt.toISOString(),
       status: 'pending',
+      ...input.careNeedsByPet[petId],
     };
   });
 

@@ -1,15 +1,19 @@
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useEffect, useState } from 'react';
 import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-import { Logo } from '@/components/Logo';
-import { PetCareSummary, type PetCareInfo } from '@/components/PetCareSummary';
 import { Colors } from '@/constants/theme';
-import { supabase } from '@/services/supabase';
+import { Logo } from '@/components/Logo';
+import { Button } from '@/components/ui/Button';
+import { PetCareSummary, type PetCareInfo } from '@/components/PetCareSummary';
 import { chargeBookingGroup, markBookingPaidCash } from '@/services/stripe';
 import { notify } from '@/utils/confirm';
 import { perBookingDiscountCents, type GroupDiscountSnapshot } from '@/utils/discount';
+import { supabase } from '@/services/supabase';
+import { webContentWidth } from '@/constants/webLayout';
+import { webFlushScroll } from '@/constants/webScroll';
 
 type LineItem = { description: string; amountCents: number };
 
@@ -23,10 +27,6 @@ type PetInvoice = {
 
 type PetRow = {
   name: string;
-  is_anxious?: boolean;
-  is_matted?: boolean;
-  needs_extra_care?: boolean;
-  care_notes?: string | null;
   is_microchipped?: boolean;
   microchip_number?: string | null;
   vet_name?: string | null;
@@ -55,7 +55,7 @@ export default function CompleteGroupScreen() {
     const { data: bookingRows, error } = await supabase
       .from('bookings')
       .select(
-        'id, customer_id, groomer_id, starts_at, service_completed_at, status, pets(name, is_anxious, is_matted, needs_extra_care, care_notes, is_microchipped, microchip_number, vet_name, vet_phone), groomer_services(name, price_cents), groomers(plan)'
+        'id, customer_id, groomer_id, starts_at, service_completed_at, status, is_anxious, is_matted, needs_extra_care, care_notes, pets(name, is_microchipped, microchip_number, vet_name, vet_phone), groomer_services(name, price_cents), groomers(plan)'
       )
       .eq('group_id', groupId)
       .eq('status', 'confirmed')
@@ -118,10 +118,10 @@ export default function CompleteGroupScreen() {
         bookingId: b.id,
         petName: pet?.name ?? 'Pet',
         petCare: {
-          isAnxious: pet?.is_anxious ?? false,
-          isMatted: pet?.is_matted ?? false,
-          needsExtraCare: pet?.needs_extra_care ?? false,
-          careNotes: pet?.care_notes ?? undefined,
+          isAnxious: b.is_anxious ?? false,
+          isMatted: b.is_matted ?? false,
+          needsExtraCare: b.needs_extra_care ?? false,
+          careNotes: b.care_notes ?? undefined,
           isMicrochipped: pet?.is_microchipped ?? false,
           microchipNumber: pet?.microchip_number ?? undefined,
           vetName: pet?.vet_name ?? undefined,
@@ -249,7 +249,7 @@ export default function CompleteGroupScreen() {
 
   if (loading) {
     return (
-      <SafeAreaView style={styles.container}>
+      <SafeAreaView style={[styles.container, webContentWidth('form')]}>
         <ActivityIndicator style={styles.loading} color={Colors.light.tint} />
       </SafeAreaView>
     );
@@ -257,7 +257,7 @@ export default function CompleteGroupScreen() {
 
   if (loadError) {
     return (
-      <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
+      <SafeAreaView style={[styles.container, webContentWidth('form')]} edges={['top', 'bottom']}>
         <View style={styles.topRow}>
           <Pressable onPress={() => router.back()}>
             <Text style={styles.backLink}>← Back</Text>
@@ -271,10 +271,10 @@ export default function CompleteGroupScreen() {
   const busy = charging || markingCash;
 
   return (
-    <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
-      <ScrollView
+    <SafeAreaView style={[styles.container, webContentWidth('form')]} edges={['top', 'bottom']}>
+      <ScrollView style={webFlushScroll}
         showsVerticalScrollIndicator={false}
-        contentContainerStyle={styles.content}
+        contentContainerStyle={[styles.content, webContentWidth('form')]}
         keyboardShouldPersistTaps="handled">
         <View style={styles.topRow}>
           <Pressable onPress={() => router.back()}>
@@ -327,9 +327,7 @@ export default function CompleteGroupScreen() {
                 value={newAmt[pet.bookingId] ?? ''}
                 onChangeText={(t) => setNewAmt((s) => ({ ...s, [pet.bookingId]: t }))}
               />
-              <Pressable style={styles.addButton} onPress={() => handleAddLineItem(pet.bookingId)}>
-                <Text style={styles.addButtonText}>Add</Text>
-              </Pressable>
+              <Button label="Add" onPress={() => handleAddLineItem(pet.bookingId)} />
             </View>
 
             <View style={styles.petTotalRow}>
@@ -357,18 +355,13 @@ export default function CompleteGroupScreen() {
           </View>
         )}
 
-        <Pressable
-          style={[styles.chargeButton, (busy || grandTotalCents <= 0) && styles.buttonDisabled]}
+        <Button
+          label={`Charge all & complete (${pets.length} ${pets.length === 1 ? 'pet' : 'pets'})`}
           onPress={handleChargeAll}
-          disabled={busy || grandTotalCents <= 0}>
-          {charging ? (
-            <ActivityIndicator color="#fff" />
-          ) : (
-            <Text style={styles.chargeButtonText}>
-              Charge all &amp; complete ({pets.length} {pets.length === 1 ? 'pet' : 'pets'})
-            </Text>
-          )}
-        </Pressable>
+          loading={charging}
+          disabled={markingCash || grandTotalCents <= 0}
+          style={styles.chargeButton}
+        />
 
         {cashBlocked ? (
           <Text style={styles.cashBlockedNote}>
@@ -376,16 +369,14 @@ export default function CompleteGroupScreen() {
           </Text>
         ) : (
           <>
-            <Pressable
-              style={[styles.cashButton, (busy || grandTotalCents <= 0) && styles.buttonDisabled]}
+            <Button
+              label="Mark all as paid (cash)"
+              variant="ghost"
               onPress={handleMarkAllCash}
-              disabled={busy || grandTotalCents <= 0}>
-              {markingCash ? (
-                <ActivityIndicator color={Colors.light.tint} />
-              ) : (
-                <Text style={styles.cashButtonText}>Mark all as paid (cash)</Text>
-              )}
-            </Pressable>
+              loading={markingCash}
+              disabled={charging || grandTotalCents <= 0}
+              style={styles.cashButton}
+            />
             <Text style={styles.cashNote}>Use this if your customer paid you directly in cash.</Text>
           </>
         )}
@@ -445,10 +436,15 @@ const styles = StyleSheet.create({
   petCard: {
     marginTop: 20,
     padding: 14,
-    borderRadius: 12,
+    borderRadius: 16,
     backgroundColor: Colors.light.surface,
     borderWidth: StyleSheet.hairlineWidth,
     borderColor: Colors.light.border,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.08,
+    shadowRadius: 16,
+    elevation: 2,
   },
   petName: {
     fontSize: 18,
@@ -480,6 +476,7 @@ const styles = StyleSheet.create({
   },
   addItemForm: {
     flexDirection: 'row',
+    alignItems: 'center',
     gap: 8,
     marginTop: 12,
   },
@@ -498,18 +495,6 @@ const styles = StyleSheet.create({
   },
   amountInput: {
     flex: 1,
-  },
-  addButton: {
-    paddingHorizontal: 16,
-    borderRadius: 8,
-    backgroundColor: Colors.light.tint,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  addButtonText: {
-    color: '#fff',
-    fontSize: 14,
-    fontWeight: '600',
   },
   petTotalRow: {
     flexDirection: 'row',
@@ -555,10 +540,15 @@ const styles = StyleSheet.create({
   feeCard: {
     marginTop: 16,
     padding: 14,
-    borderRadius: 10,
+    borderRadius: 16,
     backgroundColor: Colors.light.surface,
     borderWidth: StyleSheet.hairlineWidth,
     borderColor: Colors.light.border,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.06,
+    shadowRadius: 12,
+    elevation: 1,
   },
   feeCardTitle: {
     fontSize: 14,
@@ -573,30 +563,11 @@ const styles = StyleSheet.create({
   },
   chargeButton: {
     marginTop: 24,
-    height: 50,
-    borderRadius: 10,
-    backgroundColor: Colors.light.tint,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  chargeButtonText: {
-    color: '#fff',
-    fontSize: 16,
-    fontWeight: '600',
+    width: '100%',
   },
   cashButton: {
     marginTop: 12,
-    height: 50,
-    borderRadius: 10,
-    borderWidth: 1.5,
-    borderColor: Colors.light.tint,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  cashButtonText: {
-    color: Colors.light.tint,
-    fontSize: 16,
-    fontWeight: '600',
+    width: '100%',
   },
   cashNote: {
     marginTop: 8,
@@ -615,8 +586,5 @@ const styles = StyleSheet.create({
     lineHeight: 19,
     color: Colors.light.textMuted,
     textAlign: 'center',
-  },
-  buttonDisabled: {
-    opacity: 0.5,
   },
 });

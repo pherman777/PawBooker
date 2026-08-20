@@ -1,0 +1,114 @@
+.error {
+  margin-top: 24px;
+  font-size: 15px;
+  color: var(--danger);
+}
+
+.addToggle {
+  align-self: flex-start;
+  background: none;
+  border: none;
+  color: var(--sage);
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  padding: 0;
+  margin-bottom: 16px;
+}
+
+.addForm {
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-bottom: 16px;
+}
+
+.emptyText {
+  font-size: 15px;
+  line-height: 1.4;
+  color: var(--muted);
+}
+
+.emptyCard {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  background: var(--surface);
+  border: 1px dashed var(--border);
+  border-radius: 20px;
+  padding: 56px 36px;
+}
+.emptyIllustration {
+  width: 84px;
+  height: 84px;
+  border-radius: 50%;
+  background: color-mix(in srgb, var(--sage) 14%, var(--surface));
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--sage);
+  margin-bottom: 20px;
+}
+.emptyTitle {
+  font-family: var(--serif);
+  font-size: 19px;
+  font-weight: 600;
+  margin: 0 0 8px;
+}
+.emptyBody {
+  font-size: 14px;
+  color: var(--muted);
+  max-width: 320px;
+  line-height: 1.55;
+  margin: 0 0 22px;
+}
+
+.avatar {
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  background: var(--surface-2);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--sage);
+  border: 1px solid var(--border);
+  flex-shrink: 0;
+}
+.rowLeft {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px;
+}
+
+.rowName {
+  font-size: 16px;
+  font-weight: 600;
+}
+
+.removeLink {
+  background: none;
+  border: none;
+  color: var(--muted);
+  font-size: 13px;
+  text-decoration: underline;
+  cursor: pointer;
+  padding: 0;
+}

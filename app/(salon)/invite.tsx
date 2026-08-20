@@ -1,12 +1,16 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'expo-router';
 import { ActivityIndicator, Pressable, ScrollView, Share, StyleSheet, Text, View } from 'react-native';
+
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { Button } from '@/components/ui/Button';
 import { Colors } from '@/constants/theme';
-import { useAuth } from '@/services/auth-context';
-import { supabase } from '@/services/supabase';
 import { notify } from '@/utils/confirm';
+import { supabase } from '@/services/supabase';
+import { useAuth } from '@/services/auth-context';
+import { webContentWidth } from '@/constants/webLayout';
+import { webFlushScroll } from '@/constants/webScroll';
 
 export default function InviteScreen() {
   const router = useRouter();
@@ -41,13 +45,13 @@ export default function InviteScreen() {
   }
 
   return (
-    <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
+    <SafeAreaView style={[styles.container, webContentWidth('form')]} edges={['top', 'bottom']}>
       <View style={styles.topRow}>
         <Text style={styles.backLink} onPress={() => router.back()}>
           ← Back
         </Text>
       </View>
-      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.content}>
+      <ScrollView style={webFlushScroll} showsVerticalScrollIndicator={false} contentContainerStyle={[styles.content, webContentWidth('form')]}>
         <Text style={styles.title}>Invite your customers</Text>
         <Text style={styles.subtitle}>
           Bring your existing clients onto PawBooker with your personal code. Customers who join with
@@ -64,9 +68,7 @@ export default function InviteScreen() {
               <Text style={styles.code}>{code ?? '—'}</Text>
             </View>
 
-            <Pressable style={styles.shareButton} onPress={handleShare} disabled={!code}>
-              <Text style={styles.shareButtonText}>Share invite</Text>
-            </Pressable>
+            <Button label="Share invite" onPress={handleShare} disabled={!code} style={styles.shareButton} />
 
             <Text style={styles.howTo}>
               Tell customers to download PawBooker, then open Profile → &ldquo;Have an invite code?&rdquo; and enter{' '}
@@ -115,10 +117,15 @@ const styles = StyleSheet.create({
   codeCard: {
     alignItems: 'center',
     paddingVertical: 28,
-    borderRadius: 14,
+    borderRadius: 16,
     backgroundColor: Colors.light.surface,
     borderWidth: StyleSheet.hairlineWidth,
     borderColor: Colors.light.border,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.08,
+    shadowRadius: 16,
+    elevation: 2,
   },
   codeLabel: {
     fontSize: 13,
@@ -134,16 +141,7 @@ const styles = StyleSheet.create({
   },
   shareButton: {
     marginTop: 20,
-    height: 50,
-    borderRadius: 10,
-    backgroundColor: Colors.light.tint,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  shareButtonText: {
-    color: '#fff',
-    fontSize: 16,
-    fontWeight: '600',
+    width: '100%',
   },
   howTo: {
     marginTop: 24,

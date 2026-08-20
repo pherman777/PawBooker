@@ -1,0 +1,61 @@
+.enableRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 18px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  box-shadow: var(--shadow);
+}
+.enableLabel {
+  font-size: 16px;
+  font-weight: 600;
+}
+
+.sectionTitle {
+  margin-top: 24px;
+  margin-bottom: 10px;
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.chipRow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.chip {
+  padding: 10px 16px;
+  border-radius: 10px;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--ink);
+  font-size: 14px;
+  cursor: pointer;
+}
+.chipSelected {
+  background: var(--sage);
+  border-color: var(--sage);
+  color: var(--ink);
+}
+
+.amountRow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.amountAffix {
+  font-size: 20px;
+  font-weight: 600;
+}
+.amountInput {
+  flex: 1;
+}
+
+.helper {
+  margin-top: 8px;
+  font-size: 13px;
+  line-height: 1.4;
+  color: var(--muted);
+}

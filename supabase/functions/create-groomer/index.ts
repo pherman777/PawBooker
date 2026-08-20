@@ -19,6 +19,9 @@ type Payload = {
   address?: unknown;
   latitude?: unknown;
   longitude?: unknown;
+  zipCode?: unknown;
+  city?: unknown;
+  state?: unknown;
   phone?: unknown;
   email?: unknown;
 };
@@ -64,6 +67,9 @@ Deno.serve(async (req) => {
     const email = cleanString(payload.email, 200);
     const latitude = typeof payload.latitude === 'number' ? payload.latitude : null;
     const longitude = typeof payload.longitude === 'number' ? payload.longitude : null;
+    const zipCode = cleanString(payload.zipCode, 10);
+    const city = cleanString(payload.city, 120);
+    const state = cleanString(payload.state, 2);
 
     if (!name || !address) {
       return jsonResponse({ error: 'Business name and address are required.' }, 400);
@@ -89,6 +95,9 @@ Deno.serve(async (req) => {
         address,
         latitude,
         longitude,
+        zip_code: zipCode || null,
+        city: city || null,
+        state: state || null,
         phone: phone || null,
         email: email || user.email || null,
         user_id: user.id,

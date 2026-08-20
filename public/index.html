@@ -54,6 +54,22 @@
       color: var(--sage); margin: 0 0 14px;
     }
 
+    /* Invite banner - see the #invite-banner markup for when this shows. */
+    .invite-banner { background: var(--sage); color: var(--ground); }
+    .invite-banner-inner {
+      display: flex; align-items: center; gap: 16px;
+      padding: 10px 24px; font-size: 14px; line-height: 1.4;
+    }
+    .invite-banner-inner p { margin: 0; flex: 1; }
+    .invite-banner-close {
+      background: none; border: none; color: var(--ground);
+      font-size: 22px; line-height: 1; cursor: pointer; padding: 4px; opacity: .7;
+    }
+    .invite-banner-close:hover { opacity: 1; }
+    @media (max-width: 640px) {
+      .invite-banner-inner { padding: 10px 16px; font-size: 13px; }
+    }
+
     /* Buttons */
     .btn {
       display: inline-flex; align-items: center; gap: 8px; justify-content: center;
@@ -85,27 +101,23 @@
     .nav-links a:not(.btn) { text-decoration: none; color: var(--muted); font-weight: 600; font-size: 15px; }
     .nav-links a:not(.btn):hover { color: var(--ink); }
 
-    /* Hero */
-    .hero { position: relative; overflow: hidden; }
-    .hero::before {
-      content: ""; position: absolute; inset: -32% -12% auto auto; width: 660px; height: 660px;
-      background: radial-gradient(circle at 70% 30%, rgba(143,184,148,.22), transparent 62%);
-      pointer-events: none;
+    /* Hero: full-bleed photo, not an app screenshot - warmer, more inviting first impression */
+    .hero { position: relative; overflow: hidden; min-height: 620px; display: flex; align-items: center; }
+    .hero-photo {
+      position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; object-position: 50% 25%;
     }
-    .hero-inner {
-      position: relative; padding: 84px 0 76px;
-      display: grid; grid-template-columns: 1.05fr .95fr; gap: 52px; align-items: center;
+    .hero-scrim {
+      position: absolute; inset: 0;
+      background:
+        linear-gradient(90deg, rgba(20,24,20,.94) 0%, rgba(20,24,20,.72) 40%, rgba(20,24,20,.28) 75%, rgba(20,24,20,.15) 100%),
+        linear-gradient(0deg, var(--ground) 0%, rgba(20,24,20,0) 22%);
     }
+    .hero-inner { position: relative; padding: 100px 0 96px; max-width: 620px; }
     h1 { font-size: clamp(36px, 5.4vw, 56px); line-height: 1.06; letter-spacing: -.015em; }
     .lede { font-size: clamp(17px, 2.2vw, 20px); color: var(--muted); margin: 22px 0 30px; max-width: 30em; }
     .cta-row { display: flex; flex-wrap: wrap; gap: 14px; align-items: center; }
     .avail { margin-top: 20px; font-size: 14px; color: var(--muted); display: flex; align-items: center; gap: 8px; }
     .avail svg { width: 15px; height: 15px; opacity: .85; }
-    .hero-shot { display: flex; justify-content: center; }
-    .hero-shot img {
-      width: 100%; max-width: 290px; border-radius: 30px; border: 1px solid var(--border);
-      box-shadow: 0 30px 64px -28px rgba(0,0,0,.7); display: block;
-    }
 
     /* Sections */
     section { padding: 72px 0; }
@@ -201,9 +213,6 @@
     .modal-error.open { display: block; }
 
     @media (max-width: 900px) {
-      .hero-inner { grid-template-columns: 1fr; gap: 36px; padding: 60px 0 56px; }
-      .hero-shot { order: -1; }
-      .hero-shot img { max-width: 230px; }
       .band-grid { grid-template-columns: 1fr; gap: 32px; }
     }
     @media (max-width: 680px) {
@@ -211,6 +220,12 @@
       .shots { grid-template-columns: 1fr; }
       .nav-links a:not(.btn) { display: none; }
       section { padding: 56px 0; }
+      .hero { min-height: 560px; }
+      .hero-inner { max-width: 100%; padding: 72px 0 64px; }
+      .hero-scrim {
+        background:
+          linear-gradient(0deg, rgba(20,24,20,.96) 0%, rgba(20,24,20,.8) 42%, rgba(20,24,20,.35) 100%);
+      }
     }
     @media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } }
   </style>
@@ -239,14 +254,32 @@
       <nav class="nav-links">
         <a href="#owners">For pet owners</a>
         <a href="#groomers">For groomers</a>
-        <button class="btn btn-primary btn-sm" data-open-modal>Get notified</button>
+        <a class="btn btn-primary btn-sm" href="https://app.paw-booker.com/sign-in">Log in / Sign up</a>
       </nav>
     </div>
   </header>
 
+  <!-- Shown only when arriving via a groomer's invite link (?invite=CODE) -
+       texted or shown as a QR by the groomer during a phone/walk-in ask.
+       We're pre-launch, so this can't hand them a working app yet - it
+       keeps their code visible while they join the launch waitlist instead
+       of relying on them to remember what was read to them over the phone. -->
+  <div class="invite-banner" id="invite-banner" style="display:none">
+    <div class="wrap invite-banner-inner">
+      <p>
+        <strong>Your groomer invited you to PawBooker.</strong>
+        We'll email you the moment we launch - your invite code is <strong id="invite-banner-code"></strong>.
+        Save it, you'll enter it in the app to link up with them.
+      </p>
+      <button type="button" class="invite-banner-close" id="invite-banner-close" aria-label="Dismiss">&times;</button>
+    </div>
+  </div>
+
   <div class="hero" id="top">
-    <div class="wrap hero-inner">
-      <div>
+    <img class="hero-photo" src="/images/hero-groomer.jpg" alt="A groomer carefully combing a small white dog on a grooming table" />
+    <div class="hero-scrim"></div>
+    <div class="wrap">
+      <div class="hero-inner">
         <p class="eyebrow">Grooming, booked in a tap</p>
         <h1>The easiest way to book &mdash; and run &mdash; pet grooming.</h1>
         <p class="lede">Pet owners book, reschedule, and pay for grooming in seconds. Groomers get one calm place to manage their whole day. No phone tag, no paper calendar.</p>
@@ -258,9 +291,6 @@
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="7" y="2" width="10" height="20" rx="2"/><path d="M11 18h2"/></svg>
           Coming soon to iPhone and Android
         </p>
-      </div>
-      <div class="hero-shot">
-        <img src="/images/screenshot-browse.png" alt="Browsing nearby groomers in the PawBooker app" />
       </div>
     </div>
   </div>
@@ -323,10 +353,10 @@
           <h2>Run your grooming business, not your front desk.</h2>
           <p class="pitch">Take bookings, collect payment automatically, and keep clients coming back &mdash; without the paper calendar and the missed calls. Start free, and upgrade to Pro when you're ready to grow.</p>
           <div class="cta-row">
-            <button class="btn btn-clay" data-open-modal data-groomer>Get early access</button>
+            <a class="btn btn-clay" href="https://app.paw-booker.com/sign-up">List your business</a>
             <a class="btn btn-ghost" href="#how">See how it works</a>
           </div>
-          <p class="upgrade-existing">Already on PawBooker? <a href="/upgrade">Upgrade to Pro &rarr;</a></p>
+          <p class="upgrade-existing">Already on PawBooker? <a href="https://app.paw-booker.com/sign-in">Log in</a> &middot; <a href="/upgrade">Upgrade to Pro &rarr;</a></p>
         </div>
         <div class="price-card">
           <div class="tier">PawBooker Pro</div>
@@ -338,7 +368,7 @@
             <li><svg viewBox="0 0 24 24" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12l5 5L20 7"/></svg>Business insights on revenue and repeat visits</li>
             <li><svg viewBox="0 0 24 24" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12l5 5L20 7"/></svg>Your own AI assistant for the day-to-day</li>
           </ul>
-          <button class="btn btn-clay" data-open-modal data-groomer style="width:100%">Get early access</button>
+          <a class="btn btn-clay" href="https://app.paw-booker.com/sign-up" style="width:100%;display:block;text-align:center">List your business</a>
           <p class="free-note">Start free &mdash; no contract, cancel anytime.</p>
         </div>
       </div>
@@ -439,6 +469,32 @@
     var copyEl = document.getElementById('modal-copy');
     var groomerCheck = document.getElementById('notify-groomer');
 
+    // Groomer invite link (?invite=CODE) - texted to a caller, or scanned as
+    // a QR by a walk-in, from the dashboard's Invite page. We're pre-launch,
+    // so this can't hand them a working app - it keeps the code visible
+    // (banner + reinforced in the notify modal) instead of relying on them
+    // to remember what was read to them over the phone, and remembers it
+    // across page views via localStorage in case they poke around the site
+    // before joining the waitlist.
+    var inviteCode = null;
+    (function () {
+      var fromUrl = new URLSearchParams(location.search).get('invite');
+      if (fromUrl) {
+        inviteCode = fromUrl;
+        try { localStorage.setItem('pawbooker_invite_code', fromUrl); } catch (e) {}
+      } else {
+        try { inviteCode = localStorage.getItem('pawbooker_invite_code'); } catch (e) {}
+      }
+      if (!inviteCode) return;
+
+      var banner = document.getElementById('invite-banner');
+      document.getElementById('invite-banner-code').textContent = inviteCode;
+      banner.style.display = 'block';
+      document.getElementById('invite-banner-close').addEventListener('click', function () {
+        banner.style.display = 'none';
+      });
+    })();
+
     document.querySelectorAll('[data-open-modal]').forEach(function (btn) {
       btn.addEventListener('click', function () {
         var isGroomer = btn.hasAttribute('data-groomer');
@@ -448,6 +504,9 @@
         copyEl.textContent = isGroomer
           ? "Tell us where to reach you and we'll help you get set up on PawBooker as we bring on new groomers."
           : "PawBooker isn't available to download just yet — leave your email and we'll let you know the moment it is.";
+        if (inviteCode && !isGroomer) {
+          copyEl.textContent += ' Your invite code is ' + inviteCode + ' — save it for when you sign in.';
+        }
         formView.classList.remove('hidden');
         successView.classList.remove('open');
         errorEl.classList.remove('open');

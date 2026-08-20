@@ -64,9 +64,21 @@ export async function retrieveAddress(
   if (!feature) return null;
 
   const [longitude, latitude] = feature.geometry.coordinates;
+  const context = feature.properties.context ?? {};
+  const postcode: string | undefined = context.postcode?.name;
+  const city: string | undefined = context.place?.name;
+  const state: string | undefined = context.region?.region_code;
+  // Mapbox's full_address is verbose and inconsistent ("Arizona" spelled out,
+  // trailing ", United States", "Northwest" instead of "NW") - two groomers
+  // who each searched a full address would end up with differently-formatted
+  // addresses on Browse. Compose a plain "street, City, ST ZIP" instead, to
+  // match dashboard/lib/mapbox.ts's web equivalent.
+  const street: string | undefined = feature.properties.name;
+  const cityStateZip = [city, [state, postcode].filter(Boolean).join(' ')].filter(Boolean).join(', ');
+  const formattedAddress = [street, cityStateZip].filter(Boolean).join(', ') || feature.properties.full_address;
   return {
-    formattedAddress: feature.properties.full_address ?? feature.properties.name,
-    postcode: feature.properties.context?.postcode?.name,
+    formattedAddress,
+    postcode,
     latitude,
     longitude,
   };

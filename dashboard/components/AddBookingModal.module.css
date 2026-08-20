@@ -1,0 +1,119 @@
+.panel {
+  width: 100%;
+  max-width: 480px;
+  padding: 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+.title {
+  font-size: 19px;
+}
+.searchRow {
+  display: flex;
+  gap: 8px;
+}
+.searchRow .field-input {
+  flex: 1;
+}
+.hint {
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--muted);
+}
+.hintLink {
+  color: var(--sage);
+  font-weight: 600;
+}
+
+.resultList {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  max-height: 220px;
+  overflow-y: auto;
+}
+.resultRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 12px;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  cursor: pointer;
+  text-align: left;
+}
+.resultRow:hover {
+  border-color: var(--sage);
+}
+.resultEmail {
+  font-size: 14px;
+  font-weight: 600;
+}
+.resultMeta {
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.selectedRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 0;
+}
+.changeBtn {
+  background: none;
+  border: none;
+  color: var(--sage);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  padding: 0;
+}
+
+.fieldGroup {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.error {
+  font-size: 13px;
+  color: var(--danger);
+}
+
+.noMatch {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.inviteRow {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 14px;
+  border-radius: 10px;
+  border: 1px solid var(--border);
+  background: var(--surface);
+}
+.qr {
+  border-radius: 6px;
+  flex-shrink: 0;
+}
+.inviteLabel {
+  font-size: 12px;
+  color: var(--muted);
+}
+.inviteCode {
+  font-size: 22px;
+  font-weight: 700;
+  letter-spacing: 1px;
+  margin-top: 2px;
+}
+.inviteHint {
+  margin-top: 6px;
+  font-size: 12px;
+  color: var(--muted);
+  line-height: 1.4;
+}

@@ -28,3 +28,8 @@ export function formatPhoneForDisplay(value: string | null | undefined): string 
 export function phoneToTelHref(value: string | null | undefined): string {
   return (value ?? '').replace(/[^\d+]/g, '');
 }
+
+/** True for a complete 10-digit US number. Used to reject partial input on save. */
+export function isValidPhone(value: string): boolean {
+  return value.replace(/\D/g, '').length === 10;
+}

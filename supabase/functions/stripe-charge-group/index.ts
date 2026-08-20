@@ -32,31 +32,6 @@ async function stripePost(path: string, params: Record<string, string>) {
   return { ok: response.ok, data };
 }
 
-// Tax on the whole visit's combined subtotal, based on the groomer's
-// jurisdiction (origin-based). Mirrors stripe-charge-booking; falls back to no
-// tax rather than blocking the charge if Stripe Tax isn't configured.
-async function calculateTax(subtotalCents: number, reference: string, state: string | null, zip: string | null) {
-  if (!state || !zip) return null;
-  const { ok, data } = await stripePost('tax/calculations', {
-    currency: 'usd',
-    'customer_details[address][country]': 'US',
-    'customer_details[address][state]': state,
-    'customer_details[address][postal_code]': zip,
-    'customer_details[address_source]': 'shipping',
-    'line_items[0][amount]': String(subtotalCents),
-    'line_items[0][reference]': reference,
-  });
-  if (!ok) {
-    console.warn('Stripe Tax calculation failed', data);
-    return null;
-  }
-  return {
-    calculationId: data.id as string,
-    taxAmountCents: data.tax_amount_exclusive as number,
-    totalCents: data.amount_total as number,
-  };
-}
-
 type GroomerRel = {
   name: string;
   state: string | null;
@@ -135,9 +110,11 @@ Deno.serve(async (req) => {
       return jsonResponse({ error: 'Invoice total must be greater than zero' }, 400);
     }
 
-    const tax = await calculateTax(combinedSubtotalCents, `group_${groupId}`, groomer.state, groomer.zip_code);
-    const taxAmountCents = tax?.taxAmountCents ?? 0;
-    const grandTotalCents = tax?.totalCents ?? combinedSubtotalCents;
+    // Pet grooming labor isn't subject to sales tax in Arizona (and the app
+    // doesn't sell taxable retail goods), so nothing is calculated or added
+    // here - the charge is exactly the combined service subtotal.
+    const taxAmountCents = 0;
+    const grandTotalCents = combinedSubtotalCents;
 
     const serviceRoleClient = createClient(
       Deno.env.get('SUPABASE_URL')!,
@@ -193,6 +170,7 @@ Deno.serve(async (req) => {
       };
       if (groomer.stripe_connect_account_id && groomer.stripe_connect_charges_enabled) {
         params['transfer_data[destination]'] = groomer.stripe_connect_account_id;
+        params['on_behalf_of'] = groomer.stripe_connect_account_id;
         if (acquisitionFeeCents > 0) {
           params['application_fee_amount'] = String(acquisitionFeeCents);
         }
@@ -216,14 +194,6 @@ Deno.serve(async (req) => {
       );
 
       return jsonResponse({ error: lastErrorMessage }, 402);
-    }
-
-    if (tax?.calculationId) {
-      const { ok: taxOk, data: taxTxError } = await stripePost('tax/transactions/create_from_calculation', {
-        calculation: tax.calculationId,
-        reference: `group_${groupId}`,
-      });
-      if (!taxOk) console.warn('Failed to record tax transaction', taxTxError);
     }
 
     // Distribute the visit's tax across pets by each pet's share of the subtotal,

@@ -1,7 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { ActivityIndicator, FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, FlatList, Platform, Pressable, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { AppHeader } from '@/components/AppHeader';
@@ -11,7 +11,12 @@ import { GroomerNotificationBell } from '@/components/GroomerNotificationBell';
 import { MessagesIconButton } from '@/components/MessagesIconButton';
 import { PetCareSummary, type PetCareInfo } from '@/components/PetCareSummary';
 import { ReportModal } from '@/components/ReportModal';
+import { Button } from '@/components/ui/Button';
+import { IconChip } from '@/components/ui/IconChip';
+import { StatusBadge } from '@/components/ui/StatusBadge';
 import { Colors } from '@/constants/theme';
+import { webFlushScroll } from '@/constants/webScroll';
+import { webContentWidth } from '@/constants/webLayout';
 import { fetchActiveStaff, type SalonStaff } from '@/services/availability';
 import { useAuth } from '@/services/auth-context';
 import { sendBookingEmail } from '@/services/notifications';
@@ -101,14 +106,6 @@ function matchesStatFilterEntry(entry: SalonEntry, filter: StatFilter): boolean 
   return true;
 }
 
-const STATUS_COLORS: Record<BookingStatus, string> = {
-  pending: Colors.light.warning,
-  confirmed: Colors.light.success,
-  completed: Colors.light.textMuted,
-  cancelled: Colors.light.danger,
-  declined: Colors.light.warning,
-};
-
 export default function SalonDashboardScreen() {
   const router = useRouter();
   const { bookingId: notifiedBookingId } = useLocalSearchParams<{ bookingId?: string }>();
@@ -149,7 +146,7 @@ export default function SalonDashboardScreen() {
     const { data, error: queryError } = await supabase
       .from('bookings')
       .select(
-        'id, group_id, customer_id, starts_at, status, payment_status, service_completed_at, cancellation_reason, invoice_total_cents, platform_fee_cents, staff_id, pets(name, is_anxious, is_matted, needs_extra_care, care_notes, is_microchipped, microchip_number, vet_name, vet_phone), groomer_services(name), salon_staff(name)'
+        'id, group_id, customer_id, starts_at, status, payment_status, service_completed_at, cancellation_reason, invoice_total_cents, platform_fee_cents, staff_id, is_anxious, is_matted, needs_extra_care, care_notes, pets(name, is_microchipped, microchip_number, vet_name, vet_phone), groomer_services(name), salon_staff(name)'
       )
       .eq('groomer_id', groomerProfile.id)
       .order('starts_at', { ascending: false });
@@ -157,12 +154,8 @@ export default function SalonDashboardScreen() {
     if (queryError) {
       setError(queryError.message);
     } else {
-      type PetCareRow = {
+      type PetRow = {
         name: string;
-        is_anxious?: boolean;
-        is_matted?: boolean;
-        needs_extra_care?: boolean;
-        care_notes?: string | null;
         is_microchipped?: boolean;
         microchip_number?: string | null;
         vet_name?: string | null;
@@ -170,7 +163,7 @@ export default function SalonDashboardScreen() {
       };
       setBookings(
         (data ?? []).map((row) => {
-          const petRow = row.pets as unknown as PetCareRow | null;
+          const petRow = row.pets as unknown as PetRow | null;
           return {
           id: row.id,
           groupId: row.group_id ?? undefined,
@@ -185,10 +178,10 @@ export default function SalonDashboardScreen() {
           serviceName: (row.groomer_services as unknown as { name: string })?.name ?? 'Service',
           petName: petRow?.name ?? 'Pet',
           petCare: {
-            isAnxious: petRow?.is_anxious ?? false,
-            isMatted: petRow?.is_matted ?? false,
-            needsExtraCare: petRow?.needs_extra_care ?? false,
-            careNotes: petRow?.care_notes ?? undefined,
+            isAnxious: row.is_anxious ?? false,
+            isMatted: row.is_matted ?? false,
+            needsExtraCare: row.needs_extra_care ?? false,
+            careNotes: row.care_notes ?? undefined,
             isMicrochipped: petRow?.is_microchipped ?? false,
             microchipNumber: petRow?.microchip_number ?? undefined,
             vetName: petRow?.vet_name ?? undefined,
@@ -278,6 +271,7 @@ export default function SalonDashboardScreen() {
       { label: 'Business info', onPress: () => router.push('/(salon)/business-info') },
       { label: 'Services & prices', onPress: () => router.push('/(salon)/services') },
       { label: 'Multi-pet discount', onPress: () => router.push('/(salon)/discount') },
+      { label: 'Vaccination requirement', onPress: () => router.push('/(salon)/vaccination') },
       { label: 'Hours', onPress: () => router.push('/(salon)/hours') },
       { label: 'Groomers', onPress: () => router.push('/(salon)/staff') },
       { label: 'Invite your customers', onPress: () => router.push('/(salon)/invite') },
@@ -408,6 +402,11 @@ export default function SalonDashboardScreen() {
     const isHighlighted = rows.some((b) => b.id === highlightedId);
     const ids = rows.map((b) => b.id);
     const petNames = rows.map((b) => b.petName).join(', ');
+    const uniqueServiceNames = Array.from(new Set(rows.map((b) => b.serviceName)));
+    const hasMixedServices = uniqueServiceNames.length > 1;
+    const headerServiceLabel = hasMixedServices
+      ? `${uniqueServiceNames.length} services`
+      : lead.serviceName;
     const notServiceDone = rows.filter((b) => b.status === 'confirmed' && !b.serviceCompletedAt);
     const readyToBill = rows.filter((b) => b.status === 'confirmed' && b.serviceCompletedAt);
     const billed = rows.filter((b) => b.status === 'completed');
@@ -418,8 +417,8 @@ export default function SalonDashboardScreen() {
     return (
       <View style={[styles.card, isHighlighted && styles.cardHighlighted]}>
         <View style={styles.cardHeader}>
-          <Text style={styles.cardService}>{lead.serviceName}</Text>
-          <Text style={[styles.cardStatus, { color: STATUS_COLORS[status] }]}>{status}</Text>
+          <Text style={styles.cardService}>{headerServiceLabel}</Text>
+          <StatusBadge status={status} />
         </View>
         <View style={styles.groupBadge}>
           <Text style={styles.groupBadgeText}>{rows.length} pets · one visit</Text>
@@ -442,7 +441,9 @@ export default function SalonDashboardScreen() {
           status !== 'declined' &&
           rows.map((b) => (
             <View key={b.id} style={styles.groupPetCare}>
-              <Text style={styles.groupPetName}>{b.petName}</Text>
+              <Text style={styles.groupPetName}>
+                {b.petName} <Text style={styles.groupPetService}>· {b.serviceName}</Text>
+              </Text>
               <PetCareSummary info={b.petCare} />
             </View>
           ))}
@@ -460,59 +461,49 @@ export default function SalonDashboardScreen() {
 
         {status === 'pending' && (
           <View style={styles.actions}>
-            <Pressable
-              style={[styles.actionButton, styles.acceptButton]}
+            <Button
+              label="Accept all"
               onPress={() => handleAccept(ids, !lead.staffId)}
-              disabled={busy}>
-              {busy ? (
-                <ActivityIndicator color="#fff" size="small" />
-              ) : (
-                <Text style={styles.acceptButtonText}>Accept all</Text>
-              )}
-            </Pressable>
-            <Pressable
-              style={[styles.actionButton, styles.cancelButton]}
+              loading={busy}
+              style={styles.actionButtonFlex}
+            />
+            <Button
+              label="Decline"
+              variant="danger"
               onPress={() => setDeclineTargetIds(ids)}
-              disabled={busy}>
-              <Text style={styles.cancelButtonText}>Decline</Text>
-            </Pressable>
+              disabled={busy}
+              style={styles.actionButtonFlex}
+            />
           </View>
         )}
 
         {status === 'confirmed' && notServiceDone.length > 0 && (
-          <Pressable
-            style={[styles.groupActionButton, styles.acceptButton]}
+          <Button
+            label={`Complete service${notServiceDone.length < rows.length ? ` (${notServiceDone.length} left)` : ''}`}
             onPress={() => handleCompleteService(notServiceDone.map((b) => b.id))}
-            disabled={busy}>
-            {busy ? (
-              <ActivityIndicator color="#fff" size="small" />
-            ) : (
-              <Text style={styles.acceptButtonText}>
-                Complete service{notServiceDone.length < rows.length ? ` (${notServiceDone.length} left)` : ''}
-              </Text>
-            )}
-          </Pressable>
+            loading={busy}
+            style={styles.groupActionButton}
+          />
         )}
 
         {readyToBill.length > 0 && (
-          <Pressable
-            style={[styles.groupActionButton, styles.acceptButton]}
+          <Button
+            label={`Complete & invoice (${readyToBill.length} ${readyToBill.length === 1 ? 'pet' : 'pets'})`}
             onPress={() =>
               router.push({ pathname: '/(salon)/complete-group/[groupId]', params: { groupId: entry.key } })
-            }>
-            <Text style={styles.acceptButtonText}>
-              Complete &amp; invoice ({readyToBill.length} {readyToBill.length === 1 ? 'pet' : 'pets'})
-            </Text>
-          </Pressable>
+            }
+            style={styles.groupActionButton}
+          />
         )}
 
         {active && (
-          <Pressable
-            style={[styles.groupActionButton, styles.cancelButton]}
+          <Button
+            label="Cancel visit"
+            variant="danger"
             onPress={() => setCancelTargetIds(ids)}
-            disabled={busy}>
-            <Text style={styles.cancelButtonText}>Cancel visit</Text>
-          </Pressable>
+            disabled={busy}
+            style={styles.groupActionButton}
+          />
         )}
 
         {(status === 'completed' || status === 'cancelled') && (
@@ -525,7 +516,7 @@ export default function SalonDashboardScreen() {
   }
 
   return (
-    <SafeAreaView style={styles.container} edges={['top']}>
+    <SafeAreaView style={[styles.container, webContentWidth('content')]} edges={['top']}>
       <AppHeader
         title={groomerProfile?.name ?? ''}
         subtitle="Dashboard"
@@ -543,7 +534,7 @@ export default function SalonDashboardScreen() {
               <Ionicons name="menu-outline" size={22} color={Colors.light.text} />
               {groomerProfile?.plan !== 'pro' && (
                 <View style={styles.lockBadge}>
-                  <Ionicons name="lock-closed" size={9} color="#fff" />
+                  <Ionicons name="lock-closed" size={9} color={Colors.light.text} />
                 </View>
               )}
             </Pressable>
@@ -559,8 +550,9 @@ export default function SalonDashboardScreen() {
           ref={flatListRef}
           data={displayedEntries}
           keyExtractor={(entry) => entry.key}
-          style={styles.flatList}
+          style={[styles.flatList, webFlushScroll]}
           contentContainerStyle={styles.list}
+          initialNumToRender={Platform.OS === 'web' ? 200 : 10}
           onScrollToIndexFailed={({ index }) => {
             setTimeout(() => {
               flatListRef.current?.scrollToIndex({ index, animated: true, viewPosition: 0.3 });
@@ -569,11 +561,7 @@ export default function SalonDashboardScreen() {
           ListHeaderComponent={
             <View>
               <Pressable style={styles.planBanner} onPress={() => router.push('/(salon)/plan')}>
-                <Ionicons
-                  name={groomerProfile?.plan === 'pro' ? 'star' : 'star-outline'}
-                  size={16}
-                  color={Colors.light.tint}
-                />
+                <IconChip name={groomerProfile?.plan === 'pro' ? 'star' : 'star-outline'} tone="tint" size={28} />
                 <Text style={styles.planBannerText}>
                   {groomerProfile?.plan === 'pro'
                     ? 'On the Pro plan · Manage subscription'
@@ -583,10 +571,10 @@ export default function SalonDashboardScreen() {
               </Pressable>
 
               <Pressable style={styles.planBanner} onPress={() => router.push('/(salon)/payouts')}>
-                <Ionicons
+                <IconChip
                   name={groomerProfile?.payoutsEnabled ? 'checkmark-circle' : 'card-outline'}
-                  size={16}
-                  color={Colors.light.tint}
+                  tone="tint"
+                  size={28}
                 />
                 <Text style={styles.planBannerText}>
                   {groomerProfile?.payoutsEnabled
@@ -598,7 +586,7 @@ export default function SalonDashboardScreen() {
 
               {lowStockCount > 0 && (
                 <Pressable style={styles.planBanner} onPress={() => router.push('/(salon)/supplies')}>
-                  <Ionicons name="alert-circle" size={16} color={Colors.light.danger} />
+                  <IconChip name="alert-circle" tone="danger" size={28} />
                   <Text style={styles.planBannerText}>
                     {lowStockCount} suppl{lowStockCount === 1 ? 'y' : 'ies'} low on stock · Reorder
                   </Text>
@@ -608,8 +596,19 @@ export default function SalonDashboardScreen() {
 
               <View style={styles.statsGrid}>
                 <Pressable
-                  style={[styles.statCard, statFilter === 'pending' && styles.statCardActive]}
+                  style={[
+                    styles.statCard,
+                    styles.statCardWarning,
+                    statFilter === 'pending' && styles.statCardActive,
+                  ]}
                   onPress={() => toggleStatFilter('pending')}>
+                  <View style={styles.statIconWrap}>
+                    <Ionicons
+                      name="alert-circle-outline"
+                      size={17}
+                      color={statFilter === 'pending' ? Colors.light.text : Colors.light.warning}
+                    />
+                  </View>
                   <Text style={[styles.statValue, statFilter === 'pending' && styles.statValueActive]}>
                     {stats.pendingCount}
                   </Text>
@@ -618,8 +617,19 @@ export default function SalonDashboardScreen() {
                   </Text>
                 </Pressable>
                 <Pressable
-                  style={[styles.statCard, statFilter === 'upcoming' && styles.statCardActive]}
+                  style={[
+                    styles.statCard,
+                    styles.statCardTint,
+                    statFilter === 'upcoming' && styles.statCardActive,
+                  ]}
                   onPress={() => toggleStatFilter('upcoming')}>
+                  <View style={styles.statIconWrap}>
+                    <Ionicons
+                      name="calendar-outline"
+                      size={16}
+                      color={statFilter === 'upcoming' ? Colors.light.text : Colors.light.tint}
+                    />
+                  </View>
                   <Text style={[styles.statValue, statFilter === 'upcoming' && styles.statValueActive]}>
                     {stats.upcomingCount}
                   </Text>
@@ -627,13 +637,27 @@ export default function SalonDashboardScreen() {
                     Upcoming
                   </Text>
                 </Pressable>
-                <View style={styles.statCard}>
+                <View style={[styles.statCard, styles.statCardNeutral]}>
+                  <View style={styles.statIconWrap}>
+                    <Ionicons name="people-outline" size={16} color={Colors.light.textMuted} />
+                  </View>
                   <Text style={styles.statValue}>{stats.customerCount}</Text>
                   <Text style={styles.statLabel}>Customers</Text>
                 </View>
                 <Pressable
-                  style={[styles.statCard, statFilter === 'ready_to_bill' && styles.statCardActive]}
+                  style={[
+                    styles.statCard,
+                    styles.statCardSuccess,
+                    statFilter === 'ready_to_bill' && styles.statCardActive,
+                  ]}
                   onPress={() => toggleStatFilter('ready_to_bill')}>
+                  <View style={styles.statIconWrap}>
+                    <Ionicons
+                      name="cash-outline"
+                      size={16}
+                      color={statFilter === 'ready_to_bill' ? Colors.light.text : Colors.light.success}
+                    />
+                  </View>
                   <Text style={[styles.statValue, statFilter === 'ready_to_bill' && styles.statValueActive]}>
                     {stats.readyToBillCount}
                   </Text>
@@ -664,7 +688,7 @@ export default function SalonDashboardScreen() {
                   <Ionicons
                     name="list"
                     size={15}
-                    color={viewMode === 'list' ? '#fff' : Colors.light.textMuted}
+                    color={viewMode === 'list' ? Colors.light.text : Colors.light.textMuted}
                   />
                   <Text style={[styles.toggleText, viewMode === 'list' && styles.toggleTextActive]}>
                     Cards
@@ -676,7 +700,7 @@ export default function SalonDashboardScreen() {
                   <Ionicons
                     name="calendar-outline"
                     size={15}
-                    color={viewMode === 'calendar' ? '#fff' : Colors.light.textMuted}
+                    color={viewMode === 'calendar' ? Colors.light.text : Colors.light.textMuted}
                   />
                   <Text style={[styles.toggleText, viewMode === 'calendar' && styles.toggleTextActive]}>
                     Calendar
@@ -711,7 +735,7 @@ export default function SalonDashboardScreen() {
             <View style={[styles.card, item.id === highlightedId && styles.cardHighlighted]}>
               <View style={styles.cardHeader}>
                 <Text style={styles.cardService}>{item.serviceName}</Text>
-                <Text style={[styles.cardStatus, { color: STATUS_COLORS[item.status] }]}>{item.status}</Text>
+                <StatusBadge status={item.status} />
               </View>
               <Text style={styles.cardMeta}>
                 for {item.petName}
@@ -758,51 +782,46 @@ export default function SalonDashboardScreen() {
               {(item.status === 'pending' || item.status === 'confirmed') && (
                 <View style={styles.actions}>
                   {item.status === 'pending' && (
-                    <Pressable
-                      style={[styles.actionButton, styles.acceptButton]}
+                    <Button
+                      label="Accept"
                       onPress={() => handleAccept([item.id], !item.staffId)}
-                      disabled={updatingId === item.id}>
-                      {updatingId === item.id ? (
-                        <ActivityIndicator color="#fff" size="small" />
-                      ) : (
-                        <Text style={styles.acceptButtonText}>Accept</Text>
-                      )}
-                    </Pressable>
+                      loading={updatingId === item.id}
+                      style={styles.actionButtonFlex}
+                    />
                   )}
                   {item.status === 'confirmed' && !item.serviceCompletedAt && (
-                    <Pressable
-                      style={[styles.actionButton, styles.acceptButton]}
+                    <Button
+                      label="Complete service"
                       onPress={() => handleCompleteService([item.id])}
-                      disabled={updatingId === item.id}>
-                      {updatingId === item.id ? (
-                        <ActivityIndicator color="#fff" size="small" />
-                      ) : (
-                        <Text style={styles.acceptButtonText}>Complete Service</Text>
-                      )}
-                    </Pressable>
+                      loading={updatingId === item.id}
+                      style={styles.actionButtonFlex}
+                    />
                   )}
                   {item.status === 'confirmed' && item.serviceCompletedAt && (
-                    <Pressable
-                      style={[styles.actionButton, styles.acceptButton]}
-                      onPress={() => router.push({ pathname: '/(salon)/complete/[bookingId]', params: { bookingId: item.id } })}
-                      disabled={updatingId === item.id}>
-                      <Text style={styles.acceptButtonText}>Complete & Invoice</Text>
-                    </Pressable>
+                    <Button
+                      label="Complete & invoice"
+                      onPress={() =>
+                        router.push({ pathname: '/(salon)/complete/[bookingId]', params: { bookingId: item.id } })
+                      }
+                      style={styles.actionButtonFlex}
+                    />
                   )}
                   {item.status === 'pending' ? (
-                    <Pressable
-                      style={[styles.actionButton, styles.cancelButton]}
+                    <Button
+                      label="Decline"
+                      variant="danger"
                       onPress={() => setDeclineTargetIds([item.id])}
-                      disabled={updatingId === item.id}>
-                      <Text style={styles.cancelButtonText}>Decline</Text>
-                    </Pressable>
+                      disabled={updatingId === item.id}
+                      style={styles.actionButtonFlex}
+                    />
                   ) : (
-                    <Pressable
-                      style={[styles.actionButton, styles.cancelButton]}
+                    <Button
+                      label="Cancel"
+                      variant="danger"
                       onPress={() => setCancelTargetIds([item.id])}
-                      disabled={updatingId === item.id}>
-                      <Text style={styles.cancelButtonText}>Cancel</Text>
-                    </Pressable>
+                      disabled={updatingId === item.id}
+                      style={styles.actionButtonFlex}
+                    />
                   )}
                 </View>
               )}
@@ -817,6 +836,7 @@ export default function SalonDashboardScreen() {
           }}
           ListEmptyComponent={
             <View style={styles.empty}>
+              <Ionicons name="paw-outline" size={28} color={Colors.light.textMuted} />
               <Text style={styles.emptyText}>
                 {statFilter
                   ? `No ${
@@ -877,7 +897,10 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: Colors.light.background,
-    padding: 20,
+    // Wider gutters on web than the native phone layout; content width
+    // itself is capped by webContentWidth('dashboard') on the FlatList
+    // below, not here (see constants/webLayout.ts).
+    padding: Platform.OS === 'web' ? 28 : 20,
   },
   headerActions: {
     flexDirection: 'row',
@@ -918,20 +941,20 @@ const styles = StyleSheet.create({
   },
   list: {
     marginTop: 16,
-    gap: 12,
-    paddingBottom: 24,
+    gap: 14,
+    paddingBottom: 40,
   },
   planBanner: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
+    gap: 10,
     backgroundColor: Colors.light.surface,
-    borderRadius: 10,
+    borderRadius: 12,
     borderWidth: StyleSheet.hairlineWidth,
     borderColor: Colors.light.border,
     paddingVertical: 10,
-    paddingHorizontal: 14,
-    marginBottom: 16,
+    paddingHorizontal: 12,
+    marginBottom: 10,
   },
   planBannerText: {
     flex: 1,
@@ -943,25 +966,53 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     flexWrap: 'wrap',
     gap: 10,
+    marginTop: 6,
     marginBottom: 16,
   },
+  // Fixed, centered box (rather than styling the icon directly) so glyphs
+  // with different internal padding (calendar vs. people vs. cash) still
+  // line up on the same baseline across all four cards.
+  statIconWrap: {
+    height: 20,
+    justifyContent: 'center',
+    marginBottom: 8,
+  },
   statCard: {
-    width: '48%',
-    backgroundColor: Colors.light.surface,
-    borderRadius: 12,
+    // On web the outer canvas is full browser width, so a fixed 2-up grid
+    // leaves each tile a huge mostly-empty box - 4-up actually uses the
+    // space. Native keeps the original 2-up phone layout.
+    width: Platform.OS === 'web' ? '23.5%' : '48%',
+    backgroundColor: Colors.light.surfaceElevated,
+    borderRadius: 14,
     padding: 14,
     borderWidth: StyleSheet.hairlineWidth,
     borderColor: Colors.light.border,
+    borderLeftWidth: 3,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.18,
+    shadowRadius: 10,
+    elevation: 2,
   },
+  statCardWarning: { borderLeftColor: Colors.light.warning },
+  statCardTint: { borderLeftColor: Colors.light.tint },
+  statCardSuccess: { borderLeftColor: Colors.light.success },
+  // Customers isn't filterable like the other three, but it still needs a
+  // left accent so the row reads as one consistent set instead of three
+  // matching cards plus one that looks unfinished.
+  statCardNeutral: { borderLeftColor: Colors.light.textMuted },
   statCardActive: {
     backgroundColor: Colors.light.tint,
     borderColor: Colors.light.tint,
+    borderLeftColor: Colors.light.tint,
   },
+  // White-on-sage measured weaker contrast than dark ink-on-sage (same fix
+  // already made on the dashboard's equivalent stat cards).
   statValueActive: {
-    color: '#fff',
+    color: Colors.light.text,
   },
   statLabelActive: {
-    color: 'rgba(255,255,255,0.85)',
+    color: 'rgba(43,51,44,0.75)',
   },
   clearFilter: {
     marginTop: -6,
@@ -1008,7 +1059,7 @@ const styles = StyleSheet.create({
     color: Colors.light.textMuted,
   },
   toggleTextActive: {
-    color: '#fff',
+    color: Colors.light.text,
   },
   dayListLabel: {
     fontSize: 15,
@@ -1017,11 +1068,16 @@ const styles = StyleSheet.create({
     marginBottom: 4,
   },
   card: {
-    backgroundColor: Colors.light.surface,
-    borderRadius: 12,
-    padding: 16,
+    backgroundColor: Colors.light.surfaceElevated,
+    borderRadius: 14,
+    padding: 18,
     borderWidth: StyleSheet.hairlineWidth,
     borderColor: Colors.light.border,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.2,
+    shadowRadius: 14,
+    elevation: 2,
   },
   cardHighlighted: {
     borderColor: Colors.light.tint,
@@ -1049,7 +1105,7 @@ const styles = StyleSheet.create({
   groupBadgeText: {
     fontSize: 12,
     fontWeight: '700',
-    color: '#fff',
+    color: Colors.light.text,
   },
   groupPetCare: {
     marginTop: 8,
@@ -1059,17 +1115,12 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: Colors.light.text,
   },
-  groupActionButton: {
-    height: 40,
-    borderRadius: 8,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginTop: 10,
+  groupPetService: {
+    fontWeight: '400',
+    color: Colors.light.textMuted,
   },
-  cardStatus: {
-    fontSize: 13,
-    fontWeight: '600',
-    textTransform: 'capitalize',
+  groupActionButton: {
+    marginTop: 10,
   },
   cardMeta: {
     marginTop: 4,
@@ -1103,38 +1154,18 @@ const styles = StyleSheet.create({
     color: Colors.light.textMuted,
   },
   actions: {
-    flexDirection: 'row',
-    gap: 10,
+    flexDirection: 'column',
+    gap: 8,
     marginTop: 14,
   },
-  actionButton: {
-    flex: 1,
-    height: 40,
-    borderRadius: 8,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  acceptButton: {
-    backgroundColor: Colors.light.tint,
-  },
-  acceptButtonText: {
-    color: '#fff',
-    fontSize: 14,
-    fontWeight: '600',
-  },
-  cancelButton: {
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: Colors.light.danger,
-  },
-  cancelButtonText: {
-    color: Colors.light.danger,
-    fontSize: 14,
-    fontWeight: '600',
+  actionButtonFlex: {
+    width: '100%',
   },
   empty: {
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
+    gap: 10,
     marginTop: 40,
   },
   emptyText: {

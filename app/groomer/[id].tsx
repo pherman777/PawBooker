@@ -1,6 +1,7 @@
+import { Ionicons } from '@expo/vector-icons';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useEffect, useState } from 'react';
-import { ActivityIndicator, Linking, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Image, Linking, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { Colors } from '@/constants/theme';
@@ -24,6 +25,7 @@ export default function GroomerDetailScreen() {
   const [error, setError] = useState<string | null>(null);
   const [messaging, setMessaging] = useState(false);
   const [isDeactivated, setIsDeactivated] = useState(false);
+  const [startingBookingFor, setStartingBookingFor] = useState<string | null>(null);
 
   async function handleMessage() {
     if (!session || !groomer) return;
@@ -35,6 +37,32 @@ export default function GroomerDetailScreen() {
       notify('Could not start conversation', err instanceof Error ? err.message : 'Something went wrong.');
     }
     setMessaging(false);
+  }
+
+  // A customer with zero pets can reach the booking screen but has nothing to
+  // select and no way to actually book - check first and send them to add a
+  // pet instead, rather than dropping them into a dead-end screen.
+  async function handleBookPress(serviceId: string) {
+    if (!session || !groomer) return;
+    setStartingBookingFor(serviceId);
+    const { count, error: countError } = await supabase
+      .from('pets')
+      .select('id', { count: 'exact', head: true })
+      .eq('owner_id', session.user.id);
+    setStartingBookingFor(null);
+
+    if (countError) {
+      notify('Something went wrong', countError.message);
+      return;
+    }
+
+    if (!count) {
+      notify('Add a pet first', "You'll need a pet profile before you can book an appointment - let's set one up.");
+      router.push('/pet/new');
+      return;
+    }
+
+    router.push({ pathname: '/booking/[groomerId]', params: { groomerId: groomer.id, serviceId } });
   }
 
   useEffect(() => {
@@ -131,8 +159,19 @@ export default function GroomerDetailScreen() {
   return (
     <SafeAreaView style={styles.container} edges={['bottom']}>
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.content}>
-        <Text style={styles.name}>{groomer.name}</Text>
-        <Text style={styles.address}>{groomer.address}</Text>
+        <View style={styles.headerRow}>
+          <View style={styles.avatar}>
+            {groomer.avatarUrl ? (
+              <Image source={{ uri: groomer.avatarUrl }} style={styles.avatarImg} />
+            ) : (
+              <Ionicons name="paw" size={28} color={Colors.light.tint} />
+            )}
+          </View>
+          <View style={styles.headerText}>
+            <Text style={styles.name}>{groomer.name}</Text>
+            <Text style={styles.address}>{groomer.address}</Text>
+          </View>
+        </View>
 
         {groomer.latitude != null && groomer.longitude != null && (
           <View style={styles.directionsWrapper}>
@@ -174,13 +213,13 @@ export default function GroomerDetailScreen() {
               {!isDeactivated && (
                 <Pressable
                   style={styles.bookButton}
-                  onPress={() =>
-                    router.push({
-                      pathname: '/booking/[groomerId]',
-                      params: { groomerId: groomer.id, serviceId: service.id },
-                    })
-                  }>
-                  <Text style={styles.bookButtonText}>Book</Text>
+                  onPress={() => handleBookPress(service.id)}
+                  disabled={startingBookingFor === service.id}>
+                  {startingBookingFor === service.id ? (
+                    <ActivityIndicator color={Colors.light.text} size="small" />
+                  ) : (
+                    <Text style={styles.bookButtonText}>Book</Text>
+                  )}
                 </Pressable>
               )}
             </View>
@@ -257,6 +296,28 @@ const styles = StyleSheet.create({
     margin: 20,
     fontSize: 15,
     color: Colors.light.danger,
+  },
+  headerRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 14,
+  },
+  avatar: {
+    width: 64,
+    height: 64,
+    borderRadius: 32,
+    backgroundColor: 'rgba(107,143,114,0.16)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    flexShrink: 0,
+  },
+  avatarImg: {
+    width: 64,
+    height: 64,
+    borderRadius: 32,
+  },
+  headerText: {
+    flex: 1,
   },
   name: {
     fontSize: 26,
@@ -353,7 +414,7 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.light.tint,
   },
   bookButtonText: {
-    color: '#fff',
+    color: Colors.light.text,
     fontSize: 14,
     fontWeight: '600',
   },

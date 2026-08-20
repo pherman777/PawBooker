@@ -1,0 +1,58 @@
+.statusCard {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 18px;
+  border-radius: 14px;
+}
+.statusCardActive {
+  background: var(--sage);
+  border-color: var(--sage);
+}
+.statusCardActive .statusTitle,
+.statusCardActive .statusSubtitle {
+  color: var(--ink);
+}
+.statusTitle {
+  font-size: 16px;
+  font-weight: 700;
+}
+.statusSubtitle {
+  margin-top: 4px;
+  font-size: 13px;
+  line-height: 1.4;
+  color: var(--muted);
+}
+
+.feeCard {
+  margin-top: 28px;
+  padding: 18px;
+}
+.feeCardLabel {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--muted);
+}
+.feeCardAmount {
+  margin-top: 4px;
+  font-family: var(--serif);
+  font-size: 30px;
+  font-weight: 700;
+}
+.feeCardNote {
+  margin-top: 10px;
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--muted);
+}
+.feeCardLink {
+  display: inline-block;
+  margin-top: 12px;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--sage);
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 0;
+}

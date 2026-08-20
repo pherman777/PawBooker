@@ -34,36 +34,6 @@ async function stripePost(path: string, params: Record<string, string>) {
   return { ok: response.ok, data };
 }
 
-// Grooming is performed at the groomer's own location, so tax is calculated
-// based on the groomer's jurisdiction (origin-based), not the customer's.
-// Requires Stripe Tax to be enabled + a tax registration for that jurisdiction
-// in the Stripe dashboard; if not configured, this falls back to no tax
-// rather than blocking the charge.
-async function calculateTax(subtotalCents: number, bookingId: string, groomerState: string | null, groomerZip: string | null) {
-  if (!groomerState || !groomerZip) return null;
-
-  const { ok, data } = await stripePost('tax/calculations', {
-    currency: 'usd',
-    'customer_details[address][country]': 'US',
-    'customer_details[address][state]': groomerState,
-    'customer_details[address][postal_code]': groomerZip,
-    'customer_details[address_source]': 'shipping',
-    'line_items[0][amount]': String(subtotalCents),
-    'line_items[0][reference]': `booking_${bookingId}`,
-  });
-
-  if (!ok) {
-    console.warn('Stripe Tax calculation failed', data);
-    return null;
-  }
-
-  return {
-    calculationId: data.id as string,
-    taxAmountCents: data.tax_amount_exclusive as number,
-    totalCents: data.amount_total as number,
-  };
-}
-
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders });
@@ -117,9 +87,11 @@ Deno.serve(async (req) => {
     const service = booking.groomer_services as unknown as { name: string };
     const pet = booking.pets as unknown as { name: string };
 
-    const tax = await calculateTax(subtotalCents, bookingId, groomer.state, groomer.zip_code);
-    const taxAmountCents = tax?.taxAmountCents ?? 0;
-    const grandTotalCents = tax?.totalCents ?? subtotalCents;
+    // Pet grooming labor isn't subject to sales tax in Arizona (and the app
+    // doesn't sell taxable retail goods), so nothing is calculated or added
+    // here - the charge is exactly the service subtotal.
+    const taxAmountCents = 0;
+    const grandTotalCents = subtotalCents;
 
     const serviceRoleClient = createClient(
       Deno.env.get('SUPABASE_URL')!,
@@ -161,8 +133,13 @@ Deno.serve(async (req) => {
     }
 
     // Route funds to the groomer's own connected account once they've finished
-    // Connect onboarding. No application_fee_amount yet — the platform isn't
-    // taking a cut of bookings, just passing Stripe's processing fee through.
+    // Connect onboarding. `on_behalf_of` (alongside transfer_data[destination])
+    // makes this a destination charge on the connected account's behalf, so
+    // Stripe's own processing fee is deducted from the groomer's payout rather
+    // than absorbed by the platform - the same way any card-accepting business
+    // pays standard processing costs. application_fee_amount is the platform's
+    // separate cut on top of that (only charged when the acquisition fee
+    // applies), taken before the remainder transfers to the groomer.
     // If a groomer hasn't connected payouts yet, the charge still succeeds
     // and stays on the platform account rather than blocking the booking.
     let paymentIntent: { id: string; status: string; error?: { message?: string } } | undefined;
@@ -181,6 +158,7 @@ Deno.serve(async (req) => {
       };
       if (groomer.stripe_connect_account_id && groomer.stripe_connect_charges_enabled) {
         paymentIntentParams['transfer_data[destination]'] = groomer.stripe_connect_account_id;
+        paymentIntentParams['on_behalf_of'] = groomer.stripe_connect_account_id;
         // application_fee_amount only has meaning on a destination charge - it's
         // the slice the platform keeps before the rest transfers to the groomer.
         if (acquisitionFeeCents > 0) {
@@ -207,14 +185,6 @@ Deno.serve(async (req) => {
       );
 
       return jsonResponse({ error: lastErrorMessage }, 402);
-    }
-
-    if (tax?.calculationId) {
-      const { ok: taxOk, data: taxTxError } = await stripePost('tax/transactions/create_from_calculation', {
-        calculation: tax.calculationId,
-        reference: bookingId,
-      });
-      if (!taxOk) console.warn('Failed to record tax transaction', taxTxError);
     }
 
     const { error: updateError } = await supabase

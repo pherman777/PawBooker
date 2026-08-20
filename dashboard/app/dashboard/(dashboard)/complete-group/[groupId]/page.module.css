@@ -1,0 +1,116 @@
+.petCard {
+  margin-top: 20px;
+  padding: 14px;
+}
+.petName {
+  font-size: 18px;
+  font-weight: 700;
+  margin-bottom: 4px;
+}
+
+.lineItemRow {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 0;
+  border-bottom: 1px solid var(--border);
+}
+.lineItemDescription {
+  flex: 1;
+  font-size: 15px;
+}
+.lineItemAmount {
+  font-size: 15px;
+  font-weight: 600;
+}
+.removeBtn {
+  font-size: 13px;
+  color: var(--danger);
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 0;
+}
+
+.addItemForm {
+  display: flex;
+  gap: 8px;
+  margin-top: 12px;
+}
+.addItemForm input {
+  height: 44px;
+}
+.descriptionInput {
+  flex: 2;
+}
+.amountInput {
+  flex: 1;
+}
+
+.petTotalRow {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 14px;
+  padding-top: 12px;
+  border-top: 1px solid var(--border);
+}
+.petTotalLabel {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--muted);
+}
+.petTotalAmount {
+  font-size: 15px;
+  font-weight: 700;
+}
+
+.grandTotalRow {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 24px;
+  padding-top: 14px;
+  border-top: 1px solid var(--border);
+}
+.grandTotalLabel {
+  font-size: 17px;
+  font-weight: 700;
+}
+.grandTotalAmount {
+  font-size: 18px;
+  font-weight: 700;
+}
+.taxNote {
+  margin-top: 6px;
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.feeCard {
+  margin-top: 16px;
+  padding: 14px;
+}
+.feeCardTitle {
+  font-size: 14px;
+  font-weight: 700;
+  margin-bottom: 8px;
+}
+.feeCardNote {
+  font-size: 12px;
+  line-height: 1.4;
+  color: var(--muted);
+}
+
+.cashNote {
+  margin-top: 8px;
+  font-size: 12px;
+  color: var(--muted);
+  text-align: center;
+}
+.cashBlockedNote {
+  margin-top: 16px;
+  padding: 12px;
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--muted);
+  text-align: center;
+}

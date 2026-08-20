@@ -1,7 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { useCallback, useState } from 'react';
-import { Modal, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Modal, Platform, Pressable, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaProvider, SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { ChatView } from '@/components/ChatView';
@@ -104,7 +104,7 @@ export function BusinessAssistantFab() {
         style={[styles.fab, { bottom: insets.bottom + 24 }]}
         onPress={handleOpen}
         hitSlop={8}>
-        <Ionicons name="sparkles" size={24} color="#fff" />
+        <Ionicons name="sparkles" size={24} color={Colors.light.text} />
         {!isPro && (
           <View style={styles.lockBadge}>
             <Ionicons name="lock-closed" size={10} color="#fff" />
@@ -154,7 +154,13 @@ export function BusinessAssistantFab() {
 
 const styles = StyleSheet.create({
   fab: {
-    position: 'absolute',
+    // Every View on web defaults to position:relative, so 'absolute' here
+    // resolves against the nearest ancestor View - which, on the groomer
+    // web dashboard, is a centered content column narrower than the actual
+    // browser window. 'fixed' pins it to the real viewport corner instead,
+    // matching how a floating action button is supposed to behave. Native
+    // has no such wrapper, so 'absolute' (relative to the screen) is right.
+    position: Platform.OS === 'web' ? ('fixed' as 'absolute') : 'absolute',
     right: 20,
     width: 56,
     height: 56,

@@ -5,24 +5,17 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useCallback, useEffect, useState } from 'react';
 import {
   ActivityIndicator,
-  KeyboardAvoidingView,
   Linking,
-  Platform,
   Pressable,
-  ScrollView,
   StyleSheet,
   Text,
   TextInput,
   View,
 } from 'react-native';
+import { KeyboardAwareScrollView } from 'react-native-keyboard-controller';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { BreedPicker } from '@/components/BreedPicker';
-import {
-  CareNeeds,
-  PetCareNeedsFields,
-  careNeedsValid,
-} from '@/components/PetCareNeedsFields';
 import { PetIdEmergencyFields, PetIdentity } from '@/components/PetIdEmergencyFields';
 import { Colors } from '@/constants/theme';
 import { useAuth } from '@/services/auth-context';
@@ -31,6 +24,7 @@ import { deleteStorageFile, getSignedUrl, uploadPetDocument, uploadPetPhoto } fr
 import type { Pet, PetDocument, PetDocumentType } from '@/types';
 import { confirmAsync, notify } from '@/utils/confirm';
 import { formatDateInputAsTyped, formatIsoDateAsMonthDayYear, parseMonthDayYear } from '@/utils/date';
+import { sanitizeDecimalInput } from '@/utils/number';
 import { formatPhoneForDisplay } from '@/utils/phone';
 
 const PET_SPECIES: Pet['species'][] = ['dog', 'cat', 'other'];
@@ -61,12 +55,6 @@ export default function PetDetailScreen() {
   const [otherBreed, setOtherBreed] = useState('');
   const [color, setColor] = useState('');
   const [weight, setWeight] = useState('');
-  const [careNeeds, setCareNeeds] = useState<CareNeeds>({
-    isAnxious: false,
-    isMatted: false,
-    needsExtraCare: false,
-    careNotes: '',
-  });
   const [identity, setIdentity] = useState<PetIdentity>({
     isMicrochipped: false,
     microchipNumber: '',
@@ -85,7 +73,7 @@ export default function PetDetailScreen() {
       supabase
         .from('pets')
         .select(
-          'id, owner_id, name, species, breed, color, weight_lbs, photo_path, is_anxious, is_matted, needs_extra_care, care_notes, is_microchipped, microchip_number, vet_name, vet_phone'
+          'id, owner_id, name, species, breed, color, weight_lbs, photo_path, is_microchipped, microchip_number, vet_name, vet_phone'
         )
         .eq('id', id)
         .single(),
@@ -112,10 +100,6 @@ export default function PetDetailScreen() {
       color: petRow.color ?? undefined,
       weightLbs: petRow.weight_lbs ?? undefined,
       photoPath: petRow.photo_path ?? undefined,
-      isAnxious: petRow.is_anxious ?? false,
-      isMatted: petRow.is_matted ?? false,
-      needsExtraCare: petRow.needs_extra_care ?? false,
-      careNotes: petRow.care_notes ?? undefined,
       isMicrochipped: petRow.is_microchipped ?? false,
       microchipNumber: petRow.microchip_number ?? undefined,
       vetName: petRow.vet_name ?? undefined,
@@ -129,12 +113,6 @@ export default function PetDetailScreen() {
     setOtherBreed(isDogRow ? '' : petRow.breed ?? '');
     setColor(petRow.color ?? '');
     setWeight(petRow.weight_lbs != null ? String(petRow.weight_lbs) : '');
-    setCareNeeds({
-      isAnxious: petRow.is_anxious ?? false,
-      isMatted: petRow.is_matted ?? false,
-      needsExtraCare: petRow.needs_extra_care ?? false,
-      careNotes: petRow.care_notes ?? '',
-    });
     setIdentity({
       isMicrochipped: petRow.is_microchipped ?? false,
       microchipNumber: petRow.microchip_number ?? '',
@@ -301,9 +279,7 @@ export default function PetDetailScreen() {
   const isValidWeight = weight.trim().length > 0 && Number.isFinite(weightValue) && weightValue > 0;
 
   const canSaveDetails =
-    name.trim().length > 0 &&
-    careNeedsValid(careNeeds) &&
-    (!isDog || (dogBreed.length > 0 && color.trim().length > 0 && isValidWeight));
+    name.trim().length > 0 && (!isDog || (dogBreed.length > 0 && color.trim().length > 0 && isValidWeight));
 
   async function handleSaveDetails() {
     if (!pet || !canSaveDetails) return;
@@ -317,10 +293,6 @@ export default function PetDetailScreen() {
           breed: isDog ? dogBreed : otherBreed.trim() || null,
           color: isDog ? color.trim() : null,
           weight_lbs: isDog ? weightValue : null,
-          is_anxious: careNeeds.isAnxious,
-          is_matted: careNeeds.isMatted,
-          needs_extra_care: careNeeds.needsExtraCare,
-          care_notes: careNeeds.careNotes.trim() || null,
           is_microchipped: identity.isMicrochipped,
           microchip_number: identity.isMicrochipped ? identity.microchipNumber.trim() || null : null,
           vet_name: identity.vetName.trim() || null,
@@ -355,8 +327,12 @@ export default function PetDetailScreen() {
 
   return (
     <SafeAreaView style={styles.container} edges={['bottom']}>
-      <KeyboardAvoidingView style={styles.flex} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-        <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
+      <KeyboardAwareScrollView
+        style={styles.flex}
+        bottomOffset={24}
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={styles.content}
+        keyboardShouldPersistTaps="handled">
         <Pressable style={styles.photoWrapper} onPress={handleChangePhoto} disabled={uploadingPhoto}>
           {photoUrl ? (
             <Image source={{ uri: photoUrl }} style={styles.photo} contentFit="cover" />
@@ -403,23 +379,25 @@ export default function PetDetailScreen() {
 
         {isDog ? (
           <>
+            <Text style={styles.label}>Breed</Text>
             <BreedPicker value={dogBreed} onChange={setDogBreed} />
+            <Text style={styles.label}>Color</Text>
             <TextInput
               style={styles.input}
-              placeholder="Color"
+              placeholder="e.g. Golden"
               placeholderTextColor={Colors.light.textMuted}
               value={color}
               onChangeText={setColor}
             />
+            <Text style={styles.label}>Weight (lbs)</Text>
             <TextInput
               style={styles.input}
-              placeholder="Weight (lbs)"
+              placeholder="e.g. 45"
               placeholderTextColor={Colors.light.textMuted}
               keyboardType="decimal-pad"
               value={weight}
-              onChangeText={setWeight}
+              onChangeText={(text) => setWeight(sanitizeDecimalInput(text))}
             />
-            <PetCareNeedsFields value={careNeeds} onChange={setCareNeeds} />
             <PetIdEmergencyFields value={identity} onChange={setIdentity} />
           </>
         ) : (
@@ -437,7 +415,7 @@ export default function PetDetailScreen() {
           onPress={handleSaveDetails}
           disabled={!canSaveDetails || savingDetails}>
           {savingDetails ? (
-            <ActivityIndicator color="#fff" />
+            <ActivityIndicator color={Colors.light.text} />
           ) : (
             <Text style={styles.saveDetailsButtonText}>Save changes</Text>
           )}
@@ -521,7 +499,7 @@ export default function PetDetailScreen() {
                 onPress={handleSaveDocument}
                 disabled={!documentLabel.trim() || uploadingDoc}>
                 {uploadingDoc ? (
-                  <ActivityIndicator color="#fff" />
+                  <ActivityIndicator color={Colors.light.text} />
                 ) : (
                   <Text style={styles.saveDocButtonText}>Save document</Text>
                 )}
@@ -537,8 +515,7 @@ export default function PetDetailScreen() {
         <Pressable style={styles.deletePetButton} onPress={confirmDeletePet}>
           <Text style={styles.deletePetText}>Delete pet</Text>
         </Pressable>
-        </ScrollView>
-      </KeyboardAvoidingView>
+      </KeyboardAwareScrollView>
     </SafeAreaView>
   );
 }
@@ -680,6 +657,12 @@ const styles = StyleSheet.create({
     borderColor: Colors.light.border,
     gap: 10,
   },
+  label: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: Colors.light.textMuted,
+    marginBottom: 6,
+  },
   input: {
     height: 46,
     borderRadius: 8,
@@ -717,7 +700,7 @@ const styles = StyleSheet.create({
     marginTop: 4,
   },
   saveDetailsButtonText: {
-    color: '#fff',
+    color: Colors.light.text,
     fontSize: 16,
     fontWeight: '600',
   },
@@ -742,7 +725,7 @@ const styles = StyleSheet.create({
     borderColor: Colors.light.tint,
   },
   chipTextSelected: {
-    color: '#fff',
+    color: Colors.light.text,
   },
   formActions: {
     flexDirection: 'row',
@@ -769,7 +752,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   saveDocButtonText: {
-    color: '#fff',
+    color: Colors.light.text,
     fontSize: 14,
     fontWeight: '600',
   },

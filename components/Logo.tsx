@@ -18,8 +18,11 @@ type Props = {
 // come from the approved logo exploration (2026-07-27).
 export function Logo({ size = 40, tile = true, color = Colors.light.tint, style }: Props) {
   const markBox = tile ? size * 0.6 : size;
-  const markColor = tile ? Colors.light.background : color;
-  const checkColor = tile ? Colors.light.tint : Colors.light.background;
+  // The mark needs to contrast against the sage tile behind it (when
+  // tiled) - `text` (dark ink) does that; `background` used to be dark too
+  // (the old all-dark theme) but is now light and would nearly disappear.
+  const markColor = tile ? Colors.light.text : color;
+  const checkColor = tile ? Colors.light.tint : Colors.light.text;
 
   const mark = (
     <Svg width={markBox} height={markBox} viewBox="0 0 100 100">

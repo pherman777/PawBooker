@@ -1,0 +1,120 @@
+/* Shared design tokens + base styles across every page on paw-booker.com.
+   Keeps support/privacy/upgrade/delete-account visually in sync with the
+   homepage instead of drifting on their own copy-pasted styles. */
+:root {
+  --ground: #141814;
+  --surface: #1E241F;
+  --surface-2: #232A24;
+  --border: #333B32;
+  --ink: #ECEFE6;
+  --muted: #A0A897;
+  --sage: #8FB894;
+  --sage-deep: #A9CBAD;
+  --clay: #D08E7B;
+  --clay-deep: #DCA091;
+  --band: #1A201B;
+  --shadow: 0 1px 2px rgba(0,0,0,.4), 0 16px 40px -16px rgba(0,0,0,.6);
+  --serif: 'Iowan Old Style', 'Palatino Linotype', Palatino, 'Book Antiqua', Georgia, serif;
+  --sans: -apple-system, BlinkMacSystemFont, system-ui, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+}
+* { box-sizing: border-box; }
+html { -webkit-text-size-adjust: 100%; scroll-behavior: smooth; }
+body {
+  margin: 0;
+  font-family: var(--sans);
+  background: var(--ground);
+  color: var(--ink);
+  line-height: 1.6;
+  -webkit-font-smoothing: antialiased;
+}
+.wrap { width: 100%; max-width: 1080px; margin: 0 auto; padding: 0 24px; }
+a { color: var(--sage-deep); }
+
+h1, h2, h3 { font-family: var(--serif); font-weight: 600; color: var(--ink); text-wrap: balance; margin: 0; }
+.eyebrow {
+  font-size: 12px; font-weight: 700; letter-spacing: .14em; text-transform: uppercase;
+  color: var(--sage); margin: 0 0 14px;
+}
+
+/* Buttons */
+.btn {
+  display: inline-flex; align-items: center; gap: 8px; justify-content: center;
+  font-family: var(--sans); font-weight: 650; font-size: 16px; text-decoration: none;
+  padding: 13px 22px; border-radius: 12px; border: 1px solid transparent; cursor: pointer;
+  transition: transform .12s ease, background .12s ease, border-color .12s ease, color .12s ease;
+}
+.btn:active { transform: translateY(1px); }
+.btn-primary { background: var(--sage); color: #121611; }
+.btn-primary:hover { background: #A3CBA7; }
+.btn-ghost { background: transparent; color: var(--ink); border-color: var(--border); }
+.btn-ghost:hover { border-color: var(--sage); color: var(--sage); }
+.btn-clay { background: var(--clay); color: #1B120E; }
+.btn-clay:hover { background: var(--clay-deep); }
+.btn-sm { padding: 9px 16px; font-size: 15px; border-radius: 10px; }
+
+/* Nav */
+header.nav {
+  position: sticky; top: 0; z-index: 20;
+  background: rgba(20, 24, 20, 0.82);
+  backdrop-filter: saturate(1.4) blur(10px);
+  -webkit-backdrop-filter: saturate(1.4) blur(10px);
+  border-bottom: 1px solid var(--border);
+}
+.nav-inner { display: flex; align-items: center; justify-content: space-between; height: 66px; }
+.brand { display: flex; align-items: center; gap: 10px; font-weight: 700; font-size: 18px; letter-spacing: -.01em; color: var(--ink); text-decoration: none; }
+.brand img { width: 30px; height: 30px; border-radius: 8px; display: block; }
+.nav-links { display: flex; align-items: center; gap: 26px; }
+.nav-links a:not(.btn) { text-decoration: none; color: var(--muted); font-weight: 600; font-size: 15px; }
+.nav-links a:not(.btn):hover { color: var(--ink); }
+
+/* Inner-page layout (support, privacy, upgrade, delete-account) */
+.page { max-width: 680px; margin: 0 auto; padding: 56px 24px 80px; }
+.page h1 { font-size: clamp(28px, 4vw, 34px); margin-bottom: 10px; }
+.page .updated { font-size: 14px; color: var(--muted); margin-bottom: 24px; }
+.page > p.lede { color: var(--muted); font-size: 16.5px; margin: 0 0 8px; }
+.page h2 { font-size: 20px; margin: 36px 0 10px; }
+.page h3 { font-size: 16.5px; margin: 22px 0 6px; }
+.page p, .page li { font-size: 15.5px; line-height: 1.65; color: var(--muted); }
+.page ul, .page ol { padding-left: 20px; }
+.page table { width: 100%; border-collapse: collapse; margin: 12px 0 20px; font-size: 14px; }
+.page th, .page td { text-align: left; padding: 9px 10px; border-bottom: 1px solid var(--border); vertical-align: top; color: var(--muted); }
+.page th { color: var(--ink); font-weight: 600; }
+
+.card {
+  background: var(--surface-2); border: 1px solid var(--border); border-radius: 16px;
+  padding: 24px; box-shadow: var(--shadow); margin-top: 28px;
+}
+.card h2 { margin-top: 0; font-size: 17px; }
+.card ol, .card ul { margin: 0; }
+
+.notice {
+  background: rgba(208,142,123,0.14); border: 1px solid var(--border); border-radius: 12px;
+  padding: 16px 18px; font-size: 14px; line-height: 1.6; color: var(--muted); margin-bottom: 36px;
+}
+.notice strong { color: var(--clay-deep); }
+
+/* Forms */
+.page label { display: block; font-size: 13px; font-weight: 600; margin-bottom: 6px; color: var(--ink); }
+.page input[type="email"] {
+  width: 100%; box-sizing: border-box; font-size: 16px; padding: 12px 14px; border-radius: 10px;
+  border: 1px solid var(--border); background: var(--ground); color: var(--ink); font-family: inherit;
+}
+.page button[type="submit"] { margin-top: 16px; width: 100%; }
+.success-card {
+  background: var(--sage); color: #141814; border-radius: 16px; padding: 26px; margin-top: 28px;
+}
+.success-card h2 { margin: 0 0 8px; font-size: 18px; color: #141814; }
+.success-card p { margin: 0; color: rgba(20,24,20,.82); }
+
+/* Footer */
+footer.site-footer { border-top: 1px solid var(--border); padding: 40px 0; margin-top: 40px; }
+.foot-inner { display: flex; flex-wrap: wrap; gap: 22px; justify-content: space-between; align-items: center; }
+.foot-links { display: flex; flex-wrap: wrap; gap: 22px; }
+.foot-links a { color: var(--muted); text-decoration: none; font-size: 15px; font-weight: 600; }
+.foot-links a:hover { color: var(--sage); }
+.copy { color: var(--muted); font-size: 14px; }
+
+@media (max-width: 680px) {
+  .nav-links a:not(.btn) { display: none; }
+}
+@media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } }

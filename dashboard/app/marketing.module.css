@@ -1,0 +1,188 @@
+/* Shared across the marketing homepage + the four inner pages
+   (privacy/support/delete-account/upgrade). Reuses the app's global tokens
+   and several existing global classes (.eyebrow, .btn/.btn-primary/
+   .btn-secondary/.btn-ghost, .card) rather than duplicating them - only
+   what the dashboard doesn't already have lives here. */
+
+.wrap { width: 100%; max-width: 1080px; margin: 0 auto; padding: 0 24px; }
+
+/* Nav - dark chrome, same band as the dashboard's own top bar. */
+.nav {
+  position: sticky;
+  top: 0;
+  z-index: 20;
+  background: color-mix(in srgb, var(--band) 92%, transparent);
+  backdrop-filter: saturate(1.4) blur(10px);
+  border-bottom: 1px solid var(--band-border);
+}
+.navInner { display: flex; align-items: center; justify-content: space-between; height: 66px; }
+.brand { display: flex; align-items: center; gap: 10px; font-weight: 700; font-size: 18px; color: var(--band-ink); }
+.brand img { width: 28px; height: 28px; border-radius: 8px; display: block; }
+.navLinks { display: flex; align-items: center; gap: 26px; }
+.navLinks a:not([data-btn]) { color: var(--band-muted); font-weight: 600; font-size: 14.5px; }
+.navLinks a:not([data-btn]):hover { color: var(--band-ink); }
+@media (max-width: 680px) {
+  .navLinks a:not([data-btn]) { display: none; }
+}
+
+.ctaRow { display: flex; flex-wrap: wrap; gap: 14px; align-items: center; }
+
+/* Hero - real photo, dark scrim fading into the light page below. */
+.hero { position: relative; overflow: hidden; min-height: 600px; display: flex; align-items: center; }
+.heroPhoto { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; object-position: 50% 25%; }
+.heroScrim {
+  position: absolute; inset: 0;
+  background:
+    linear-gradient(90deg, rgba(36,40,31,.95) 0%, rgba(36,40,31,.74) 42%, rgba(36,40,31,.25) 78%, rgba(36,40,31,.1) 100%),
+    linear-gradient(0deg, var(--ground) 0%, rgba(234,231,219,0) 24%);
+}
+.heroInner { position: relative; padding: 100px 0 90px; max-width: 600px; }
+.heroInner h1 { font-size: clamp(36px, 5.4vw, 52px); line-height: 1.08; letter-spacing: -0.015em; color: #fff; margin: 0; }
+.heroInner .eyebrow { color: var(--sage); }
+.lede { font-size: clamp(16px, 2.2vw, 18px); color: rgba(255,255,255,0.82); margin: 22px 0 28px; max-width: 30em; }
+.avail { margin-top: 20px; font-size: 14px; color: rgba(255,255,255,0.7); display: flex; align-items: center; gap: 8px; }
+
+/* Button fills marketing needs beyond the dashboard's own set: sage (for CTAs
+   on dark chrome - the dashboard has no sage-filled button since its own
+   .btn-primary is dark-filled for use on light content) and a ghost variant
+   readable on dark chrome. .btn-primary (dark-filled) and .btn-secondary
+   (clay-filled) are reused as-is from globals.css where they already fit -
+   .btn-primary specifically for the button sitting on the sage notify-band,
+   the one place a dark-on-light button is actually correct here. */
+.btnSage { background: var(--sage); color: #fff; }
+.btnGhostDark { background: transparent; color: #fff; border: 1px solid rgba(255,255,255,0.35); }
+.btnGhostBand { background: transparent; color: var(--band-ink); border: 1px solid var(--band-border); }
+
+.section { padding: 72px 0; }
+.secHead { max-width: 640px; margin-bottom: 40px; }
+.secHeadCenter { margin-left: auto; margin-right: auto; text-align: center; }
+.secHead h2 { font-size: clamp(28px, 4vw, 36px); line-height: 1.12; margin: 0; }
+.secHead p { color: var(--muted); font-size: 17px; margin: 14px 0 0; }
+
+/* min-width: 0 on grid items overrides the default `min-width: auto`, which
+   otherwise lets a card's own content (a long heading/paragraph) force its
+   column wider than its fair 1fr share - the three columns render unevenly
+   without it. */
+.grid3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; align-items: start; }
+.grid3 > * { min-width: 0; }
+.featureCard {
+  padding: 26px;
+}
+.featureCard .ic {
+  width: 44px; height: 44px; border-radius: 12px; display: flex; align-items: center; justify-content: center;
+  background: color-mix(in srgb, var(--sage) 16%, var(--surface)); margin-bottom: 16px; color: var(--sage);
+}
+.featureCard h3 { font-size: 19px; margin: 0 0 8px; }
+.featureCard p { margin: 0; color: var(--muted); font-size: 15px; line-height: 1.55; }
+
+.shots { display: grid; grid-template-columns: repeat(3, 1fr); gap: 24px; }
+.shots > * { min-width: 0; }
+.shot { background: var(--surface); border: 1px solid var(--border); border-radius: 20px; padding: 18px; text-align: center; box-shadow: var(--shadow); }
+.shot img { width: 100%; max-width: 190px; border-radius: 16px; display: block; margin: 0 auto 14px; box-shadow: 0 8px 20px -10px rgba(43,51,44,0.35); }
+.shot p { font-size: 14px; font-weight: 600; margin: 0; color: var(--ink); }
+
+/* Groomers band - dark chrome again on purpose: the "become a pro" moment
+   echoes the same dark band as the nav and the dashboard's own chrome. */
+.band { background: var(--band); }
+.bandInner { padding: 76px 0; }
+.bandGrid { display: grid; grid-template-columns: 1.1fr 0.9fr; gap: 48px; align-items: center; }
+.bandGrid h2 { font-size: clamp(28px, 4vw, 36px); line-height: 1.12; color: var(--band-ink); margin: 0; }
+.bandGrid .pitch { color: var(--band-muted); font-size: 16.5px; margin: 16px 0 26px; }
+.eyebrowClay { color: var(--clay) !important; }
+.upgradeExisting { margin: 18px 0 0; font-size: 14px; color: var(--band-muted); }
+.upgradeExisting a { color: var(--band-ink); font-weight: 600; }
+@media (max-width: 900px) {
+  .bandGrid { grid-template-columns: 1fr; gap: 32px; }
+}
+
+.priceCard { background: var(--surface); border: 1px solid var(--border); border-radius: 18px; padding: 30px; box-shadow: var(--shadow); }
+.tier { font-weight: 700; letter-spacing: 0.02em; color: var(--clay); font-size: 13px; text-transform: uppercase; }
+.price { display: flex; align-items: baseline; gap: 6px; margin: 10px 0 4px; }
+.price .amt { font-family: var(--serif); font-size: 42px; font-weight: 600; color: var(--ink); }
+.price .per { color: var(--muted); font-size: 15px; }
+.priceDesc { margin: 0; color: var(--muted); font-size: 14px; }
+.feat { list-style: none; padding: 0; margin: 22px 0 24px; display: flex; flex-direction: column; gap: 12px; }
+.feat li { display: flex; gap: 10px; align-items: flex-start; font-size: 14.5px; }
+.feat svg { flex: none; color: var(--sage); margin-top: 2px; }
+.freeNote { font-size: 13px; color: var(--muted-2); text-align: center; margin: 12px 0 0; }
+
+.steps { display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; }
+.steps > * { min-width: 0; }
+.step .num {
+  font-family: var(--serif); font-size: 15px; font-weight: 700; color: var(--sage);
+  width: 34px; height: 34px; border-radius: 50%; border: 1.5px solid var(--sage);
+  display: flex; align-items: center; justify-content: center; margin-bottom: 16px;
+}
+.step h3 { font-size: 18px; margin: 0 0 6px; }
+.step p { margin: 0; color: var(--muted); font-size: 15px; }
+
+.notifyBand { background: var(--sage); border-radius: 22px; padding: 52px 40px; text-align: center; }
+.notifyBand h2 { color: #fff; font-size: clamp(24px, 3.4vw, 30px); margin: 0; }
+.notifyBand p { margin: 12px auto 26px; color: rgba(255,255,255,0.88); font-size: 16.5px; max-width: 32em; }
+
+@media (max-width: 680px) {
+  .grid3, .steps, .shots { grid-template-columns: 1fr; }
+  .section { padding: 56px 0; }
+  .hero { min-height: 560px; }
+}
+
+/* Invite banner - shown when arriving via ?invite=CODE. */
+.inviteBanner { background: var(--sage); color: #fff; }
+.inviteBannerInner { display: flex; align-items: center; gap: 16px; padding: 10px 24px; font-size: 14px; line-height: 1.4; }
+.inviteBannerInner p { margin: 0; flex: 1; }
+.inviteBannerClose { background: none; border: none; color: #fff; font-size: 22px; line-height: 1; cursor: pointer; padding: 4px; opacity: 0.8; }
+.inviteBannerClose:hover { opacity: 1; }
+
+/* Notify modal */
+.modalOverlay { position: fixed; inset: 0; background: rgba(0,0,0,0.55); display: flex; align-items: center; justify-content: center; padding: 24px; z-index: 40; }
+.modal { background: var(--surface); border: 1px solid var(--border); border-radius: 18px; padding: 30px; max-width: 400px; width: 100%; box-shadow: var(--shadow); }
+.modal h3 { font-size: 22px; margin: 0 0 8px; }
+.modal p { margin: 0 0 20px; color: var(--muted); font-size: 15px; line-height: 1.55; }
+.modal label { display: block; font-size: 13px; font-weight: 600; margin-bottom: 6px; }
+.modal input[type="email"] {
+  width: 100%; font-size: 16px; padding: 12px 14px; border-radius: 10px; box-sizing: border-box;
+  border: 1px solid var(--border); background: var(--ground); margin-bottom: 14px; font-family: inherit; color: var(--ink);
+}
+.checkboxRow { display: flex; align-items: center; font-size: 14px; margin-bottom: 18px; cursor: pointer; }
+.checkboxRow input[type="checkbox"] { width: 16px; height: 16px; margin: 0 10px 0 0; flex-shrink: 0; accent-color: var(--sage); }
+.modalActions { display: flex; gap: 10px; }
+.modalActions button { flex: 1; }
+.modalError { color: var(--danger); font-size: 13px; margin: -8px 0 14px; }
+
+/* Inner pages (privacy/support/delete-account/upgrade) */
+.page { max-width: 680px; margin: 0 auto; padding: 56px 24px 80px; }
+.page h1 { font-size: clamp(28px, 4vw, 34px); margin: 0 0 10px; }
+.updated { font-size: 14px; color: var(--muted); margin-bottom: 24px; }
+.pageLede { color: var(--muted); font-size: 16.5px; margin: 0 0 8px; }
+.page h2 { font-size: 20px; margin: 36px 0 10px; }
+.page h3 { font-size: 16.5px; margin: 22px 0 6px; }
+.page p, .page li { font-size: 15.5px; line-height: 1.65; color: var(--muted); }
+.page ul, .page ol { padding-left: 20px; }
+.page table { width: 100%; border-collapse: collapse; margin: 12px 0 20px; font-size: 14px; }
+.page th, .page td { text-align: left; padding: 9px 10px; border-bottom: 1px solid var(--border); vertical-align: top; color: var(--muted); }
+.page th { color: var(--ink); font-weight: 600; }
+.page .card { padding: 24px; margin-top: 28px; }
+.page .card h2 { margin-top: 0; font-size: 17px; }
+.page label { display: block; font-size: 13px; font-weight: 600; margin-bottom: 6px; }
+.page input[type="email"] {
+  width: 100%; box-sizing: border-box; font-size: 16px; padding: 12px 14px; border-radius: 10px;
+  border: 1px solid var(--border); background: var(--ground); color: var(--ink); font-family: inherit; margin-bottom: 14px;
+}
+
+.notice {
+  background: color-mix(in srgb, var(--clay) 14%, var(--surface)); border: 1px solid var(--border); border-radius: 12px;
+  padding: 16px 18px; font-size: 14px; line-height: 1.6; color: var(--muted); margin-bottom: 36px;
+}
+.notice strong { color: var(--clay); }
+
+.successCard { background: var(--sage); color: #fff; border-radius: 16px; padding: 26px; margin-top: 28px; }
+.successCard h2 { margin: 0 0 8px; font-size: 18px; color: #fff; }
+.successCard p { margin: 0; color: rgba(255,255,255,0.9); }
+
+/* Footer */
+.siteFooter { border-top: 1px solid var(--border); padding: 40px 0; margin-top: 40px; }
+.footInner { display: flex; flex-wrap: wrap; gap: 22px; justify-content: space-between; align-items: center; }
+.footLinks { display: flex; flex-wrap: wrap; gap: 22px; }
+.footLinks a { color: var(--muted); font-size: 15px; font-weight: 600; }
+.footLinks a:hover { color: var(--sage); }
+.copy { color: var(--muted-2); font-size: 14px; }
