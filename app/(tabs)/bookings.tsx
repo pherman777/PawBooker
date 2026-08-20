@@ -17,6 +17,7 @@ import { submitReport } from '@/services/support';
 import { chargeTip } from '@/services/stripe';
 import { supabase } from '@/services/supabase';
 import type { BookingStatus, PaymentStatus } from '@/types';
+import { addBookingToCalendar } from '@/utils/deviceCalendar';
 import { notify } from '@/utils/confirm';
 
 const REPORT_REASONS = [
@@ -41,9 +42,11 @@ type BookingRow = {
   startsAt: string;
   status: BookingStatus;
   groomerName: string;
+  groomerAddress?: string;
   groomerLatitude?: number;
   groomerLongitude?: number;
   serviceName: string;
+  serviceDurationMinutes: number;
   petName: string;
   cancellationReason?: string;
   review?: BookingReview;
@@ -133,7 +136,7 @@ export default function BookingsScreen() {
       supabase
         .from('bookings')
         .select(
-          'id, group_id, groomer_id, service_id, pet_id, starts_at, status, payment_status, cancellation_reason, invoice_total_cents, tax_amount_cents, tip_amount_cents, groomers(name, latitude, longitude), groomer_services(name), pets(name)'
+          'id, group_id, groomer_id, service_id, pet_id, starts_at, status, payment_status, cancellation_reason, invoice_total_cents, tax_amount_cents, tip_amount_cents, groomers(name, address, latitude, longitude), groomer_services(name, duration_minutes), pets(name)'
         )
         .eq('customer_id', session.user.id)
         .order('starts_at', { ascending: false }),
@@ -160,11 +163,13 @@ export default function BookingsScreen() {
           groomerName:
             (row.groomers as unknown as { name: string; latitude: number | null; longitude: number | null })
               ?.name ?? 'Unknown groomer',
+          groomerAddress: (row.groomers as unknown as { address: string | null } | null)?.address ?? undefined,
           groomerLatitude:
             (row.groomers as unknown as { latitude: number | null } | null)?.latitude ?? undefined,
           groomerLongitude:
             (row.groomers as unknown as { longitude: number | null } | null)?.longitude ?? undefined,
           serviceName: (row.groomer_services as unknown as { name: string })?.name ?? 'Service',
+          serviceDurationMinutes: (row.groomer_services as unknown as { duration_minutes: number | null })?.duration_minutes ?? 60,
           petName: (row.pets as unknown as { name: string })?.name ?? 'Pet',
           review: reviewsByBooking.get(row.id),
           invoiceTotalCents: row.invoice_total_cents ?? undefined,
@@ -185,6 +190,25 @@ export default function BookingsScreen() {
   );
 
   const entries = useMemo(() => groupEntries(bookings), [bookings]);
+
+  async function handleAddToCalendar(row: BookingRow, petLabel: string) {
+    const result = await addBookingToCalendar({
+      title: `${row.serviceName} - ${petLabel} at ${row.groomerName}`,
+      startDate: new Date(row.startsAt),
+      durationMinutes: row.serviceDurationMinutes,
+      location: row.groomerAddress,
+    });
+
+    if (result.status === 'added') {
+      notify('Added to calendar', 'Your appointment has been added to your calendar.');
+    } else if (result.status === 'permission_denied') {
+      notify('Calendar access needed', 'Allow calendar access in Settings to add appointments.');
+    } else if (result.status === 'no_calendar') {
+      notify('No calendar found', "We couldn't find a calendar on your device to add this to.");
+    } else {
+      notify('Could not add to calendar', result.message);
+    }
+  }
 
   async function handleConfirmCancel(reason: string) {
     if (!cancelTarget) return;
@@ -359,6 +383,12 @@ export default function BookingsScreen() {
             </View>
           )}
 
+        {(status === 'pending' || status === 'confirmed') && (
+          <Pressable onPress={() => handleAddToCalendar(lead, petNames)}>
+            <Text style={styles.addToCalendarText}>+ Add to calendar</Text>
+          </Pressable>
+        )}
+
         {cancellable && (
           <Pressable
             style={styles.cancelButton}
@@ -499,6 +529,12 @@ export default function BookingsScreen() {
                     />
                   </View>
                 )}
+
+              {(item.status === 'pending' || item.status === 'confirmed') && (
+                <Pressable onPress={() => handleAddToCalendar(item, item.petName)}>
+                  <Text style={styles.addToCalendarText}>+ Add to calendar</Text>
+                </Pressable>
+              )}
 
               {(item.status === 'pending' || item.status === 'confirmed') && (
                 <Pressable
@@ -742,6 +778,12 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: Colors.light.tint,
     textDecorationLine: 'underline',
+  },
+  addToCalendarText: {
+    marginTop: 10,
+    fontSize: 13,
+    fontWeight: '600',
+    color: Colors.light.tint,
   },
   cancelButton: {
     marginTop: 12,

@@ -42,6 +42,12 @@ export function ChatView({ messages, ownSenderTypes, value, onChangeValue, onSen
 
     const showSub = Keyboard.addListener(showEvent, (e) => {
       setKeyboardHeight(e.endCoordinates.height);
+      // The keyboard opening pushes this whole view up (paddingBottom below)
+      // without changing the FlatList's own scroll offset, so the last
+      // message - previously flush with the bottom - ends up hidden behind
+      // the keyboard until the user manually scrolls. Re-scroll to end once
+      // the keyboard has actually finished animating in.
+      setTimeout(() => listRef.current?.scrollToEnd({ animated: true }), Platform.OS === 'ios' ? 0 : 100);
     });
     const hideSub = Keyboard.addListener(hideEvent, () => {
       setKeyboardHeight(0);

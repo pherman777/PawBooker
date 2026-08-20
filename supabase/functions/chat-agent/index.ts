@@ -297,6 +297,8 @@ Deno.serve(async (req) => {
     let eligiblePets: { id: string; name: string; species: string; eligible: boolean }[] = [];
     let salonBusy: BusyInterval[] = [];
     let salonCapacity = 1;
+    let customerEmail: string | null = null;
+    let customerName: string | null = null;
 
     if (isAppSupport) {
       toolsForThread = APP_SUPPORT_TOOLS;
@@ -349,7 +351,7 @@ Rules:
         .map((s) => `${s.name} ($${(s.price_cents / 100).toFixed(0)}, ${s.duration_minutes} min)`)
         .join(', ');
 
-      const [petsResult, busyResult, staffResult] = await Promise.all([
+      const [petsResult, busyResult, staffResult, customerAuthResult, customerProfileResult] = await Promise.all([
         supabase
           .from('pets')
           .select('id, name, species, pet_documents(document_type, expires_at)')
@@ -360,7 +362,15 @@ Rules:
           p_to: new Date(now.getTime() + 14 * 24 * 60 * 60 * 1000).toISOString(),
         }),
         supabase.from('salon_staff').select('id').eq('salon_id', thread.groomer_id).eq('active', true),
+        // Same pattern as create-manual-booking - needed so an AI-created
+        // booking shows the customer's real name/email everywhere the app
+        // already displays it (bookings list, groomer dashboard cards),
+        // instead of falling back to a blank "Customer" label.
+        serviceRoleClient.auth.admin.getUserById(thread.customer_id),
+        supabase.from('profiles').select('name').eq('user_id', thread.customer_id).maybeSingle(),
       ]);
+      customerEmail = customerAuthResult.data?.user?.email ?? null;
+      customerName = customerProfileResult.data?.name ?? null;
 
       const todayIso = now.toISOString().slice(0, 10);
       eligiblePets = (petsResult.data ?? []).map((p) => ({
@@ -527,6 +537,8 @@ Rules:
           .from('bookings')
           .insert({
             customer_id: thread.customer_id,
+            customer_email: customerEmail,
+            customer_name: customerName,
             groomer_id: thread.groomer_id,
             pet_id: pet.id,
             service_id: service.id,

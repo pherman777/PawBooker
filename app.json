@@ -62,6 +62,12 @@
         }
       ],
       [
+        "expo-calendar",
+        {
+          "calendarPermission": "Allow PawBooker to add your grooming appointments to your calendar."
+        }
+      ],
+      [
         "expo-splash-screen",
         {
           "backgroundColor": "#141814",
