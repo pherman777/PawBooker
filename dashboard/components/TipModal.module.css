@@ -1,0 +1,41 @@
+.presetRow {
+  display: flex;
+  gap: 8px;
+  margin: 16px 0;
+}
+.presetChip {
+  flex: 1;
+  padding: 12px 4px;
+  border-radius: 10px;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  text-align: center;
+  cursor: pointer;
+}
+.presetChipSelected {
+  background: var(--sage);
+  border-color: var(--sage);
+  color: #fff;
+}
+.presetChipPct {
+  font-size: 15px;
+  font-weight: 700;
+}
+.presetChipAmount {
+  margin-top: 2px;
+  font-size: 12px;
+  color: var(--muted);
+}
+.presetChipSelected .presetChipAmount {
+  color: #fff;
+}
+.customRow {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin-bottom: 4px;
+}
+.dollarSign {
+  font-size: 18px;
+  font-weight: 600;
+}
