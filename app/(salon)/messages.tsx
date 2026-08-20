@@ -55,7 +55,7 @@ export default function SalonMessagesScreen() {
         .order('created_at', { ascending: false }),
       supabase
         .from('bookings')
-        .select('customer_id, customer_email')
+        .select('customer_id, customer_email, customer_name')
         .in('customer_id', customerIds)
         .eq('groomer_id', groomerProfile.id),
     ]);
@@ -67,10 +67,10 @@ export default function SalonMessagesScreen() {
       }
     }
 
-    const emailByCustomer = new Map<string, string>();
+    const labelByCustomer = new Map<string, string>();
     for (const b of bookingsResult.data ?? []) {
-      if (b.customer_email && !emailByCustomer.has(b.customer_id)) {
-        emailByCustomer.set(b.customer_id, b.customer_email);
+      if (!labelByCustomer.has(b.customer_id) && (b.customer_name || b.customer_email)) {
+        labelByCustomer.set(b.customer_id, b.customer_name || b.customer_email);
       }
     }
 
@@ -84,7 +84,7 @@ export default function SalonMessagesScreen() {
         );
         return {
           id: t.id,
-          customerLabel: emailByCustomer.get(t.customer_id) ?? 'Customer',
+          customerLabel: labelByCustomer.get(t.customer_id) ?? 'Customer',
           needsHuman: t.needs_human,
           lastMessage: last?.body,
           lastMessageAt: last?.createdAt,

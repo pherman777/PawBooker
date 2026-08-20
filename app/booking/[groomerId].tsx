@@ -82,6 +82,7 @@ export default function BookingScreen() {
   const [pets, setPets] = useState<Pet[]>([]);
   const [eligiblePetIds, setEligiblePetIds] = useState<Set<string>>(new Set());
   const [hasPaymentMethod, setHasPaymentMethod] = useState(false);
+  const [customerName, setCustomerName] = useState<string | undefined>(undefined);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
 
@@ -162,7 +163,7 @@ export default function BookingScreen() {
       const windowEnd = new Date(windowStart);
       windowEnd.setDate(windowEnd.getDate() + DAYS_AHEAD);
 
-      const [serviceResult, allServicesResult, petsResult, billingResult, hoursResult, staffResult, busyResult] =
+      const [serviceResult, allServicesResult, petsResult, billingResult, hoursResult, staffResult, busyResult, profileResult] =
         await Promise.all([
           supabase
             .from('groomer_services')
@@ -185,6 +186,7 @@ export default function BookingScreen() {
             .single(),
           fetchActiveStaff(groomerId),
           fetchBusyIntervals(groomerId, windowStart, windowEnd),
+          supabase.from('profiles').select('name').eq('user_id', session.user.id).maybeSingle(),
         ]);
 
       if (!cancelled) {
@@ -194,6 +196,7 @@ export default function BookingScreen() {
         setRequiresVaccination(hoursResult.data?.requires_rabies_vaccination ?? true);
         setStaff(staffResult);
         setBusy(busyResult);
+        setCustomerName(profileResult.data?.name ?? undefined);
       }
 
       if (cancelled) return;
@@ -323,6 +326,7 @@ export default function BookingScreen() {
         .insert({
           customer_id: session.user.id,
           customer_email: session.user.email,
+          customer_name: customerName,
           groomer_id: groomerId,
           pet_id: petIds[0],
           service_id: petService.id,
@@ -360,6 +364,7 @@ export default function BookingScreen() {
       const { bookingIds } = await createGroupBooking({
         customerId: session.user.id,
         customerEmail: session.user.email,
+        customerName,
         groomerId,
         staffId,
         petIds,

@@ -64,10 +64,12 @@ const TOOLS = [
   {
     name: 'find_customer',
     description:
-      "Look up a customer by their pet's name or email address. Returns their booking count, last visit, and total amount spent at this salon.",
+      "Look up a customer by their own name, their pet's name, or their email address. Returns their booking count, last visit, and total amount spent at this salon.",
     input_schema: {
       type: 'object',
-      properties: { query: { type: 'string', description: "Pet name or email (or part of one) to search for" } },
+      properties: {
+        query: { type: 'string', description: "Customer name, pet name, or email (or part of one) to search for" },
+      },
       required: ['query'],
     },
   },
@@ -360,12 +362,15 @@ Deno.serve(async (req) => {
 
         const { data: bookingRows } = await supabase
           .from('bookings')
-          .select('customer_id, customer_email, starts_at, pets(name), groomer_services(name)')
+          .select('customer_id, customer_email, customer_name, starts_at, pets(name), groomer_services(name)')
           .eq('groomer_id', groomer.id)
           .in('status', ['confirmed', 'completed'])
           .order('starts_at', { ascending: false });
 
-        const latestByCustomer = new Map<string, { petName: string; serviceName: string; lastBookingAt: string; email: string }>();
+        const latestByCustomer = new Map<
+          string,
+          { petName: string; serviceName: string; lastBookingAt: string; email: string; name: string | null }
+        >();
         for (const row of bookingRows ?? []) {
           if (latestByCustomer.has(row.customer_id)) continue;
           latestByCustomer.set(row.customer_id, {
@@ -373,6 +378,7 @@ Deno.serve(async (req) => {
             serviceName: (row.groomer_services as unknown as { name: string })?.name ?? 'grooming',
             lastBookingAt: row.starts_at,
             email: row.customer_email,
+            name: row.customer_name,
           });
         }
 
@@ -381,6 +387,7 @@ Deno.serve(async (req) => {
           lapseThresholdDays: days,
           count: lapsed.length,
           customers: lapsed.slice(0, 25).map((c) => ({
+            name: c.name ?? undefined,
             pet: c.petName,
             email: c.email,
             lastService: c.serviceName,
@@ -437,13 +444,14 @@ Deno.serve(async (req) => {
 
         const { data: bookingRows } = await supabase
           .from('bookings')
-          .select('customer_id, customer_email, starts_at, status, invoice_total_cents, tax_amount_cents, pets(name)')
+          .select('customer_id, customer_email, customer_name, starts_at, status, invoice_total_cents, tax_amount_cents, pets(name)')
           .eq('groomer_id', groomer.id);
 
         const matches = (bookingRows ?? []).filter((b) => {
           const petName = ((b.pets as unknown as { name: string })?.name ?? '').toLowerCase();
           const email = (b.customer_email ?? '').toLowerCase();
-          return petName.includes(query) || email.includes(query);
+          const customerName = (b.customer_name ?? '').toLowerCase();
+          return petName.includes(query) || email.includes(query) || customerName.includes(query);
         });
 
         if (matches.length === 0) return { found: false };
@@ -460,6 +468,7 @@ Deno.serve(async (req) => {
           const totalSpentCents = completed.reduce((sum, b) => sum + (b.invoice_total_cents ?? 0) - (b.tax_amount_cents ?? 0), 0);
           const sorted = [...bookings].sort((a, b) => new Date(b.starts_at).getTime() - new Date(a.starts_at).getTime());
           return {
+            name: sorted[0]?.customer_name ?? undefined,
             email: sorted[0]?.customer_email,
             pet: (sorted[0]?.pets as unknown as { name: string })?.name,
             totalBookings: bookings.length,

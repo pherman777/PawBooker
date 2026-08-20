@@ -20,6 +20,7 @@ import { Colors } from '@/constants/theme';
 import { supabase } from '@/services/supabase';
 
 export default function SignUpScreen() {
+  const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
@@ -36,6 +37,11 @@ export default function SignUpScreen() {
       setError(signUpError.message);
     } else if (!data.session) {
       setConfirmationSent(true);
+    } else if (name.trim()) {
+      // Only savable right now if sign-up returned a session immediately
+      // (no email confirmation required) - otherwise the name can still be
+      // added later from Account, same fallback as phone.
+      await supabase.from('profiles').upsert({ user_id: data.session.user.id, name: name.trim() });
     }
     setLoading(false);
   }
@@ -75,6 +81,16 @@ export default function SignUpScreen() {
           <Text style={styles.title}>Create an account</Text>
           <Text style={styles.subtitle}>Book grooming appointments for your pets.</Text>
 
+          <TextInput
+            style={styles.input}
+            placeholder="Full name"
+            placeholderTextColor={Colors.light.textMuted}
+            autoCapitalize="words"
+            textContentType="name"
+            autoComplete="name"
+            value={name}
+            onChangeText={setName}
+          />
           <TextInput
             style={styles.input}
             placeholder="Email"

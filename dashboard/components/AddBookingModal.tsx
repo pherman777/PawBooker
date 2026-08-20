@@ -166,7 +166,7 @@ export function AddBookingModal({ visible, staffList, onDismiss, onCreated }: Pr
               <div className={styles.resultList}>
                 {results.map((r) => (
                   <button key={r.customerId} className={styles.resultRow} onClick={() => setCustomer(r)}>
-                    <span className={styles.resultEmail}>{r.email}</span>
+                    <span className={styles.resultEmail}>{r.name ? `${r.name} · ${r.email}` : r.email}</span>
                     <span className={styles.resultMeta}>
                       {r.pets.length === 0 ? 'No pets yet' : `${r.pets.length} pet${r.pets.length > 1 ? 's' : ''}`}
                     </span>
@@ -178,7 +178,7 @@ export function AddBookingModal({ visible, staffList, onDismiss, onCreated }: Pr
         ) : (
           <>
             <div className={styles.selectedRow}>
-              <span className={styles.resultEmail}>{customer.email}</span>
+              <span className={styles.resultEmail}>{customer.name ? `${customer.name} · ${customer.email}` : customer.email}</span>
               <button className={styles.changeBtn} onClick={() => setCustomer(null)}>
                 Change
               </button>

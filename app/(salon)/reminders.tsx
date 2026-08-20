@@ -40,7 +40,7 @@ export default function RemindersScreen() {
 
     const { data, error: queryError } = await supabase
       .from('customer_reminders')
-      .select('id, groomer_id, customer_id, customer_email, last_booking_at, draft_subject, draft_body, status, created_at, sent_at')
+      .select('id, groomer_id, customer_id, customer_email, customer_name, last_booking_at, draft_subject, draft_body, status, created_at, sent_at')
       .eq('groomer_id', groomerProfile.id)
       .eq('status', 'draft')
       .order('created_at', { ascending: false });
@@ -54,6 +54,7 @@ export default function RemindersScreen() {
           groomerId: row.groomer_id,
           customerId: row.customer_id,
           customerEmail: row.customer_email,
+          customerName: row.customer_name ?? undefined,
           lastBookingAt: row.last_booking_at,
           draftSubject: row.draft_subject,
           draftBody: row.draft_body,
@@ -140,7 +141,8 @@ export default function RemindersScreen() {
           {reminders.map((reminder) => (
             <View key={reminder.id} style={styles.card}>
               <Text style={styles.cardMeta}>
-                {reminder.customerEmail} · last booked {monthsAgo(reminder.lastBookingAt)}
+                {reminder.customerName ? `${reminder.customerName} · ${reminder.customerEmail}` : reminder.customerEmail}
+                {' '}· last booked {monthsAgo(reminder.lastBookingAt)}
               </Text>
 
               <Text style={styles.fieldLabel}>Subject</Text>

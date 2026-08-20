@@ -127,13 +127,17 @@ Deno.serve(async (req) => {
       }
     }
 
-    const { data: customerAuth } = await serviceRoleClient.auth.admin.getUserById(customerId);
+    const [{ data: customerAuth }, { data: customerProfile }] = await Promise.all([
+      serviceRoleClient.auth.admin.getUserById(customerId),
+      serviceRoleClient.from('profiles').select('name').eq('user_id', customerId).maybeSingle(),
+    ]);
 
     const { data: booking, error: insertError } = await serviceRoleClient
       .from('bookings')
       .insert({
         customer_id: customerId,
         customer_email: customerAuth?.user?.email ?? null,
+        customer_name: customerProfile?.name ?? null,
         groomer_id: groomer.id,
         pet_id: petId,
         service_id: serviceId,

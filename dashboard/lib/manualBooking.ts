@@ -10,6 +10,7 @@ export type MatchedPet = {
 export type MatchedCustomer = {
   customerId: string;
   email: string;
+  name: string | null;
   pets: MatchedPet[];
 };
 
@@ -26,7 +27,7 @@ export async function searchGroomerCustomers(query: string): Promise<MatchedCust
   for (const row of data ?? []) {
     let customer = byCustomer.get(row.customer_id);
     if (!customer) {
-      customer = { customerId: row.customer_id, email: row.email, pets: [] };
+      customer = { customerId: row.customer_id, email: row.email, name: row.name, pets: [] };
       byCustomer.set(row.customer_id, customer);
     }
     if (row.pet_id) {

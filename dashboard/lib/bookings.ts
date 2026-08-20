@@ -18,6 +18,7 @@ export type SalonBookingRow = {
   id: string;
   groupId?: string;
   customerId: string;
+  customerName?: string;
   startsAt: string;
   status: BookingStatus;
   paymentStatus: PaymentStatus;
@@ -59,7 +60,7 @@ export async function fetchSalonBookings(groomerId: string): Promise<SalonBookin
   const { data, error } = await supabase
     .from('bookings')
     .select(
-      'id, group_id, customer_id, starts_at, status, payment_status, service_completed_at, cancellation_reason, invoice_total_cents, platform_fee_cents, staff_id, is_anxious, is_matted, needs_extra_care, care_notes, pets(name, is_microchipped, microchip_number, vet_name, vet_phone), groomer_services(name, duration_minutes), salon_staff(name)'
+      'id, group_id, customer_id, customer_name, starts_at, status, payment_status, service_completed_at, cancellation_reason, invoice_total_cents, platform_fee_cents, staff_id, is_anxious, is_matted, needs_extra_care, care_notes, pets(name, is_microchipped, microchip_number, vet_name, vet_phone), groomer_services(name, duration_minutes), salon_staff(name)'
     )
     .eq('groomer_id', groomerId)
     .order('starts_at', { ascending: false });
@@ -72,6 +73,7 @@ export async function fetchSalonBookings(groomerId: string): Promise<SalonBookin
       id: row.id,
       groupId: row.group_id ?? undefined,
       customerId: row.customer_id,
+      customerName: row.customer_name ?? undefined,
       startsAt: row.starts_at,
       status: row.status,
       paymentStatus: row.payment_status,

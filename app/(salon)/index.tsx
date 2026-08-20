@@ -38,6 +38,7 @@ type SalonBookingRow = {
   id: string;
   groupId?: string;
   customerId: string;
+  customerName?: string;
   startsAt: string;
   status: BookingStatus;
   paymentStatus: PaymentStatus;
@@ -146,7 +147,7 @@ export default function SalonDashboardScreen() {
     const { data, error: queryError } = await supabase
       .from('bookings')
       .select(
-        'id, group_id, customer_id, starts_at, status, payment_status, service_completed_at, cancellation_reason, invoice_total_cents, platform_fee_cents, staff_id, is_anxious, is_matted, needs_extra_care, care_notes, pets(name, is_microchipped, microchip_number, vet_name, vet_phone), groomer_services(name), salon_staff(name)'
+        'id, group_id, customer_id, customer_name, starts_at, status, payment_status, service_completed_at, cancellation_reason, invoice_total_cents, platform_fee_cents, staff_id, is_anxious, is_matted, needs_extra_care, care_notes, pets(name, is_microchipped, microchip_number, vet_name, vet_phone), groomer_services(name), salon_staff(name)'
       )
       .eq('groomer_id', groomerProfile.id)
       .order('starts_at', { ascending: false });
@@ -168,6 +169,7 @@ export default function SalonDashboardScreen() {
           id: row.id,
           groupId: row.group_id ?? undefined,
           customerId: row.customer_id,
+          customerName: row.customer_name ?? undefined,
           startsAt: row.starts_at,
           status: row.status,
           paymentStatus: row.payment_status,
@@ -425,6 +427,7 @@ export default function SalonDashboardScreen() {
         </View>
         <Text style={styles.cardMeta}>
           {petNames}
+          {lead.customerName ? ` — ${lead.customerName}` : ''}
           {lead.staffName ? ` · with ${lead.staffName}` : ''}
         </Text>
         <Text style={styles.cardMeta}>
@@ -739,6 +742,7 @@ export default function SalonDashboardScreen() {
               </View>
               <Text style={styles.cardMeta}>
                 for {item.petName}
+                {item.customerName ? ` — ${item.customerName}` : ''}
                 {item.staffName ? ` · with ${item.staffName}` : ''}
               </Text>
               <Text style={styles.cardMeta}>

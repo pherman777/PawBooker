@@ -86,9 +86,12 @@ Deno.serve(async (req) => {
       await stripeDelete(`customers/${billing.stripe_customer_id}`);
     }
 
-    // Strip the one directly-identifying field on bookings that isn't
-    // covered by the customer_id -> null anonymization the FK handles below.
-    await serviceRoleClient.from('bookings').update({ customer_email: null }).eq('customer_id', user.id);
+    // Strip the directly-identifying fields on bookings that aren't covered
+    // by the customer_id -> null anonymization the FK handles below.
+    await serviceRoleClient
+      .from('bookings')
+      .update({ customer_email: null, customer_name: null })
+      .eq('customer_id', user.id);
 
     // Deleting the auth user cascades/nulls everything else: pets, saved
     // payment methods, chat threads+messages, app reviews, and win-back

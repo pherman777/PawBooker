@@ -16,6 +16,7 @@ export type PetBookingInput = {
 export type GroupBookingInput = {
   customerId: string;
   customerEmail?: string;
+  customerName?: string;
   groomerId: string;
   staffId: string | null;
   petIds: string[];
@@ -64,6 +65,7 @@ export async function createGroupBooking(
     return {
       customer_id: input.customerId,
       customer_email: input.customerEmail,
+      customer_name: input.customerName,
       groomer_id: input.groomerId,
       pet_id: petId,
       service_id: petService.serviceId,

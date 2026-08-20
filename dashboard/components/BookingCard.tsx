@@ -54,6 +54,7 @@ export function BookingCard({ entry, busy, onAccept, onDecline, onCompleteServic
 
       <p className="booking-card-meta">
         {isGroup ? petNames : `for ${lead.petName}`}
+        {lead.customerName ? ` — ${lead.customerName}` : ''}
         {lead.staffName ? ` · with ${lead.staffName}` : ''}
       </p>
       <p className="booking-card-meta">{formatWhen(lead.startsAt)}</p>

@@ -14,6 +14,7 @@ function jsonResponse(body: unknown, status = 200) {
 type LapsedCustomer = {
   customerId: string;
   customerEmail: string;
+  customerName: string | null;
   petName: string;
   serviceName: string;
   lastBookingAt: string;
@@ -26,7 +27,7 @@ async function draftReminders(groomerName: string, customers: LapsedCustomer[]):
   const list = customers
     .map((c) => {
       const monthsAgo = Math.max(1, Math.round((now.getTime() - new Date(c.lastBookingAt).getTime()) / (30 * 86400000)));
-      return `- customer_id=${c.customerId} | pet: ${c.petName} | last visit: ${monthsAgo} month(s) ago | last service: ${c.serviceName}`;
+      return `- customer_id=${c.customerId} | name: ${c.customerName ?? 'unknown'} | pet: ${c.petName} | last visit: ${monthsAgo} month(s) ago | last service: ${c.serviceName}`;
     })
     .join('\n');
 
@@ -42,7 +43,7 @@ async function draftReminders(groomerName: string, customers: LapsedCustomer[]):
       max_tokens: 4096,
       system: `You are writing short win-back reminder emails on behalf of ${groomerName}, a pet grooming salon on the PawBooker app, to customers who haven't booked an appointment in a while.
 
-For each customer listed, write a brief (2-4 sentence), warm, low-pressure reminder email encouraging them to book again. Mention their pet by name and roughly how long it's been since their last visit. Keep the tone friendly and casual - never guilt-inducing, salesy, or pushy. Sign off as ${groomerName}. Write one subject line and one body per customer.`,
+For each customer listed, write a brief (2-4 sentence), warm, low-pressure reminder email encouraging them to book again. Greet them by their own name if one is given (not "unknown") - otherwise use a friendly generic greeting. Mention their pet by name and roughly how long it's been since their last visit. Keep the tone friendly and casual - never guilt-inducing, salesy, or pushy. Sign off as ${groomerName}. Write one subject line and one body per customer.`,
       messages: [{ role: 'user', content: list }],
       output_config: {
         format: {
@@ -114,7 +115,7 @@ Deno.serve(async (req) => {
     for (const groomer of groomers ?? []) {
       const { data: bookingRows } = await supabase
         .from('bookings')
-        .select('customer_id, customer_email, starts_at, status, pets(name), groomer_services(name)')
+        .select('customer_id, customer_email, customer_name, starts_at, status, pets(name), groomer_services(name)')
         .eq('groomer_id', groomer.id)
         .in('status', ['confirmed', 'completed'])
         .order('starts_at', { ascending: false });
@@ -126,6 +127,7 @@ Deno.serve(async (req) => {
         latestByCustomer.set(row.customer_id, {
           customerId: row.customer_id,
           customerEmail: row.customer_email,
+          customerName: row.customer_name,
           petName: (row.pets as unknown as { name: string })?.name ?? 'their pet',
           serviceName: (row.groomer_services as unknown as { name: string })?.name ?? 'grooming',
           lastBookingAt: row.starts_at,
@@ -157,6 +159,7 @@ Deno.serve(async (req) => {
             groomer_id: groomer.id,
             customer_id: d.customer_id,
             customer_email: customer.customerEmail,
+            customer_name: customer.customerName,
             last_booking_at: customer.lastBookingAt,
             draft_subject: d.subject,
             draft_body: d.body,

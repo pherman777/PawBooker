@@ -157,6 +157,7 @@ export type CustomerReminder = {
   groomerId: string;
   customerId: string;
   customerEmail: string;
+  customerName?: string;
   lastBookingAt: string;
   draftSubject: string;
   draftBody: string;

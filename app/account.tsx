@@ -22,6 +22,7 @@ export default function AccountScreen() {
   const { session } = useAuth();
   const currentEmail = session?.user.email ?? '';
 
+  const [name, setName] = useState('');
   const [email, setEmail] = useState(currentEmail);
   const [phone, setPhone] = useState('');
   const [loading, setLoading] = useState(true);
@@ -37,10 +38,11 @@ export default function AccountScreen() {
       if (!session) return;
       const { data } = await supabase
         .from('profiles')
-        .select('phone')
+        .select('name, phone')
         .eq('user_id', session.user.id)
         .maybeSingle();
       if (!cancelled) {
+        setName(data?.name ?? '');
         setPhone(formatPhoneForDisplay(data?.phone));
         setLoading(false);
       }
@@ -65,10 +67,13 @@ export default function AccountScreen() {
 
     setSavingContact(true);
     try {
-      // Phone lives in profiles; upsert it every save.
-      const { error: profileError } = await supabase
-        .from('profiles')
-        .upsert({ user_id: session.user.id, phone: phone.trim() || null, updated_at: new Date().toISOString() });
+      // Name and phone live in profiles; upsert them every save.
+      const { error: profileError } = await supabase.from('profiles').upsert({
+        user_id: session.user.id,
+        name: name.trim() || null,
+        phone: phone.trim() || null,
+        updated_at: new Date().toISOString(),
+      });
       if (profileError) throw profileError;
 
       if (emailChanged) {
@@ -123,6 +128,19 @@ export default function AccountScreen() {
           contentContainerStyle={styles.content}
           keyboardShouldPersistTaps="handled">
           <Text style={styles.sectionTitle}>Contact info</Text>
+
+          <Text style={styles.label}>Full name</Text>
+          <TextInput
+            style={styles.input}
+            placeholder="Your name"
+            placeholderTextColor={Colors.light.textMuted}
+            autoCapitalize="words"
+            textContentType="name"
+            autoComplete="name"
+            value={name}
+            onChangeText={setName}
+          />
+          <Text style={styles.hint}>Shown to your groomer so they know who&apos;s booking.</Text>
 
           <Text style={styles.label}>Email</Text>
           <TextInput
