@@ -58,7 +58,8 @@ const TOOLS = [
   },
   {
     name: 'get_upcoming_bookings',
-    description: 'Get counts of pending booking requests and upcoming confirmed appointments, plus the next few appointments.',
+    description:
+      'List pending booking requests (with each one\'s id, pet, service, customer, and requested time) and the next few upcoming confirmed appointments. Call this to find a booking\'s id before accepting, declining, or cancelling it.',
     input_schema: { type: 'object', properties: {}, required: [] },
   },
   {
@@ -71,6 +72,46 @@ const TOOLS = [
         query: { type: 'string', description: "Customer name, pet name, or email (or part of one) to search for" },
       },
       required: ['query'],
+    },
+  },
+  {
+    name: 'respond_to_booking',
+    description:
+      'Accept or decline a PENDING booking request. Only call this after the groomer has explicitly confirmed, in their most recent message, which specific pending booking to accept or decline.',
+    input_schema: {
+      type: 'object',
+      properties: {
+        booking_id: { type: 'string', description: 'The id of the pending booking to respond to' },
+        action: { type: 'string', enum: ['accept', 'decline'] },
+        reason: { type: 'string', description: 'For a decline only - a brief note the customer will see explaining why' },
+      },
+      required: ['booking_id', 'action'],
+    },
+  },
+  {
+    name: 'cancel_booking',
+    description:
+      'Cancel an existing pending or confirmed booking. Only call this after the groomer has explicitly confirmed, in their most recent message, that they want to cancel a SPECIFIC booking.',
+    input_schema: {
+      type: 'object',
+      properties: {
+        booking_id: { type: 'string' },
+        reason: { type: 'string', description: 'Brief reason the customer will see, based on what the groomer said' },
+      },
+      required: ['booking_id', 'reason'],
+    },
+  },
+  {
+    name: 'update_supply_stock',
+    description:
+      "Set a tracked supply's current on-hand quantity (e.g. after using some or after restocking). Only call this after the groomer has stated a specific new quantity for a specific supply.",
+    input_schema: {
+      type: 'object',
+      properties: {
+        supply_name: { type: 'string', description: 'Must match one of the supplies listed by get_supply_status' },
+        quantity_on_hand: { type: 'number', description: 'The new on-hand quantity' },
+      },
+      required: ['supply_name', 'quantity_on_hand'],
     },
   },
 ];
@@ -417,24 +458,32 @@ Deno.serve(async (req) => {
       if (name === 'get_upcoming_bookings') {
         const { data: bookingRows } = await supabase
           .from('bookings')
-          .select('starts_at, status, service_completed_at, pets(name), groomer_services(name)')
+          .select('id, starts_at, status, service_completed_at, customer_name, customer_email, pets(name), groomer_services(name)')
           .eq('groomer_id', groomer.id)
           .order('starts_at', { ascending: true });
 
         const rows = bookingRows ?? [];
-        const pendingCount = rows.filter((b) => b.status === 'pending').length;
+        const pending = rows.filter((b) => b.status === 'pending');
         const upcoming = rows.filter((b) => b.status === 'confirmed' && !b.service_completed_at && new Date(b.starts_at) >= new Date());
 
+        const summarize = (b: (typeof rows)[number]) => ({
+          id: b.id,
+          when: new Date(b.starts_at).toLocaleString('en-US', {
+            weekday: 'short', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit', timeZone: groomer.timezone,
+          }),
+          pet: (b.pets as unknown as { name: string })?.name ?? 'Pet',
+          service: (b.groomer_services as unknown as { name: string })?.name ?? 'Service',
+          customer: b.customer_name || b.customer_email || 'Customer',
+        });
+
+        // Full pending list (not just a count) and each row's id - without
+        // this, respond_to_booking/cancel_booking have no way to discover
+        // which booking to act on from natural conversation.
         return {
-          pendingRequestCount: pendingCount,
+          pendingRequestCount: pending.length,
+          pendingRequests: pending.map(summarize),
           upcomingConfirmedCount: upcoming.length,
-          nextAppointments: upcoming.slice(0, 5).map((b) => ({
-            when: new Date(b.starts_at).toLocaleString('en-US', {
-              weekday: 'short', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit', timeZone: groomer.timezone,
-            }),
-            pet: (b.pets as unknown as { name: string })?.name ?? 'Pet',
-            service: (b.groomer_services as unknown as { name: string })?.name ?? 'Service',
-          })),
+          nextAppointments: upcoming.slice(0, 5).map(summarize),
         };
       }
 
@@ -481,6 +530,81 @@ Deno.serve(async (req) => {
         return { found: true, customers };
       }
 
+      if (name === 'respond_to_booking') {
+        const bookingId = String(input.booking_id);
+        const action = input.action === 'decline' ? 'decline' : 'accept';
+
+        const { data: booking } = await supabase.from('bookings').select('id, status').eq('id', bookingId).eq('groomer_id', groomer.id).maybeSingle();
+        if (!booking) return { error: 'Booking not found at this salon.' };
+        if (booking.status !== 'pending') return { error: `Booking is already ${booking.status}, not pending.` };
+
+        // Mirrors app/(salon)/index.tsx's handleAccept/handleConfirmDecline
+        // exactly - same status values, same email action strings.
+        if (action === 'accept') {
+          const { error } = await supabase.from('bookings').update({ status: 'confirmed' }).eq('id', bookingId);
+          if (error) return { error: error.message };
+        } else {
+          const reason = String(input.reason ?? '');
+          const { error } = await supabase
+            .from('bookings')
+            .update({ status: 'declined', cancellation_reason: reason || null, cancelled_by: 'groomer' })
+            .eq('id', bookingId);
+          if (error) return { error: error.message };
+        }
+
+        await fetch(`${Deno.env.get('SUPABASE_URL')}/functions/v1/send-booking-email`, {
+          method: 'POST',
+          headers: { Authorization: authHeader, 'Content-Type': 'application/json' },
+          body: JSON.stringify({ bookingId, action: action === 'accept' ? 'accepted' : 'declined' }),
+        });
+
+        return { success: true, action };
+      }
+
+      if (name === 'cancel_booking') {
+        const bookingId = String(input.booking_id);
+        const { data: booking } = await supabase.from('bookings').select('id, status').eq('id', bookingId).eq('groomer_id', groomer.id).maybeSingle();
+        if (!booking) return { error: 'Booking not found at this salon.' };
+        if (booking.status !== 'pending' && booking.status !== 'confirmed') {
+          return { error: `Booking is already ${booking.status} and can't be cancelled.` };
+        }
+
+        const reason = String(input.reason ?? 'Cancelled by groomer');
+        // Mirrors app/(salon)/index.tsx's handleConfirmCancel exactly.
+        const { error } = await supabase
+          .from('bookings')
+          .update({ status: 'cancelled', cancellation_reason: reason, cancelled_by: 'groomer' })
+          .eq('id', bookingId);
+        if (error) return { error: error.message };
+
+        await fetch(`${Deno.env.get('SUPABASE_URL')}/functions/v1/send-booking-email`, {
+          method: 'POST',
+          headers: { Authorization: authHeader, 'Content-Type': 'application/json' },
+          body: JSON.stringify({ bookingId, action: 'groomer_cancelled' }),
+        });
+
+        return { success: true };
+      }
+
+      if (name === 'update_supply_stock') {
+        const supplyName = String(input.supply_name ?? '');
+        const quantity = Number(input.quantity_on_hand);
+        if (!supplyName || !Number.isFinite(quantity) || quantity < 0) return { error: 'Invalid supply name or quantity.' };
+
+        const { data: supply } = await supabase
+          .from('groomer_supplies')
+          .select('id, name')
+          .eq('groomer_id', groomer.id)
+          .ilike('name', supplyName)
+          .maybeSingle();
+        if (!supply) return { error: `No supply named "${supplyName}" - check get_supply_status for the exact name.` };
+
+        const { error } = await supabase.from('groomer_supplies').update({ quantity_on_hand: quantity }).eq('id', supply.id);
+        if (error) return { error: error.message };
+
+        return { success: true, supply: supply.name, quantityOnHand: quantity };
+      }
+
       return { error: `Unknown tool ${name}` };
     }
 
@@ -489,11 +613,32 @@ Deno.serve(async (req) => {
       { role: 'user' as const, content: message },
     ];
 
+    const now = new Date();
+    const currentYear = Number(now.toLocaleString('en-US', { year: 'numeric', timeZone: groomer.timezone }));
+
     const systemPrompt = `You are a business assistant for ${groomer.name}, a pet grooming salon on the PawBooker app. You are chatting with the salon's own groomer/owner, who can ask you about anything to do with running their business: their business profile (hours, contact info, vaccination policy, multi-pet discount), the services they offer, their staff and how each groomer is performing, customer activity and lapsed customers, revenue and every other business insight (repeat rate, cancellation rate, tips, busiest day, new vs. returning revenue, top services), supply levels, and upcoming bookings. You have a tool for each of these - use them rather than guessing or saying you don't know, since the real data is always one tool call away.
 
-You are read-only: you can look up and summarize data, but you cannot send emails, reorder supplies, add services or staff, or change bookings. If asked to take an action, tell the groomer which dashboard screen does it: Services (add/edit services), Staff (add/remove groomers), Hours, Discount, Vaccination requirement, Supplies (reorder), or Reminders (send a win-back email).
+Current date/time: ${now.toLocaleString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric', hour: 'numeric', minute: '2-digit', timeZoneName: 'short', timeZone: groomer.timezone })}. The current year is ${currentYear} - use it for any date reasoning, not a year from your training data.
 
-Keep answers short and to the point - a sentence or a few bullet points, not long reports. Use the tools to get real data; never guess numbers.`;
+You can take these actions, always by confirming the specific thing first and waiting for a clear yes:
+- respond_to_booking: accept or decline a pending request.
+- cancel_booking: cancel a pending or confirmed booking.
+- update_supply_stock: set a supply's on-hand quantity.
+For anything else - adding/editing services, adding/removing staff, changing hours or the multi-pet discount rule, reordering supplies with a vendor, sending a win-back reminder, connecting Stripe payouts - you have no tool for it. Tell the groomer which dashboard screen does it: Services, Staff, Hours, Discount, Vaccination requirement, Supplies, Payouts, or Reminders.
+
+You also know how the PawBooker app works generally, and can answer "how do I..." questions about it directly:
+- Payouts: a groomer connects a bank account under Payouts (Stripe Connect) to receive booking payments and tips directly; until connected, completed bookings can't be charged.
+- Plans: Free plan gets core booking/scheduling. Pro plan adds this business assistant, Insights, win-back reminders, and an AI concierge that can auto-answer customer booking questions (including scheduling new appointments) in chat.
+- Invite codes: each salon has a personal invite code (Invite screen) customers can redeem to link to this salon without going through Browse/search - referred customers this way are exempt from the platform's first-booking acquisition fee.
+- Multi-pet discount: set on the Discount screen, applies automatically when a customer books multiple pets in one visit.
+- Vaccination requirement: a toggle (Vaccination requirement screen) for whether a current rabies vaccination record is required before a customer can book - defaults on.
+- Tips: charged separately from the booking payment, after the fact, and always go 100% to the groomer regardless of plan.
+- Completing a visit: mark a booking complete and send the invoice (card or cash) from the booking's own screen - this is a separate step from accepting the booking.
+
+Rules:
+- Only act on bookings/supplies you've actually looked up via a tool in this conversation - never invent or guess an id or a current quantity.
+- Never call respond_to_booking, cancel_booking, or update_supply_stock until the groomer has explicitly confirmed, in their most recent message, the specific action on a specific item you already proposed.
+- Keep answers short and to the point - a sentence or a few bullet points, not long reports. Use the tools to get real data; never guess numbers.`;
 
     let finalText = '';
 
