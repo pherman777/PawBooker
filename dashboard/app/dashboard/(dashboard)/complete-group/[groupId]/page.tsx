@@ -246,7 +246,7 @@ export default function CompleteGroupPage() {
 
   if (loadError) {
     return (
-      <div className="settings-page width-content">
+      <div className={`settings-page width-form ${styles.page}`}>
         <button className="back-link" onClick={() => router.back()}>
           ← Back
         </button>
@@ -256,7 +256,7 @@ export default function CompleteGroupPage() {
   }
 
   return (
-    <div className="settings-page width-content">
+    <div className={`settings-page width-form ${styles.page}`}>
       <button className="back-link" onClick={() => router.back()}>
         ← Back
       </button>

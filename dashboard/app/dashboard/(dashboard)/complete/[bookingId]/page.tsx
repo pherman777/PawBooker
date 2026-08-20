@@ -205,7 +205,7 @@ export default function CompleteBookingPage() {
 
   if (loadError) {
     return (
-      <div className="settings-page width-content">
+      <div className={`settings-page width-form ${styles.page}`}>
         <button className="back-link" onClick={() => router.back()}>
           ← Back
         </button>
@@ -215,7 +215,7 @@ export default function CompleteBookingPage() {
   }
 
   return (
-    <div className="settings-page width-content">
+    <div className={`settings-page width-form ${styles.page}`}>
       <button className="back-link" onClick={() => router.back()}>
         ← Back
       </button>
