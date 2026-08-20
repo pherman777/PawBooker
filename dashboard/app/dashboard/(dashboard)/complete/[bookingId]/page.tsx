@@ -205,7 +205,7 @@ export default function CompleteBookingPage() {
 
   if (loadError) {
     return (
-      <div className={`settings-page width-form ${styles.page}`}>
+      <div className="settings-page width-form">
         <button className="back-link" onClick={() => router.back()}>
           ← Back
         </button>
@@ -215,11 +215,12 @@ export default function CompleteBookingPage() {
   }
 
   return (
-    <div className={`settings-page width-form ${styles.page}`}>
+    <div className="settings-page width-form">
       <button className="back-link" onClick={() => router.back()}>
         ← Back
       </button>
 
+      <div className={`card ${styles.page}`}>
       <h1 className="page-title">Complete & invoice</h1>
       <p className="page-subtitle">
         {serviceName} for {petName}
@@ -308,6 +309,7 @@ export default function CompleteBookingPage() {
           <p className={styles.cashNote}>Use this if your customer paid you directly in cash.</p>
         </>
       )}
+      </div>
     </div>
   );
 }

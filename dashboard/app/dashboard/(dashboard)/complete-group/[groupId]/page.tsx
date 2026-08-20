@@ -246,7 +246,7 @@ export default function CompleteGroupPage() {
 
   if (loadError) {
     return (
-      <div className={`settings-page width-form ${styles.page}`}>
+      <div className="settings-page width-form">
         <button className="back-link" onClick={() => router.back()}>
           ← Back
         </button>
@@ -256,11 +256,12 @@ export default function CompleteGroupPage() {
   }
 
   return (
-    <div className={`settings-page width-form ${styles.page}`}>
+    <div className="settings-page width-form">
       <button className="back-link" onClick={() => router.back()}>
         ← Back
       </button>
 
+      <div className={`card ${styles.page}`}>
       <h1 className="page-title">Complete & invoice</h1>
       <p className="page-subtitle">
         {pets.length} {pets.length === 1 ? 'pet' : 'pets'} in this visit · adjust each pet&apos;s services below.
@@ -348,6 +349,7 @@ export default function CompleteGroupPage() {
           <p className={styles.cashNote}>Use this if your customer paid you directly in cash.</p>
         </>
       )}
+      </div>
     </div>
   );
 }
