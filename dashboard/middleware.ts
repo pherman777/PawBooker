@@ -33,10 +33,17 @@ export function middleware(request: NextRequest) {
     return NextResponse.next();
   }
 
-  const url = request.nextUrl.clone();
-  url.pathname = '/';
-  url.search = pathname === '/dashboard/sign-up' ? '?notify=1&groomer=1' : '?notify=1';
-  return NextResponse.redirect(url);
+  // Locked host: only sign-in/sign-up bounce to the waitlist. "/" itself is
+  // the real marketing homepage and must render normally here - it's only
+  // in the matcher below for the unlocked-host branch above.
+  if (pathname === '/dashboard/sign-in' || pathname === '/dashboard/sign-up') {
+    const url = request.nextUrl.clone();
+    url.pathname = '/';
+    url.search = pathname === '/dashboard/sign-up' ? '?notify=1&groomer=1' : '?notify=1';
+    return NextResponse.redirect(url);
+  }
+
+  return NextResponse.next();
 }
 
 export const config = {
