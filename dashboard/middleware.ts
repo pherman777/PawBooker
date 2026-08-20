@@ -16,9 +16,23 @@ function isUnlockedHost(host: string): boolean {
 
 export function middleware(request: NextRequest) {
   const host = request.headers.get('host') ?? '';
-  if (isUnlockedHost(host)) return NextResponse.next();
-
   const { pathname } = request.nextUrl;
+
+  if (isUnlockedHost(host)) {
+    // The marketing homepage lives at "/" too (same deployment serves both
+    // hosts) - on the live app host, a groomer landing on "/" should hit the
+    // real app, not the marketing splash. /dashboard already redirects an
+    // unauthenticated visitor to /dashboard/sign-in itself (see
+    // app/dashboard/(dashboard)/layout.tsx), so this just needs to get them
+    // there rather than duplicating that check.
+    if (pathname === '/') {
+      const url = request.nextUrl.clone();
+      url.pathname = '/dashboard';
+      return NextResponse.redirect(url);
+    }
+    return NextResponse.next();
+  }
+
   const url = request.nextUrl.clone();
   url.pathname = '/';
   url.search = pathname === '/dashboard/sign-up' ? '?notify=1&groomer=1' : '?notify=1';
@@ -26,5 +40,5 @@ export function middleware(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ['/dashboard/sign-in', '/dashboard/sign-up'],
+  matcher: ['/', '/dashboard/sign-in', '/dashboard/sign-up'],
 };
