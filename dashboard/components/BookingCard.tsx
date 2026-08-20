@@ -1,11 +1,14 @@
 'use client';
 
 import { useRouter } from 'next/navigation';
+import { useState } from 'react';
 
 import { Button } from '@/components/Button';
 import { PetCareBox } from '@/components/PetCareBox';
 import { StatusBadge } from '@/components/StatusBadge';
+import { useAuth } from '@/lib/auth';
 import { groupSalonStatus, type SalonEntry } from '@/lib/bookings';
+import { getOrCreateGroomerThread } from '@/lib/groomerChat';
 
 type Props = {
   entry: SalonEntry;
@@ -28,12 +31,25 @@ function formatWhen(iso: string) {
 
 export function BookingCard({ entry, busy, onAccept, onDecline, onCompleteService, onCancel }: Props) {
   const router = useRouter();
+  const { groomerProfile } = useAuth();
+  const [messaging, setMessaging] = useState(false);
   const rows = entry.bookings;
   const lead = entry.lead;
   const status = groupSalonStatus(rows);
   const ids = rows.map((b) => b.id);
   const isGroup = rows.length > 1;
   const active = status === 'pending' || status === 'confirmed';
+
+  async function handleMessage() {
+    if (!groomerProfile) return;
+    setMessaging(true);
+    try {
+      const threadId = await getOrCreateGroomerThread(lead.customerId, groomerProfile.id);
+      router.push(`/dashboard/messages/${threadId}`);
+    } finally {
+      setMessaging(false);
+    }
+  }
 
   const petNames = rows.map((b) => b.petName).join(', ');
   const uniqueServices = Array.from(new Set(rows.map((b) => b.serviceName)));
@@ -58,6 +74,12 @@ export function BookingCard({ entry, busy, onAccept, onDecline, onCompleteServic
         {lead.staffName ? ` · with ${lead.staffName}` : ''}
       </p>
       <p className="booking-card-meta">{formatWhen(lead.startsAt)}</p>
+
+      {status !== 'cancelled' && status !== 'declined' && (
+        <button type="button" className="sign-in-footer-link" onClick={handleMessage} disabled={messaging} style={{ marginTop: 4 }}>
+          {messaging ? 'Opening…' : 'Message customer'}
+        </button>
+      )}
 
       {status !== 'cancelled' && status !== 'declined' && (
         <>

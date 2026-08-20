@@ -19,6 +19,7 @@ import { webFlushScroll } from '@/constants/webScroll';
 import { webContentWidth } from '@/constants/webLayout';
 import { fetchActiveStaff, type SalonStaff } from '@/services/availability';
 import { useAuth } from '@/services/auth-context';
+import { getOrCreateGroomerThread } from '@/services/chat';
 import { sendBookingEmail } from '@/services/notifications';
 import { submitReport } from '@/services/support';
 import { supabase } from '@/services/supabase';
@@ -116,6 +117,7 @@ export default function SalonDashboardScreen() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [updatingId, setUpdatingId] = useState<string | null>(null);
+  const [messagingCustomerId, setMessagingCustomerId] = useState<string | null>(null);
   const [staffList, setStaffList] = useState<SalonStaff[]>([]);
   const [cancelTargetIds, setCancelTargetIds] = useState<string[] | null>(null);
   const [declineTargetIds, setDeclineTargetIds] = useState<string[] | null>(null);
@@ -326,6 +328,19 @@ export default function SalonDashboardScreen() {
     confirmBookings(ids, null);
   }
 
+  async function handleMessageCustomer(customerId: string) {
+    if (!groomerProfile) return;
+    setMessagingCustomerId(customerId);
+    try {
+      const threadId = await getOrCreateGroomerThread(customerId, groomerProfile.id);
+      router.push({ pathname: '/chat/[threadId]', params: { threadId } });
+    } catch (err) {
+      notify('Could not start conversation', err instanceof Error ? err.message : 'Something went wrong.');
+    } finally {
+      setMessagingCustomerId(null);
+    }
+  }
+
   async function handleCompleteService(ids: string[]) {
     setUpdatingId(ids[0]);
     const { error: updateError } = await supabase
@@ -440,6 +455,12 @@ export default function SalonDashboardScreen() {
             minute: '2-digit',
           })}
         </Text>
+
+        {status !== 'cancelled' && status !== 'declined' && (
+          <Pressable onPress={() => handleMessageCustomer(lead.customerId)} disabled={messagingCustomerId === lead.customerId}>
+            <Text style={styles.messageLink}>{messagingCustomerId === lead.customerId ? 'Opening…' : 'Message customer'}</Text>
+          </Pressable>
+        )}
 
         {status !== 'cancelled' &&
           status !== 'declined' &&
@@ -757,7 +778,12 @@ export default function SalonDashboardScreen() {
               </Text>
 
               {item.status !== 'cancelled' && item.status !== 'declined' && (
-                <PetCareSummary info={item.petCare} />
+                <>
+                  <PetCareSummary info={item.petCare} />
+                  <Pressable onPress={() => handleMessageCustomer(item.customerId)} disabled={messagingCustomerId === item.customerId}>
+                    <Text style={styles.messageLink}>{messagingCustomerId === item.customerId ? 'Opening…' : 'Message customer'}</Text>
+                  </Pressable>
+                </>
               )}
 
               {item.status === 'declined' && item.cancellationReason && (
@@ -1137,6 +1163,12 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontStyle: 'italic',
     color: Colors.light.danger,
+  },
+  messageLink: {
+    marginTop: 8,
+    fontSize: 13,
+    fontWeight: '600',
+    color: Colors.light.tint,
   },
   reportLink: {
     marginTop: 10,

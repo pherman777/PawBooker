@@ -12,6 +12,7 @@ import { ReviewModal } from '@/components/ReviewModal';
 import { TipModal } from '@/components/TipModal';
 import { Colors } from '@/constants/theme';
 import { useAuth } from '@/services/auth-context';
+import { getOrCreateGroomerThread } from '@/services/chat';
 import { notifyGroomer, sendBookingEmail } from '@/services/notifications';
 import { submitReport } from '@/services/support';
 import { chargeTip } from '@/services/stripe';
@@ -120,6 +121,7 @@ export default function BookingsScreen() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [updatingId, setUpdatingId] = useState<string | null>(null);
+  const [messagingGroomerId, setMessagingGroomerId] = useState<string | null>(null);
   const [cancelTarget, setCancelTarget] = useState<{ ids: string[]; groomerId: string } | null>(null);
   const [reviewTargetId, setReviewTargetId] = useState<string | null>(null);
   const [submittingReview, setSubmittingReview] = useState(false);
@@ -190,6 +192,19 @@ export default function BookingsScreen() {
   );
 
   const entries = useMemo(() => groupEntries(bookings), [bookings]);
+
+  async function handleMessageGroomer(groomerId: string) {
+    if (!session) return;
+    setMessagingGroomerId(groomerId);
+    try {
+      const threadId = await getOrCreateGroomerThread(session.user.id, groomerId);
+      router.push({ pathname: '/chat/[threadId]', params: { threadId } });
+    } catch (err) {
+      notify('Could not start conversation', err instanceof Error ? err.message : 'Something went wrong.');
+    } finally {
+      setMessagingGroomerId(null);
+    }
+  }
 
   async function handleAddToCalendar(row: BookingRow, petLabel: string) {
     const result = await addBookingToCalendar({
@@ -389,6 +404,12 @@ export default function BookingsScreen() {
           </Pressable>
         )}
 
+        {status !== 'cancelled' && status !== 'declined' && (
+          <Pressable onPress={() => handleMessageGroomer(lead.groomerId)} disabled={messagingGroomerId === lead.groomerId}>
+            <Text style={styles.addToCalendarText}>{messagingGroomerId === lead.groomerId ? 'Opening…' : 'Message groomer'}</Text>
+          </Pressable>
+        )}
+
         {cancellable && (
           <Pressable
             style={styles.cancelButton}
@@ -533,6 +554,12 @@ export default function BookingsScreen() {
               {(item.status === 'pending' || item.status === 'confirmed') && (
                 <Pressable onPress={() => handleAddToCalendar(item, item.petName)}>
                   <Text style={styles.addToCalendarText}>+ Add to calendar</Text>
+                </Pressable>
+              )}
+
+              {item.status !== 'cancelled' && item.status !== 'declined' && (
+                <Pressable onPress={() => handleMessageGroomer(item.groomerId)} disabled={messagingGroomerId === item.groomerId}>
+                  <Text style={styles.addToCalendarText}>{messagingGroomerId === item.groomerId ? 'Opening…' : 'Message groomer'}</Text>
                 </Pressable>
               )}
 
