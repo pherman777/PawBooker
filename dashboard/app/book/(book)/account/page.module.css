@@ -1,0 +1,154 @@
+.section {
+  margin-top: 32px;
+  margin-bottom: 14px;
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--muted);
+}
+.section:first-of-type {
+  margin-top: 8px;
+}
+
+.field {
+  margin-bottom: 14px;
+}
+.hint {
+  margin-top: -8px;
+  margin-bottom: 14px;
+  font-size: 13px;
+  color: var(--muted);
+}
+
+.list {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 0;
+  border-bottom: 1px solid var(--border);
+  text-align: left;
+  background: none;
+  border-left: none;
+  border-right: none;
+  border-top: none;
+  cursor: pointer;
+  width: 100%;
+}
+.avatar {
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  object-fit: cover;
+  flex-shrink: 0;
+}
+.avatarPlaceholder {
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  background: var(--surface-2);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--muted);
+  flex-shrink: 0;
+}
+.rowText {
+  flex: 1;
+}
+.rowTitle {
+  font-size: 15px;
+  font-weight: 600;
+}
+.rowSub {
+  margin-top: 2px;
+  font-size: 12.5px;
+  color: var(--muted);
+}
+.emptyText {
+  font-size: 14px;
+  color: var(--muted);
+  margin-bottom: 10px;
+}
+
+.cardRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 10px 0;
+  border-bottom: 1px solid var(--border);
+}
+.cardText {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 15px;
+  font-weight: 600;
+}
+.defaultPill {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--sage);
+  border: 1px solid var(--sage);
+  border-radius: 999px;
+  padding: 2px 8px;
+}
+.cardActions {
+  display: flex;
+  gap: 14px;
+  flex-shrink: 0;
+}
+.cardActionText {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--sage);
+  background: none;
+  border: none;
+  cursor: pointer;
+}
+.cardActionTextDanger {
+  composes: cardActionText;
+  color: var(--danger);
+}
+
+.inviteForm {
+  margin-top: 12px;
+  padding: 14px;
+  border-radius: 10px;
+  border: 1px solid var(--border);
+  background: var(--surface);
+}
+.inviteActions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 16px;
+  margin-top: 12px;
+}
+
+.footerActions {
+  margin-top: 32px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.deleteAccountButton {
+  margin-top: 12px;
+  align-self: center;
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-size: 13px;
+  color: var(--danger);
+  text-decoration: underline;
+}
+
+.modalPanelForm {
+  width: 100%;
+  max-width: 420px;
+}
