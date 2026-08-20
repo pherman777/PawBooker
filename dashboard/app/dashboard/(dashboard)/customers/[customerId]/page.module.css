@@ -1,0 +1,67 @@
+.error {
+  margin-top: 24px;
+  font-size: 15px;
+  color: var(--danger);
+}
+
+.sectionTitle {
+  font-size: 17px;
+  font-weight: 600;
+  margin-bottom: 12px;
+}
+.sectionSpacing {
+  margin-top: 28px;
+}
+
+.emptyText {
+  font-size: 14px;
+  color: var(--muted);
+}
+
+.petCard {
+  padding: 16px;
+  margin-bottom: 10px;
+}
+.petName {
+  font-size: 16px;
+  font-weight: 600;
+  margin: 0 0 4px;
+}
+.petMeta {
+  font-size: 13px;
+  color: var(--muted);
+  margin: 0;
+}
+.petCare {
+  margin: 8px 0 0;
+  font-size: 12.5px;
+  color: var(--muted);
+}
+
+.bookingRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 0;
+  border-bottom: 1px solid var(--border);
+}
+.bookingService {
+  font-size: 15px;
+  font-weight: 600;
+  margin: 0;
+}
+.bookingPet {
+  font-weight: 400;
+  color: var(--muted);
+}
+.bookingWhen {
+  margin: 2px 0 0;
+  font-size: 12.5px;
+  color: var(--muted);
+}
+.bookingStatus {
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: capitalize;
+  color: var(--muted);
+}

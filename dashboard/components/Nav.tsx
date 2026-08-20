@@ -95,6 +95,12 @@ export function Nav() {
             <LayoutGrid size={15} strokeWidth={2} />
             Dashboard
           </Link>
+          <Link
+            href="/dashboard/customers"
+            className={`nav-link${pathname.startsWith('/dashboard/customers') ? ' nav-link-active' : ''}`}>
+            <Users size={15} strokeWidth={2} />
+            Customers
+          </Link>
         </div>
         <div className="nav-right">
           {groomerProfile && <span className="nav-groomer-name">{groomerProfile.name}</span>}
