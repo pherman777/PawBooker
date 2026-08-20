@@ -1,0 +1,48 @@
+.hero {
+  text-align: center;
+  padding: 32px 0 8px;
+}
+.tagline {
+  margin-top: 6px;
+  font-size: 15px;
+  color: var(--muted);
+}
+
+.cards {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-top: 24px;
+}
+.card {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 16px;
+  text-align: left;
+  width: 100%;
+  cursor: pointer;
+}
+.cardIcon {
+  width: 44px;
+  height: 44px;
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--sage) 16%, var(--surface));
+  color: var(--sage);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+.cardText {
+  flex: 1;
+}
+.cardTitle {
+  font-size: 16px;
+  font-weight: 600;
+}
+.cardSubtitle {
+  margin-top: 2px;
+  font-size: 13px;
+  color: var(--muted);
+}

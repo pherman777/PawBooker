@@ -1,12 +1,12 @@
 import type { Metadata } from 'next';
 
-import { AuthProvider } from '@/lib/auth';
-
 import './globals.css';
 
 // The site-wide default - correct for the marketing homepage at `/`, which
-// is now the app's root. `/dashboard` overrides it back to "PawBooker
-// Dashboard" via its own layout.
+// is now the app's root. `/dashboard` and `/book` each override it back via
+// their own layouts, which also each mount their own auth provider (groomer
+// vs customer) - not here, since this layout wraps every route on the site
+// and the two sessions must never share a client/storage key.
 export const metadata: Metadata = {
   title: 'PawBooker — Book trusted pet groomers',
   description:
@@ -16,9 +16,7 @@ export const metadata: Metadata = {
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en">
-      <body>
-        <AuthProvider>{children}</AuthProvider>
-      </body>
+      <body>{children}</body>
     </html>
   );
 }
