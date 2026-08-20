@@ -126,7 +126,7 @@ export function BookingCard({ entry, busy, onAccept, onDecline, onCompleteServic
         <Button
           label={`Complete & invoice (${readyToBill.length} ${readyToBill.length === 1 ? 'pet' : 'pets'})`}
           onClick={() =>
-            router.push(isGroup ? `/complete-group/${entry.key}` : `/complete/${readyToBill[0].id}`)
+            router.push(isGroup ? `/dashboard/complete-group/${entry.key}` : `/dashboard/complete/${readyToBill[0].id}`)
           }
           block
         />
