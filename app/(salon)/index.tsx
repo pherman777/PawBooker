@@ -270,6 +270,7 @@ export default function SalonDashboardScreen() {
     const isPro = groomerProfile?.plan === 'pro';
     showActionSheet('Menu', [
       { label: 'Setup checklist', onPress: () => router.push('/(salon)/welcome') },
+      { label: 'Customers', onPress: () => router.push('/(salon)/customers') },
       { label: 'Business info', onPress: () => router.push('/(salon)/business-info') },
       { label: 'Services & prices', onPress: () => router.push('/(salon)/services') },
       { label: 'Multi-pet discount', onPress: () => router.push('/(salon)/discount') },
