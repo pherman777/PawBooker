@@ -68,10 +68,10 @@ export function BookingCard({ entry, busy, onAccept, onDecline, onCompleteServic
 
       {isGroup && <span className="booking-group-badge">{rows.length} pets · one visit</span>}
 
+      {lead.customerName && <p className="booking-card-meta">Customer: {lead.customerName}</p>}
       <p className="booking-card-meta">
-        {isGroup ? petNames : `for ${lead.petName}`}
-        {lead.customerName ? ` — ${lead.customerName}` : ''}
-        {lead.staffName ? ` · with ${lead.staffName}` : ''}
+        for {isGroup ? petNames : lead.petName}
+        {lead.staffName ? ` with ${lead.staffName}` : ''}
       </p>
       <p className="booking-card-meta">{formatWhen(lead.startsAt)}</p>
 

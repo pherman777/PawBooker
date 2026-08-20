@@ -441,10 +441,10 @@ export default function SalonDashboardScreen() {
         <View style={styles.groupBadge}>
           <Text style={styles.groupBadgeText}>{rows.length} pets · one visit</Text>
         </View>
+        {lead.customerName && <Text style={styles.cardMeta}>Customer: {lead.customerName}</Text>}
         <Text style={styles.cardMeta}>
-          {petNames}
-          {lead.customerName ? ` — ${lead.customerName}` : ''}
-          {lead.staffName ? ` · with ${lead.staffName}` : ''}
+          for {petNames}
+          {lead.staffName ? ` with ${lead.staffName}` : ''}
         </Text>
         <Text style={styles.cardMeta}>
           {new Date(lead.startsAt).toLocaleString(undefined, {
@@ -762,10 +762,10 @@ export default function SalonDashboardScreen() {
                 <Text style={styles.cardService}>{item.serviceName}</Text>
                 <StatusBadge status={item.status} />
               </View>
+              {item.customerName && <Text style={styles.cardMeta}>Customer: {item.customerName}</Text>}
               <Text style={styles.cardMeta}>
                 for {item.petName}
-                {item.customerName ? ` — ${item.customerName}` : ''}
-                {item.staffName ? ` · with ${item.staffName}` : ''}
+                {item.staffName ? ` with ${item.staffName}` : ''}
               </Text>
               <Text style={styles.cardMeta}>
                 {new Date(item.startsAt).toLocaleString(undefined, {
