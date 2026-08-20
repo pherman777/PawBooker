@@ -3,6 +3,7 @@
 import { useParams, useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
 
+import { Button } from '@/components/Button';
 import { useAuth } from '@/lib/auth';
 import {
   fetchCustomerBookingHistory,
@@ -12,6 +13,7 @@ import {
   type CustomerPetDetail,
   type CustomerSummary,
 } from '@/lib/customers';
+import { getOrCreateGroomerThread } from '@/lib/groomerChat';
 
 import styles from './page.module.css';
 
@@ -36,6 +38,20 @@ export default function CustomerDetailPage() {
   const [bookings, setBookings] = useState<CustomerBookingHistoryRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [messaging, setMessaging] = useState(false);
+
+  async function handleMessage() {
+    if (!groomerProfile) return;
+    setMessaging(true);
+    try {
+      const threadId = await getOrCreateGroomerThread(customerId, groomerProfile.id);
+      router.push(`/dashboard/messages/${threadId}`);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Could not start conversation');
+    } finally {
+      setMessaging(false);
+    }
+  }
 
   useEffect(() => {
     if (!groomerProfile) return;
@@ -84,6 +100,8 @@ export default function CustomerDetailPage() {
             {customer.name ? customer.email : 'No name on file yet'}
             {customer.phone ? ` · ${customer.phone}` : ''}
           </p>
+
+          <Button label="Message this customer" variant="secondary" onClick={handleMessage} loading={messaging} />
 
           <p className={styles.sectionTitle}>Pets</p>
           {pets.length === 0 && <p className={styles.emptyText}>No pets on file.</p>}

@@ -1,0 +1,92 @@
+.container {
+  display: flex;
+  flex-direction: column;
+  height: calc(100vh - 220px);
+  min-height: 400px;
+}
+.banner {
+  background: var(--warning);
+  padding: 8px 16px;
+  text-align: center;
+}
+.bannerText {
+  color: #fff;
+  font-size: 13px;
+  font-weight: 600;
+}
+.list {
+  flex: 1;
+  overflow-y: auto;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.bubbleRow {
+  display: flex;
+}
+.bubbleRowOwn {
+  justify-content: flex-end;
+}
+.bubble {
+  max-width: 78%;
+  border-radius: 14px;
+  padding: 10px 14px;
+}
+.bubbleOther {
+  background: var(--surface);
+  border: 1px solid var(--border);
+}
+.bubbleOwn {
+  background: var(--sage);
+  color: #fff;
+}
+.bubbleLabel {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--sage);
+  margin-bottom: 2px;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+}
+.bubbleText {
+  font-size: 15px;
+  line-height: 1.35;
+  white-space: pre-wrap;
+}
+
+.inputRow {
+  display: flex;
+  align-items: flex-end;
+  gap: 10px;
+  padding: 12px;
+  border-top: 1px solid var(--border);
+}
+.input {
+  flex: 1;
+  max-height: 100px;
+  min-height: 40px;
+  border-radius: 20px;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  padding: 10px 16px;
+  font-size: 15px;
+  font-family: inherit;
+  resize: none;
+}
+.sendButton {
+  height: 40px;
+  padding: 0 18px;
+  border-radius: 20px;
+  background: var(--sage);
+  color: #fff;
+  border: none;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+.sendButton:disabled {
+  opacity: 0.5;
+  cursor: default;
+}

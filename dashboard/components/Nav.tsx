@@ -10,6 +10,7 @@ import {
   LogOut,
   Mail,
   Menu,
+  MessageCircle,
   PawPrint,
   Scissors,
   ShieldCheck,
@@ -100,6 +101,12 @@ export function Nav() {
             className={`nav-link${pathname.startsWith('/dashboard/customers') ? ' nav-link-active' : ''}`}>
             <Users size={15} strokeWidth={2} />
             Customers
+          </Link>
+          <Link
+            href="/dashboard/messages"
+            className={`nav-link${pathname.startsWith('/dashboard/messages') ? ' nav-link-active' : ''}`}>
+            <MessageCircle size={15} strokeWidth={2} />
+            Messages
           </Link>
         </div>
         <div className="nav-right">
