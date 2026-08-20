@@ -415,7 +415,7 @@ export default function PetDetailScreen() {
           onPress={handleSaveDetails}
           disabled={!canSaveDetails || savingDetails}>
           {savingDetails ? (
-            <ActivityIndicator color="#fff" />
+            <ActivityIndicator color={Colors.light.text} />
           ) : (
             <Text style={styles.saveDetailsButtonText}>Save changes</Text>
           )}
@@ -499,7 +499,7 @@ export default function PetDetailScreen() {
                 onPress={handleSaveDocument}
                 disabled={!documentLabel.trim() || uploadingDoc}>
                 {uploadingDoc ? (
-                  <ActivityIndicator color="#fff" />
+                  <ActivityIndicator color={Colors.light.text} />
                 ) : (
                   <Text style={styles.saveDocButtonText}>Save document</Text>
                 )}
@@ -700,7 +700,7 @@ const styles = StyleSheet.create({
     marginTop: 4,
   },
   saveDetailsButtonText: {
-    color: '#fff',
+    color: Colors.light.text,
     fontSize: 16,
     fontWeight: '600',
   },
@@ -725,7 +725,7 @@ const styles = StyleSheet.create({
     borderColor: Colors.light.tint,
   },
   chipTextSelected: {
-    color: '#fff',
+    color: Colors.light.text,
   },
   formActions: {
     flexDirection: 'row',
@@ -752,7 +752,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   saveDocButtonText: {
-    color: '#fff',
+    color: Colors.light.text,
     fontSize: 14,
     fontWeight: '600',
   },

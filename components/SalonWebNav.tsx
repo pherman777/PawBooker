@@ -43,7 +43,7 @@ export function SalonWebNav() {
                 <Ionicons
                   name={link.icon}
                   size={15}
-                  color={active ? Colors.light.tint : Colors.light.textMuted}
+                  color={active ? Colors.light.tint : Colors.light.bandTextMuted}
                   style={styles.linkIcon}
                 />
                 <Text style={[styles.linkText, active && styles.linkTextActive]}>{link.label}</Text>
@@ -63,7 +63,7 @@ const styles = StyleSheet.create({
     zIndex: 10,
     backgroundColor: Colors.light.band,
     borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: Colors.light.border,
+    borderBottomColor: Colors.light.bandBorder,
   },
   inner: {
     flexDirection: 'row',
@@ -86,7 +86,10 @@ const styles = StyleSheet.create({
     borderRadius: 8,
   },
   linkActive: {
-    backgroundColor: Colors.light.surface,
+    // Subtle light-on-dark overlay, matching the dashboard nav's
+    // `color-mix(band-ink 12%, transparent)` active state - not a solid
+    // fill, which would read as a stark white pill against the dark band.
+    backgroundColor: 'rgba(243, 242, 234, 0.12)',
   },
   linkIcon: {
     marginTop: -1,
@@ -94,9 +97,9 @@ const styles = StyleSheet.create({
   linkText: {
     fontSize: 13,
     fontWeight: '600',
-    color: Colors.light.textMuted,
+    color: Colors.light.bandTextMuted,
   },
   linkTextActive: {
-    color: Colors.light.text,
+    color: Colors.light.bandText,
   },
 });

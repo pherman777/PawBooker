@@ -114,7 +114,7 @@ export function TipModal({ visible, subtotalCents, submitting, onDismiss, onSubm
                 onPress={handleSubmit}
                 disabled={tipAmountCents <= 0 || submitting}>
                 {submitting ? (
-                  <ActivityIndicator color="#fff" />
+                  <ActivityIndicator color={Colors.light.text} />
                 ) : (
                   <Text style={styles.submitButtonText}>
                     {tipAmountCents > 0 ? `Tip $${(tipAmountCents / 100).toFixed(2)}` : 'Tip'}
@@ -181,7 +181,7 @@ const styles = StyleSheet.create({
     color: Colors.light.textMuted,
   },
   presetChipTextSelected: {
-    color: '#fff',
+    color: Colors.light.text,
   },
   customRow: {
     flexDirection: 'row',
@@ -231,7 +231,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   submitButtonText: {
-    color: '#fff',
+    color: Colors.light.text,
     fontSize: 15,
     fontWeight: '600',
   },

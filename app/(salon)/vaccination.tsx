@@ -4,6 +4,7 @@ import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Switch, Text, Vie
 
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { Button } from '@/components/ui/Button';
 import { Colors } from '@/constants/theme';
 import { notify } from '@/utils/confirm';
 import { supabase } from '@/services/supabase';
@@ -81,12 +82,7 @@ export default function VaccinationScreen() {
           <Switch value={required} onValueChange={setRequired} trackColor={{ true: Colors.light.tint }} />
         </View>
 
-        <Pressable
-          style={[styles.button, saving && styles.buttonDisabled]}
-          onPress={handleSave}
-          disabled={saving}>
-          {saving ? <ActivityIndicator color="#fff" /> : <Text style={styles.buttonText}>Save</Text>}
-        </Pressable>
+        <Button label="Save" onPress={handleSave} loading={saving} style={styles.button} />
       </ScrollView>
     </SafeAreaView>
   );
@@ -129,10 +125,16 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingVertical: 12,
-    borderTopWidth: StyleSheet.hairlineWidth,
-    borderBottomWidth: StyleSheet.hairlineWidth,
+    padding: 16,
+    backgroundColor: Colors.light.surface,
+    borderWidth: StyleSheet.hairlineWidth,
     borderColor: Colors.light.border,
+    borderRadius: 14,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.06,
+    shadowRadius: 12,
+    elevation: 1,
   },
   enableLabel: {
     flex: 1,
@@ -142,19 +144,7 @@ const styles = StyleSheet.create({
     color: Colors.light.text,
   },
   button: {
-    height: 48,
-    borderRadius: 10,
-    backgroundColor: Colors.light.tint,
-    alignItems: 'center',
-    justifyContent: 'center',
     marginTop: 32,
-  },
-  buttonDisabled: {
-    opacity: 0.6,
-  },
-  buttonText: {
-    color: '#fff',
-    fontSize: 16,
-    fontWeight: '600',
+    width: '100%',
   },
 });

@@ -1,6 +1,6 @@
 import { useRouter } from 'expo-router';
 import { useState } from 'react';
-import { ActivityIndicator, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
+import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import { KeyboardAwareScrollView } from 'react-native-keyboard-controller';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
@@ -10,6 +10,7 @@ import {
   PetIdEmergencyFields,
   PetIdentity,
 } from '@/components/PetIdEmergencyFields';
+import { Button } from '@/components/ui/Button';
 import { Colors } from '@/constants/theme';
 import { useAuth } from '@/services/auth-context';
 import { supabase } from '@/services/supabase';
@@ -155,12 +156,7 @@ export default function NewPetScreen() {
 
         {error && <Text style={styles.error}>{error}</Text>}
 
-        <Pressable
-          style={[styles.saveButton, (!canSave || saving) && styles.buttonDisabled]}
-          onPress={handleSave}
-          disabled={!canSave || saving}>
-          {saving ? <ActivityIndicator color="#fff" /> : <Text style={styles.saveButtonText}>Save pet</Text>}
-        </Pressable>
+        <Button label="Save pet" onPress={handleSave} disabled={!canSave} loading={saving} style={styles.saveButton} />
       </KeyboardAwareScrollView>
     </SafeAreaView>
   );
@@ -229,7 +225,7 @@ const styles = StyleSheet.create({
     borderColor: Colors.light.tint,
   },
   chipTextSelected: {
-    color: '#fff',
+    color: Colors.light.text,
   },
   error: {
     marginBottom: 12,
@@ -237,19 +233,7 @@ const styles = StyleSheet.create({
     color: Colors.light.danger,
   },
   saveButton: {
-    height: 48,
-    borderRadius: 10,
-    backgroundColor: Colors.light.tint,
-    alignItems: 'center',
-    justifyContent: 'center',
     marginTop: 8,
-  },
-  saveButtonText: {
-    color: '#fff',
-    fontSize: 16,
-    fontWeight: '600',
-  },
-  buttonDisabled: {
-    opacity: 0.5,
+    width: '100%',
   },
 });

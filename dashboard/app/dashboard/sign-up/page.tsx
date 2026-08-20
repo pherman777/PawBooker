@@ -4,6 +4,7 @@ import { useRouter } from 'next/navigation';
 import { useEffect, useRef, useState } from 'react';
 
 import { AddressSearchInput, type SelectedLocation } from '@/components/AddressSearchInput';
+import { AuthBrandMark } from '@/components/AuthBrandMark';
 import { Button } from '@/components/Button';
 import { useAuth } from '@/lib/auth';
 import { createGroomer, savePendingGroomer, type CreateGroomerInput } from '@/lib/groomer';
@@ -126,30 +127,33 @@ export default function SignUpPage() {
 
   if (confirmSent) {
     return (
-      <main className="width-form sign-in-page">
-        <p className="eyebrow">PawBooker</p>
-        <h1 className="sign-in-title">Confirm your email</h1>
-        <div className={styles.confirmBox}>
-          <p className={styles.subtitle} style={{ marginTop: 0 }}>
-            We sent a confirmation link to {email.trim()}. Confirm it, then sign in — we&apos;ll finish setting up{' '}
-            {name.trim() || 'your salon'} automatically.
-          </p>
-          <Button label="Go to sign in" onClick={() => router.replace('/dashboard/sign-in')} block />
+      <main className="sign-in-page">
+        <div className="sign-in-card">
+          <AuthBrandMark />
+          <h1 className="sign-in-title">Confirm your email</h1>
+          <div className={styles.confirmBox}>
+            <p className={styles.subtitle} style={{ marginTop: 0 }}>
+              We sent a confirmation link to {email.trim()}. Confirm it, then sign in — we&apos;ll finish setting up{' '}
+              {name.trim() || 'your salon'} automatically.
+            </p>
+            <Button label="Go to sign in" onClick={() => router.replace('/dashboard/sign-in')} block />
+          </div>
         </div>
       </main>
     );
   }
 
   return (
-    <main className="width-form sign-in-page">
-      <p className="eyebrow">PawBooker</p>
-      <h1 className="sign-in-title">List your grooming business</h1>
-      <p className={styles.subtitle}>
-        Set up your salon in one step. You&apos;ll add services, hours, and payouts next — your salon stays private
-        until it&apos;s ready.
-      </p>
+    <main className="sign-in-page">
+      <div className="sign-in-card sign-in-card-wide">
+        <AuthBrandMark />
+        <h1 className="sign-in-title">List your grooming business</h1>
+        <p className={styles.subtitle}>
+          Set up your salon in one step. You&apos;ll add services, hours, and payouts next — your salon stays
+          private until it&apos;s ready.
+        </p>
 
-      <form onSubmit={handleSubmit} className="sign-in-form">
+        <form onSubmit={handleSubmit} className="sign-in-form">
         <div>
           <label className="field-label" htmlFor="name">
             Business name
@@ -243,7 +247,8 @@ export default function SignUpPage() {
         {error && <p className="sign-in-error">{error}</p>}
 
         <Button label={loggedIn ? 'Create my salon' : 'Create account & salon'} type="submit" loading={submitting} block />
-      </form>
+        </form>
+      </div>
     </main>
   );
 }

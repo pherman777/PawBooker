@@ -91,7 +91,7 @@ const styles = StyleSheet.create({
   flagChipText: {
     fontSize: 11,
     fontWeight: '700',
-    color: '#fff',
+    color: Colors.light.text,
   },
   notes: {
     marginTop: 8,

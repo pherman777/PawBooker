@@ -1,11 +1,12 @@
 import { useRouter } from 'expo-router';
 import { useState } from 'react';
-import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { KeyboardAwareScrollView } from 'react-native-keyboard-controller';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { AddressSearchInput, type SelectedLocation } from '@/components/AddressSearchInput';
 import { Logo } from '@/components/Logo';
+import { Button } from '@/components/ui/Button';
 import { Wordmark } from '@/components/Wordmark';
 import { Colors } from '@/constants/theme';
 import { useAuth } from '@/services/auth-context';
@@ -116,9 +117,7 @@ export default function GroomerSignupScreen() {
             We sent a confirmation link to {email.trim()}. Confirm it, then sign in — we&apos;ll
             finish setting up {name.trim() || 'your salon'} automatically.
           </Text>
-          <Pressable style={styles.button} onPress={() => router.replace('/(auth)/sign-in')}>
-            <Text style={styles.buttonText}>Go to sign in</Text>
-          </Pressable>
+          <Button label="Go to sign in" onPress={() => router.replace('/(auth)/sign-in')} style={styles.button} />
         </ScrollView>
       </SafeAreaView>
     );
@@ -216,16 +215,12 @@ export default function GroomerSignupScreen() {
 
           {error && <Text style={styles.error}>{error}</Text>}
 
-          <Pressable
-            style={[styles.button, submitting && styles.buttonDisabled]}
+          <Button
+            label={loggedIn ? 'Create my salon' : 'Create account & salon'}
             onPress={handleSubmit}
-            disabled={submitting}>
-            {submitting ? (
-              <ActivityIndicator color="#fff" />
-            ) : (
-              <Text style={styles.buttonText}>{loggedIn ? 'Create my salon' : 'Create account & salon'}</Text>
-            )}
-          </Pressable>
+            loading={submitting}
+            style={styles.button}
+          />
 
           <Pressable style={styles.secondaryLink} onPress={() => router.back()}>
             <Text style={styles.linkText}>Cancel</Text>
@@ -321,20 +316,8 @@ const styles = StyleSheet.create({
     color: Colors.light.danger,
   },
   button: {
-    height: 48,
-    borderRadius: 10,
-    backgroundColor: Colors.light.tint,
-    alignItems: 'center',
-    justifyContent: 'center',
     marginTop: 8,
-  },
-  buttonDisabled: {
-    opacity: 0.6,
-  },
-  buttonText: {
-    color: '#fff',
-    fontSize: 16,
-    fontWeight: '600',
+    width: '100%',
   },
   inlineLink: {
     marginTop: 2,

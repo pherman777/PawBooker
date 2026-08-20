@@ -15,14 +15,16 @@ type Props = {
   style?: ViewStyle;
 };
 
-// Matches public/styles/site.css's .btn: 12px radius, ~700-weight label, a
-// 1px press-down translate instead of an opacity fade. `ghost`/`danger` stay
-// outlined (unfilled) rather than borrowing site.css's filled ghost hover
-// state, matching how destructive/secondary actions already read elsewhere
-// in the app.
+// Matches dashboard/app/globals.css's .btn family exactly: primary fills
+// with the dark `band` color (the "dark as deliberate accent" move from the
+// Hybrid redesign - not sage), secondary fills with clay, ghost/danger stay
+// outlined. 12px radius, ~700-weight label, a 1px press-down translate
+// instead of an opacity fade.
 export function Button({ label, onPress, variant = 'primary', size = 'md', loading, disabled, style }: Props) {
   const fill = variant === 'primary' || variant === 'secondary';
-  const tone = variant === 'secondary' ? Colors.light.secondary : variant === 'danger' ? Colors.light.danger : Colors.light.tint;
+  const fillColor = variant === 'primary' ? Colors.light.band : Colors.light.secondary;
+  const outlineColor = variant === 'danger' ? Colors.light.danger : Colors.light.border;
+  const textColor = variant === 'primary' ? Colors.light.bandText : variant === 'danger' ? Colors.light.danger : Colors.light.text;
 
   return (
     <Pressable
@@ -31,22 +33,15 @@ export function Button({ label, onPress, variant = 'primary', size = 'md', loadi
       style={({ pressed }) => [
         styles.base,
         size === 'sm' ? styles.sm : styles.md,
-        fill ? { backgroundColor: tone } : { borderWidth: StyleSheet.hairlineWidth, borderColor: tone },
+        fill ? { backgroundColor: fillColor } : { borderWidth: StyleSheet.hairlineWidth, borderColor: outlineColor },
         (disabled || loading) && styles.disabled,
         pressed && !disabled && !loading && styles.pressed,
         style,
       ]}>
       {loading ? (
-        <ActivityIndicator color={fill ? Colors.light.background : tone} size="small" />
+        <ActivityIndicator color={textColor} size="small" />
       ) : (
-        <Text
-          style={[
-            styles.label,
-            size === 'sm' && styles.labelSm,
-            { color: fill ? Colors.light.background : tone },
-          ]}>
-          {label}
-        </Text>
+        <Text style={[styles.label, size === 'sm' && styles.labelSm, { color: textColor }]}>{label}</Text>
       )}
     </Pressable>
   );

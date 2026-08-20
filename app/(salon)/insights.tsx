@@ -11,14 +11,25 @@ import { webContentWidth } from '@/constants/webLayout';
 import { webFlushScroll } from '@/constants/webScroll';
 
 type InsightBookingRow = {
+  id: string;
   customerId: string;
-  status: 'pending' | 'confirmed' | 'completed' | 'cancelled';
+  status: 'pending' | 'confirmed' | 'completed' | 'cancelled' | 'declined';
   startsAt: string;
   cancelledBy?: 'customer' | 'groomer';
   invoiceTotalCents?: number;
   taxAmountCents?: number;
+  tipAmountCents?: number;
+  staffId?: string;
+  staffName?: string;
   serviceName: string;
 };
+
+type ReminderRow = {
+  customerId: string;
+  sentAt: string;
+};
+
+const DAY_LABELS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
 function formatMoney(cents: number) {
   return `$${(cents / 100).toFixed(2)}`;
@@ -37,6 +48,8 @@ export default function InsightsScreen() {
   const router = useRouter();
   const { groomerProfile } = useAuth();
   const [bookings, setBookings] = useState<InsightBookingRow[]>([]);
+  const [sentReminders, setSentReminders] = useState<ReminderRow[]>([]);
+  const [ratingByBooking, setRatingByBooking] = useState<Map<string, number>>(new Map());
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -53,30 +66,55 @@ export default function InsightsScreen() {
       if (!groomerProfile) return;
       setLoading(true);
 
-      const { data, error: queryError } = await supabase
-        .from('bookings')
-        .select(
-          'customer_id, status, starts_at, cancelled_by, invoice_total_cents, tax_amount_cents, groomer_services(name)'
-        )
-        .eq('groomer_id', groomerProfile.id);
+      const [bookingsResult, remindersResult, reviewsResult] = await Promise.all([
+        supabase
+          .from('bookings')
+          .select(
+            'id, customer_id, status, starts_at, cancelled_by, invoice_total_cents, tax_amount_cents, tip_amount_cents, staff_id, groomer_services(name), salon_staff(name)'
+          )
+          .eq('groomer_id', groomerProfile.id),
+        supabase
+          .from('customer_reminders')
+          .select('customer_id, sent_at')
+          .eq('groomer_id', groomerProfile.id)
+          .eq('status', 'sent'),
+        supabase.from('salon_reviews').select('booking_id, rating').eq('groomer_id', groomerProfile.id),
+      ]);
 
       if (cancelled) return;
 
-      if (queryError) {
-        setError(queryError.message);
+      if (bookingsResult.error) {
+        setError(bookingsResult.error.message);
       } else {
         setBookings(
-          (data ?? []).map((row) => ({
+          (bookingsResult.data ?? []).map((row) => ({
+            id: row.id,
             customerId: row.customer_id,
             status: row.status,
             startsAt: row.starts_at,
             cancelledBy: row.cancelled_by ?? undefined,
             invoiceTotalCents: row.invoice_total_cents ?? undefined,
             taxAmountCents: row.tax_amount_cents ?? undefined,
+            tipAmountCents: row.tip_amount_cents ?? undefined,
+            staffId: row.staff_id ?? undefined,
+            staffName: (row.salon_staff as unknown as { name: string } | null)?.name ?? undefined,
             serviceName: (row.groomer_services as unknown as { name: string })?.name ?? 'Service',
           }))
         );
       }
+
+      if (remindersResult.data) {
+        setSentReminders(
+          remindersResult.data
+            .filter((r) => r.sent_at)
+            .map((r) => ({ customerId: r.customer_id, sentAt: r.sent_at as string }))
+        );
+      }
+
+      if (reviewsResult.data) {
+        setRatingByBooking(new Map(reviewsResult.data.map((r) => [r.booking_id, r.rating])));
+      }
+
       setLoading(false);
     }
 
@@ -120,20 +158,104 @@ export default function InsightsScreen() {
       .map(([name, v]) => ({ name, ...v }))
       .sort((a, b) => b.revenueCents - a.revenueCents);
 
+    // A customer's earliest completed booking with this salon marks them "new"
+    // for that visit; every later one is "returning" - lets the revenue chart
+    // show acquisition vs. retention instead of just a single total.
+    const firstBookingByCustomer = new Map<string, string>();
+    for (const b of completed) {
+      const existing = firstBookingByCustomer.get(b.customerId);
+      if (!existing || b.startsAt < existing) firstBookingByCustomer.set(b.customerId, b.startsAt);
+    }
+
     const now = new Date();
-    const monthBuckets: { key: string; revenueCents: number }[] = Array.from({ length: 6 }, (_, i) => {
-      const d = new Date(now.getFullYear(), now.getMonth() - (5 - i), 1);
-      return { key: monthKey(d), revenueCents: 0 };
-    });
+    const monthBuckets: { key: string; revenueCents: number; newRevenueCents: number; returningRevenueCents: number }[] =
+      Array.from({ length: 6 }, (_, i) => {
+        const d = new Date(now.getFullYear(), now.getMonth() - (5 - i), 1);
+        return { key: monthKey(d), revenueCents: 0, newRevenueCents: 0, returningRevenueCents: 0 };
+      });
     const bucketIndex = new Map(monthBuckets.map((b, i) => [b.key, i]));
     for (const b of completed) {
       const key = monthKey(new Date(b.startsAt));
       const index = bucketIndex.get(key);
       if (index != null) {
-        monthBuckets[index].revenueCents += revenueOf(b);
+        const revenue = revenueOf(b);
+        monthBuckets[index].revenueCents += revenue;
+        if (firstBookingByCustomer.get(b.customerId) === b.startsAt) {
+          monthBuckets[index].newRevenueCents += revenue;
+        } else {
+          monthBuckets[index].returningRevenueCents += revenue;
+        }
       }
     }
     const maxMonthRevenue = Math.max(1, ...monthBuckets.map((b) => b.revenueCents));
+
+    // Tips are a separate off-session charge (not part of invoiceTotalCents),
+    // so "tip rate" is measured against completed, invoiced visits only.
+    const tippable = completed.filter((b) => (b.invoiceTotalCents ?? 0) > 0);
+    const tipped = tippable.filter((b) => (b.tipAmountCents ?? 0) > 0);
+    const tipRate = tippable.length > 0 ? tipped.length / tippable.length : 0;
+    const totalTipCents = tipped.reduce((sum, b) => sum + (b.tipAmountCents ?? 0), 0);
+    const avgTipCents = tipped.length > 0 ? totalTipCents / tipped.length : 0;
+    const avgTipPercent =
+      tipped.length > 0
+        ? tipped.reduce((sum, b) => {
+            const subtotal = revenueOf(b);
+            return sum + (subtotal > 0 ? (b.tipAmountCents ?? 0) / subtotal : 0);
+          }, 0) / tipped.length
+        : 0;
+
+    // Win-back effectiveness: of the reminders actually sent, how many of
+    // those customers booked again afterward (a real confirmed/completed
+    // visit, not just a pending request that never came through).
+    const winBackSentCount = sentReminders.length;
+    const winBackRebookedCount = sentReminders.filter((reminder) =>
+      bookings.some(
+        (b) =>
+          b.customerId === reminder.customerId &&
+          b.startsAt > reminder.sentAt &&
+          (b.status === 'confirmed' || b.status === 'completed')
+      )
+    ).length;
+    const winBackRate = winBackSentCount > 0 ? winBackRebookedCount / winBackSentCount : 0;
+
+    // Busiest day of week, from completed visits (what actually happened),
+    // not raw booking requests.
+    const dayOfWeekCounts = Array.from({ length: 7 }, () => 0);
+    for (const b of completed) {
+      dayOfWeekCounts[new Date(b.startsAt).getDay()] += 1;
+    }
+    const maxDayCount = Math.max(1, ...dayOfWeekCounts);
+
+    // Per-staff performance - only meaningful once a salon has more than one
+    // active groomer; bookings left as "any available" (staffId undefined)
+    // aren't attributed to anyone.
+    const staffMap = new Map<string, { name: string; count: number; revenueCents: number; ratingSum: number; ratingCount: number }>();
+    for (const b of completed) {
+      if (!b.staffId) continue;
+      const entry = staffMap.get(b.staffId) ?? {
+        name: b.staffName ?? 'Groomer',
+        count: 0,
+        revenueCents: 0,
+        ratingSum: 0,
+        ratingCount: 0,
+      };
+      entry.count += 1;
+      entry.revenueCents += revenueOf(b);
+      const rating = ratingByBooking.get(b.id);
+      if (rating != null) {
+        entry.ratingSum += rating;
+        entry.ratingCount += 1;
+      }
+      staffMap.set(b.staffId, entry);
+    }
+    const staffPerformance = [...staffMap.values()]
+      .map((s) => ({
+        name: s.name,
+        count: s.count,
+        revenueCents: s.revenueCents,
+        avgRating: s.ratingCount > 0 ? s.ratingSum / s.ratingCount : null,
+      }))
+      .sort((a, b) => b.revenueCents - a.revenueCents);
 
     return {
       totalRevenueCents,
@@ -149,8 +271,19 @@ export default function InsightsScreen() {
       serviceMix,
       monthBuckets,
       maxMonthRevenue,
+      tipRate,
+      tippedCount: tipped.length,
+      tippableCount: tippable.length,
+      avgTipCents,
+      avgTipPercent,
+      winBackSentCount,
+      winBackRebookedCount,
+      winBackRate,
+      dayOfWeekCounts,
+      maxDayCount,
+      staffPerformance,
     };
-  }, [bookings]);
+  }, [bookings, sentReminders, ratingByBooking]);
 
   return (
     <SafeAreaView style={[styles.container, webContentWidth('content')]} edges={['top', 'bottom']}>
@@ -167,21 +300,45 @@ export default function InsightsScreen() {
 
       {!loading && !error && (
         <ScrollView style={webFlushScroll} contentContainerStyle={[styles.content, webContentWidth('content')]} showsVerticalScrollIndicator={false}>
-          <Text style={styles.sectionTitle}>Revenue, last 6 months</Text>
-          <View style={styles.chart}>
-            {metrics.monthBuckets.map((bucket) => (
-              <View key={bucket.key} style={styles.chartCol}>
-                <View style={styles.chartBarTrack}>
-                  <View
-                    style={[
-                      styles.chartBarFill,
-                      { height: `${(bucket.revenueCents / metrics.maxMonthRevenue) * 100}%` },
-                    ]}
-                  />
-                </View>
-                <Text style={styles.chartLabel}>{monthLabel(bucket.key)}</Text>
+          <View style={styles.sectionTitleRow}>
+            <Text style={styles.sectionTitle}>Revenue, last 6 months</Text>
+            <View style={styles.legend}>
+              <View style={styles.legendItem}>
+                <View style={[styles.legendSwatch, { backgroundColor: Colors.light.tint }]} />
+                <Text style={styles.legendText}>Returning</Text>
               </View>
-            ))}
+              <View style={styles.legendItem}>
+                <View style={[styles.legendSwatch, { backgroundColor: Colors.light.secondary }]} />
+                <Text style={styles.legendText}>New</Text>
+              </View>
+            </View>
+          </View>
+          <View style={styles.chart}>
+            {metrics.monthBuckets.map((bucket) => {
+              const returningHeight = (bucket.returningRevenueCents / metrics.maxMonthRevenue) * 100;
+              const newHeight = (bucket.newRevenueCents / metrics.maxMonthRevenue) * 100;
+              return (
+                <View key={bucket.key} style={styles.chartCol}>
+                  <Text style={styles.chartValue} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.7}>
+                    {formatMoney(bucket.revenueCents)}
+                  </Text>
+                  <View style={styles.chartBarTrack}>
+                    <View style={styles.chartBarStack}>
+                      {bucket.newRevenueCents > 0 && (
+                        <View style={[styles.chartBarSegment, { height: `${newHeight}%`, backgroundColor: Colors.light.secondary }]} />
+                      )}
+                      {bucket.returningRevenueCents > 0 && bucket.newRevenueCents > 0 && (
+                        <View style={styles.chartBarGap} />
+                      )}
+                      {bucket.returningRevenueCents > 0 && (
+                        <View style={[styles.chartBarSegment, { height: `${returningHeight}%`, backgroundColor: Colors.light.tint }]} />
+                      )}
+                    </View>
+                  </View>
+                  <Text style={styles.chartLabel}>{monthLabel(bucket.key)}</Text>
+                </View>
+              );
+            })}
           </View>
 
           <View style={styles.statsGrid}>
@@ -207,6 +364,18 @@ export default function InsightsScreen() {
               <Text style={styles.statValue}>{formatMoney(metrics.revenuePerCustomerCents)}</Text>
               <Text style={styles.statLabel}>Revenue per customer</Text>
             </View>
+            <View style={styles.statCard}>
+              <Text style={styles.statValue}>{(metrics.tipRate * 100).toFixed(0)}%</Text>
+              <Text style={styles.statLabel}>Tip rate</Text>
+              <Text style={styles.statSub}>
+                {metrics.tippedCount} of {metrics.tippableCount} visits tipped
+              </Text>
+            </View>
+            <View style={styles.statCard}>
+              <Text style={styles.statValue}>{formatMoney(metrics.avgTipCents)}</Text>
+              <Text style={styles.statLabel}>Average tip</Text>
+              <Text style={styles.statSub}>{(metrics.avgTipPercent * 100).toFixed(0)}% of ticket, on average</Text>
+            </View>
           </View>
 
           <Text style={styles.sectionTitle}>Services</Text>
@@ -222,6 +391,58 @@ export default function InsightsScreen() {
               <Text style={styles.serviceRevenue}>{formatMoney(service.revenueCents)}</Text>
             </View>
           ))}
+
+          <Text style={[styles.sectionTitle, styles.sectionSpacing]}>Busiest day of the week</Text>
+          <View style={styles.dayChart}>
+            {metrics.dayOfWeekCounts.map((count, index) => (
+              <View key={DAY_LABELS[index]} style={styles.chartCol}>
+                <Text style={styles.chartValue} numberOfLines={1}>
+                  {count}
+                </Text>
+                <View style={styles.chartBarTrack}>
+                  <View
+                    style={[
+                      styles.chartBarSegment,
+                      { height: `${(count / metrics.maxDayCount) * 100}%`, backgroundColor: Colors.light.tint },
+                    ]}
+                  />
+                </View>
+                <Text style={styles.chartLabel}>{DAY_LABELS[index]}</Text>
+              </View>
+            ))}
+          </View>
+
+          {metrics.winBackSentCount > 0 && (
+            <>
+              <Text style={[styles.sectionTitle, styles.sectionSpacing]}>Win-back reminders</Text>
+              <View style={styles.statsGrid}>
+                <View style={styles.statCard}>
+                  <Text style={styles.statValue}>{(metrics.winBackRate * 100).toFixed(0)}%</Text>
+                  <Text style={styles.statLabel}>Rebooked after a reminder</Text>
+                  <Text style={styles.statSub}>
+                    {metrics.winBackRebookedCount} of {metrics.winBackSentCount} sent
+                  </Text>
+                </View>
+              </View>
+            </>
+          )}
+
+          {metrics.staffPerformance.length > 0 && (
+            <>
+              <Text style={[styles.sectionTitle, styles.sectionSpacing]}>Staff performance</Text>
+              {metrics.staffPerformance.map((staff) => (
+                <View key={staff.name} style={styles.serviceRow}>
+                  <View>
+                    <Text style={styles.serviceName}>{staff.name}</Text>
+                    <Text style={styles.serviceMeta}>
+                      {staff.count} completed{staff.avgRating != null ? ` · ★ ${staff.avgRating.toFixed(1)}` : ''}
+                    </Text>
+                  </View>
+                  <Text style={styles.serviceRevenue}>{formatMoney(staff.revenueCents)}</Text>
+                </View>
+              ))}
+            </>
+          )}
         </ScrollView>
       )}
     </SafeAreaView>
@@ -271,17 +492,67 @@ const styles = StyleSheet.create({
     color: Colors.light.text,
     marginBottom: 12,
   },
+  sectionSpacing: {
+    marginTop: 8,
+  },
+  sectionTitleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  legend: {
+    flexDirection: 'row',
+    gap: 12,
+    marginBottom: 12,
+  },
+  legendItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+  },
+  legendSwatch: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+  },
+  legendText: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: Colors.light.textMuted,
+  },
   chart: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-end',
+    height: 168,
+    marginBottom: 28,
+    backgroundColor: Colors.light.surface,
+    borderRadius: 16,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: Colors.light.border,
+    padding: 16,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.08,
+    shadowRadius: 16,
+    elevation: 2,
+  },
+  dayChart: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'flex-end',
     height: 140,
     marginBottom: 28,
     backgroundColor: Colors.light.surface,
-    borderRadius: 12,
+    borderRadius: 16,
     borderWidth: StyleSheet.hairlineWidth,
     borderColor: Colors.light.border,
     padding: 16,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.08,
+    shadowRadius: 16,
+    elevation: 2,
   },
   chartCol: {
     alignItems: 'center',
@@ -289,16 +560,27 @@ const styles = StyleSheet.create({
     height: '100%',
     justifyContent: 'flex-end',
   },
+  chartValue: {
+    marginBottom: 6,
+    fontSize: 10.5,
+    fontWeight: '700',
+    color: Colors.light.textMuted,
+  },
   chartBarTrack: {
     width: 18,
     flex: 1,
     justifyContent: 'flex-end',
   },
-  chartBarFill: {
+  chartBarStack: {
     width: '100%',
-    backgroundColor: Colors.light.tint,
+  },
+  chartBarSegment: {
+    width: '100%',
     borderRadius: 4,
     minHeight: 3,
+  },
+  chartBarGap: {
+    height: 2,
   },
   chartLabel: {
     marginTop: 6,
@@ -314,10 +596,15 @@ const styles = StyleSheet.create({
   statCard: {
     width: '48%',
     backgroundColor: Colors.light.surface,
-    borderRadius: 12,
+    borderRadius: 16,
     padding: 14,
     borderWidth: StyleSheet.hairlineWidth,
     borderColor: Colors.light.border,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.06,
+    shadowRadius: 12,
+    elevation: 1,
   },
   statValue: {
     fontSize: 22,

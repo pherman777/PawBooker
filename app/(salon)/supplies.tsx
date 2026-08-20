@@ -1,3 +1,4 @@
+import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
@@ -5,6 +6,7 @@ import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, TextInput, 
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import type { GroomerSupply } from '@/types';
+import { Button } from '@/components/ui/Button';
 import { Colors } from '@/constants/theme';
 import { confirmAsync, notify } from '@/utils/confirm';
 import { supabase } from '@/services/supabase';
@@ -195,14 +197,21 @@ export default function SuppliesScreen() {
                   keyboardType="numeric"
                 />
               </View>
-              <Pressable style={styles.saveButton} onPress={handleAdd} disabled={adding}>
-                {adding ? <ActivityIndicator color="#fff" size="small" /> : <Text style={styles.saveButtonText}>Save</Text>}
-              </Pressable>
+              <Button label="Save" onPress={handleAdd} loading={adding} style={styles.saveButton} />
             </View>
           )}
 
           {sortedSupplies.length === 0 && !showAddForm && (
-            <Text style={styles.emptyText}>No supplies tracked yet - add your first one above.</Text>
+            <View style={styles.emptyCard}>
+              <View style={styles.emptyIllustration}>
+                <Ionicons name="paw-outline" size={34} color={Colors.light.tint} />
+              </View>
+              <Text style={styles.emptyTitle}>No supplies tracked yet</Text>
+              <Text style={styles.emptyBody}>
+                Add what you keep on hand so you get flagged automatically when it's time to reorder.
+              </Text>
+              <Button label="+ Add supply" onPress={() => setShowAddForm(true)} />
+            </View>
           )}
 
           {sortedSupplies.map((supply) => {
@@ -302,9 +311,38 @@ const styles = StyleSheet.create({
     paddingBottom: 40,
     gap: 12,
   },
-  emptyText: {
-    fontSize: 15,
+  emptyCard: {
+    alignItems: 'center',
+    backgroundColor: Colors.light.surface,
+    borderWidth: 1,
+    borderStyle: 'dashed',
+    borderColor: Colors.light.border,
+    borderRadius: 20,
+    paddingVertical: 48,
+    paddingHorizontal: 32,
+  },
+  emptyIllustration: {
+    width: 84,
+    height: 84,
+    borderRadius: 42,
+    backgroundColor: 'rgba(107,143,114,0.14)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 20,
+  },
+  emptyTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: Colors.light.text,
+    marginBottom: 8,
+  },
+  emptyBody: {
+    fontSize: 14,
+    lineHeight: 20,
     color: Colors.light.textMuted,
+    textAlign: 'center',
+    maxWidth: 320,
+    marginBottom: 20,
   },
   addToggle: {
     alignSelf: 'flex-start',
@@ -317,7 +355,7 @@ const styles = StyleSheet.create({
   },
   addForm: {
     backgroundColor: Colors.light.surface,
-    borderRadius: 12,
+    borderRadius: 16,
     padding: 16,
     borderWidth: StyleSheet.hairlineWidth,
     borderColor: Colors.light.border,
@@ -340,23 +378,19 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   saveButton: {
-    height: 40,
-    borderRadius: 8,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: Colors.light.tint,
-  },
-  saveButtonText: {
-    color: '#fff',
-    fontSize: 14,
-    fontWeight: '600',
+    width: '100%',
   },
   card: {
     backgroundColor: Colors.light.surface,
-    borderRadius: 12,
+    borderRadius: 16,
     padding: 16,
     borderWidth: StyleSheet.hairlineWidth,
     borderColor: Colors.light.border,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.08,
+    shadowRadius: 16,
+    elevation: 2,
   },
   cardLow: {
     borderColor: Colors.light.danger,

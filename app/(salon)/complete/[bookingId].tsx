@@ -6,6 +6,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { Colors } from '@/constants/theme';
 import { Logo } from '@/components/Logo';
+import { Button } from '@/components/ui/Button';
 import { PetCareSummary, type PetCareInfo } from '@/components/PetCareSummary';
 import { chargeBooking, markBookingPaidCash } from '@/services/stripe';
 import { notify } from '@/utils/confirm';
@@ -278,9 +279,7 @@ export default function CompleteBookingScreen() {
             value={newAmount}
             onChangeText={setNewAmount}
           />
-          <Pressable style={styles.addButton} onPress={handleAddLineItem}>
-            <Text style={styles.addButtonText}>Add</Text>
-          </Pressable>
+          <Button label="Add" onPress={handleAddLineItem} />
         </View>
 
         <View style={styles.totalRow}>
@@ -308,16 +307,13 @@ export default function CompleteBookingScreen() {
           </View>
         )}
 
-        <Pressable
-          style={[styles.chargeButton, (charging || markingCash || totalCents <= 0) && styles.buttonDisabled]}
+        <Button
+          label="Charge & complete"
           onPress={handleChargeAndComplete}
-          disabled={charging || markingCash || totalCents <= 0}>
-          {charging ? (
-            <ActivityIndicator color="#fff" />
-          ) : (
-            <Text style={styles.chargeButtonText}>Charge & complete</Text>
-          )}
-        </Pressable>
+          loading={charging}
+          disabled={markingCash || totalCents <= 0}
+          style={styles.chargeButton}
+        />
 
         {cashBlocked ? (
           <Text style={styles.cashBlockedNote}>
@@ -326,16 +322,14 @@ export default function CompleteBookingScreen() {
           </Text>
         ) : (
           <>
-            <Pressable
-              style={[styles.cashButton, (charging || markingCash || totalCents <= 0) && styles.buttonDisabled]}
+            <Button
+              label="Mark as paid (cash)"
+              variant="ghost"
               onPress={handleMarkPaidCash}
-              disabled={charging || markingCash || totalCents <= 0}>
-              {markingCash ? (
-                <ActivityIndicator color={Colors.light.tint} />
-              ) : (
-                <Text style={styles.cashButtonText}>Mark as paid (cash)</Text>
-              )}
-            </Pressable>
+              loading={markingCash}
+              disabled={charging || totalCents <= 0}
+              style={styles.cashButton}
+            />
             <Text style={styles.cashNote}>Use this if your customer paid you directly in cash.</Text>
           </>
         )}
@@ -423,6 +417,7 @@ const styles = StyleSheet.create({
   },
   addItemForm: {
     flexDirection: 'row',
+    alignItems: 'center',
     gap: 8,
     marginTop: 16,
   },
@@ -441,18 +436,6 @@ const styles = StyleSheet.create({
   },
   amountInput: {
     flex: 1,
-  },
-  addButton: {
-    paddingHorizontal: 16,
-    borderRadius: 8,
-    backgroundColor: Colors.light.tint,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  addButtonText: {
-    color: '#fff',
-    fontSize: 14,
-    fontWeight: '600',
   },
   totalRow: {
     flexDirection: 'row',
@@ -480,10 +463,15 @@ const styles = StyleSheet.create({
   feeCard: {
     marginTop: 16,
     padding: 14,
-    borderRadius: 10,
+    borderRadius: 16,
     backgroundColor: Colors.light.surface,
     borderWidth: StyleSheet.hairlineWidth,
     borderColor: Colors.light.border,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.06,
+    shadowRadius: 12,
+    elevation: 1,
   },
   feeCardTitle: {
     fontSize: 14,
@@ -522,30 +510,11 @@ const styles = StyleSheet.create({
   },
   chargeButton: {
     marginTop: 24,
-    height: 50,
-    borderRadius: 10,
-    backgroundColor: Colors.light.tint,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  chargeButtonText: {
-    color: '#fff',
-    fontSize: 16,
-    fontWeight: '600',
+    width: '100%',
   },
   cashButton: {
     marginTop: 12,
-    height: 50,
-    borderRadius: 10,
-    borderWidth: 1.5,
-    borderColor: Colors.light.tint,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  cashButtonText: {
-    color: Colors.light.tint,
-    fontSize: 16,
-    fontWeight: '600',
+    width: '100%',
   },
   cashNote: {
     marginTop: 8,
@@ -564,8 +533,5 @@ const styles = StyleSheet.create({
     lineHeight: 19,
     color: Colors.light.textMuted,
     textAlign: 'center',
-  },
-  buttonDisabled: {
-    opacity: 0.5,
   },
 });

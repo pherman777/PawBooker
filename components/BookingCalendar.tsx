@@ -167,7 +167,7 @@ const styles = StyleSheet.create({
     color: Colors.light.border,
   },
   dayNumberSelected: {
-    color: '#fff',
+    color: Colors.light.text,
     fontWeight: '700',
   },
   dot: {

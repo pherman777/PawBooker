@@ -1,9 +1,7 @@
 import { useEffect, useState } from 'react';
 import {
-  ActivityIndicator,
   KeyboardAvoidingView,
   Platform,
-  Pressable,
   ScrollView,
   StyleSheet,
   Text,
@@ -13,6 +11,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { PasswordInput } from '@/components/PasswordInput';
+import { Button } from '@/components/ui/Button';
 import { Colors } from '@/constants/theme';
 import { useAuth } from '@/services/auth-context';
 import { supabase } from '@/services/supabase';
@@ -153,16 +152,13 @@ export default function AccountScreen() {
             onChangeText={(text) => setPhone(formatPhoneAsTyped(text))}
           />
 
-          <Pressable
-            style={[styles.primaryButton, (!canSaveContact || savingContact) && styles.buttonDisabled]}
+          <Button
+            label="Save contact info"
             onPress={handleSaveContact}
-            disabled={!canSaveContact || savingContact}>
-            {savingContact ? (
-              <ActivityIndicator color="#fff" />
-            ) : (
-              <Text style={styles.primaryButtonText}>Save contact info</Text>
-            )}
-          </Pressable>
+            disabled={!canSaveContact}
+            loading={savingContact}
+            style={styles.primaryButton}
+          />
 
           <Text style={[styles.sectionTitle, styles.sectionSpacing]}>Change password</Text>
 
@@ -188,16 +184,13 @@ export default function AccountScreen() {
             onChangeText={setConfirmPassword}
           />
 
-          <Pressable
-            style={[styles.primaryButton, !canSavePassword && styles.buttonDisabled]}
+          <Button
+            label="Update password"
             onPress={handleUpdatePassword}
-            disabled={!canSavePassword}>
-            {savingPassword ? (
-              <ActivityIndicator color="#fff" />
-            ) : (
-              <Text style={styles.primaryButtonText}>Update password</Text>
-            )}
-          </Pressable>
+            disabled={!canSavePassword}
+            loading={savingPassword}
+            style={styles.primaryButton}
+          />
         </ScrollView>
       </KeyboardAvoidingView>
     </SafeAreaView>
@@ -249,19 +242,7 @@ const styles = StyleSheet.create({
     color: Colors.light.textMuted,
   },
   primaryButton: {
-    height: 48,
-    borderRadius: 10,
-    backgroundColor: Colors.light.tint,
-    alignItems: 'center',
-    justifyContent: 'center',
     marginTop: 4,
-  },
-  primaryButtonText: {
-    color: '#fff',
-    fontSize: 16,
-    fontWeight: '600',
-  },
-  buttonDisabled: {
-    opacity: 0.5,
+    width: '100%',
   },
 });

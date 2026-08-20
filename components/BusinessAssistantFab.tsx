@@ -104,7 +104,7 @@ export function BusinessAssistantFab() {
         style={[styles.fab, { bottom: insets.bottom + 24 }]}
         onPress={handleOpen}
         hitSlop={8}>
-        <Ionicons name="sparkles" size={24} color="#fff" />
+        <Ionicons name="sparkles" size={24} color={Colors.light.text} />
         {!isPro && (
           <View style={styles.lockBadge}>
             <Ionicons name="lock-closed" size={10} color="#fff" />

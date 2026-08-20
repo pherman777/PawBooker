@@ -1,10 +1,12 @@
+import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { useCallback, useEffect, useState } from 'react';
-import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { ActivityIndicator, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import type { CustomerReminder } from '@/types';
+import { Button } from '@/components/ui/Button';
 import { Colors } from '@/constants/theme';
 import { notify } from '@/utils/confirm';
 import { sendCustomerReminder } from '@/services/notifications';
@@ -123,7 +125,16 @@ export default function RemindersScreen() {
       {!loading && !error && (
         <ScrollView style={webFlushScroll} contentContainerStyle={[styles.content, webContentWidth('form')]} showsVerticalScrollIndicator={false}>
           {reminders.length === 0 && (
-            <Text style={styles.emptyText}>No lapsed customers right now - nice work staying booked up.</Text>
+            <View style={styles.emptyCard}>
+              <View style={styles.emptyIllustration}>
+                <Ionicons name="mail-outline" size={34} color={Colors.light.tint} />
+              </View>
+              <Text style={styles.emptyTitle}>No lapsed customers right now</Text>
+              <Text style={styles.emptyBody}>
+                Nice work staying booked up — we&apos;ll draft a reminder here the next time
+                someone&apos;s overdue.
+              </Text>
+            </View>
           )}
 
           {reminders.map((reminder) => (
@@ -151,22 +162,20 @@ export default function RemindersScreen() {
               />
 
               <View style={styles.actions}>
-                <Pressable
-                  style={[styles.actionButton, styles.dismissButton]}
+                <Button
+                  label="Dismiss"
+                  variant="danger"
                   onPress={() => handleDismiss(reminder)}
-                  disabled={busyId === reminder.id}>
-                  <Text style={styles.dismissButtonText}>Dismiss</Text>
-                </Pressable>
-                <Pressable
-                  style={[styles.actionButton, styles.sendButton]}
+                  disabled={busyId === reminder.id}
+                  style={styles.actionButton}
+                />
+                <Button
+                  label="Send"
                   onPress={() => handleSend(reminder)}
-                  disabled={busyId === reminder.id}>
-                  {busyId === reminder.id ? (
-                    <ActivityIndicator color="#fff" size="small" />
-                  ) : (
-                    <Text style={styles.sendButtonText}>Send</Text>
-                  )}
-                </Pressable>
+                  loading={busyId === reminder.id}
+                  disabled={busyId === reminder.id}
+                  style={styles.actionButton}
+                />
               </View>
             </View>
           ))}
@@ -214,16 +223,49 @@ const styles = StyleSheet.create({
     paddingBottom: 40,
     gap: 16,
   },
-  emptyText: {
-    fontSize: 15,
+  emptyCard: {
+    alignItems: 'center',
+    backgroundColor: Colors.light.surface,
+    borderWidth: 1,
+    borderStyle: 'dashed',
+    borderColor: Colors.light.border,
+    borderRadius: 20,
+    paddingVertical: 48,
+    paddingHorizontal: 32,
+  },
+  emptyIllustration: {
+    width: 84,
+    height: 84,
+    borderRadius: 42,
+    backgroundColor: 'rgba(107,143,114,0.14)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 20,
+  },
+  emptyTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: Colors.light.text,
+    marginBottom: 8,
+  },
+  emptyBody: {
+    fontSize: 14,
+    lineHeight: 20,
     color: Colors.light.textMuted,
+    textAlign: 'center',
+    maxWidth: 320,
   },
   card: {
     backgroundColor: Colors.light.surface,
-    borderRadius: 12,
+    borderRadius: 16,
     padding: 16,
     borderWidth: StyleSheet.hairlineWidth,
     borderColor: Colors.light.border,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.08,
+    shadowRadius: 16,
+    elevation: 2,
   },
   cardMeta: {
     fontSize: 13,
@@ -264,26 +306,5 @@ const styles = StyleSheet.create({
   },
   actionButton: {
     flex: 1,
-    height: 40,
-    borderRadius: 8,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  dismissButton: {
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: Colors.light.danger,
-  },
-  dismissButtonText: {
-    color: Colors.light.danger,
-    fontSize: 14,
-    fontWeight: '600',
-  },
-  sendButton: {
-    backgroundColor: Colors.light.tint,
-  },
-  sendButtonText: {
-    color: '#fff',
-    fontSize: 14,
-    fontWeight: '600',
   },
 });

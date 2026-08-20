@@ -123,7 +123,7 @@ export default function ForgotPasswordScreen() {
                 style={[styles.button, (loading || !email.trim()) && styles.buttonDisabled]}
                 onPress={handleSendCode}
                 disabled={loading || !email.trim()}>
-                {loading ? <ActivityIndicator color="#fff" /> : <Text style={styles.buttonText}>Send code</Text>}
+                {loading ? <ActivityIndicator color={Colors.light.text} /> : <Text style={styles.buttonText}>Send code</Text>}
               </Pressable>
             </>
           ) : (
@@ -166,7 +166,7 @@ export default function ForgotPasswordScreen() {
                 style={[styles.button, loading && styles.buttonDisabled]}
                 onPress={handleResetPassword}
                 disabled={loading}>
-                {loading ? <ActivityIndicator color="#fff" /> : <Text style={styles.buttonText}>Reset password</Text>}
+                {loading ? <ActivityIndicator color={Colors.light.text} /> : <Text style={styles.buttonText}>Reset password</Text>}
               </Pressable>
             </>
           )}
@@ -240,7 +240,7 @@ const styles = StyleSheet.create({
     opacity: 0.6,
   },
   buttonText: {
-    color: '#fff',
+    color: Colors.light.text,
     fontSize: 16,
     fontWeight: '600',
   },

@@ -127,7 +127,7 @@ const styles = StyleSheet.create({
     borderColor: Colors.light.tint,
   },
   checkmark: {
-    color: '#fff',
+    color: Colors.light.text,
     fontSize: 15,
     fontWeight: '700',
   },

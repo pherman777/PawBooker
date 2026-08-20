@@ -1,7 +1,10 @@
+import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
+import * as ImagePicker from 'expo-image-picker';
 import { useEffect, useState } from 'react';
 import {
   ActivityIndicator,
+  Image,
   KeyboardAvoidingView,
   Platform,
   Pressable,
@@ -15,10 +18,12 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { AddressSearchInput, type SelectedLocation } from '@/components/AddressSearchInput';
+import { Button } from '@/components/ui/Button';
 import { Colors } from '@/constants/theme';
 import { webContentWidth } from '@/constants/webLayout';
 import { webFlushScroll } from '@/constants/webScroll';
 import { useAuth } from '@/services/auth-context';
+import { uploadGroomerAvatar } from '@/services/storage';
 import { supabase } from '@/services/supabase';
 import { notify } from '@/utils/confirm';
 import { isValidEmail } from '@/utils/email';
@@ -26,9 +31,10 @@ import { formatPhoneAsTyped, formatPhoneForDisplay, isValidPhone } from '@/utils
 
 export default function BusinessInfoScreen() {
   const router = useRouter();
-  const { groomerProfile, refreshGroomerProfile } = useAuth();
+  const { session, groomerProfile, refreshGroomerProfile } = useAuth();
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [uploadingPhoto, setUploadingPhoto] = useState(false);
   const [name, setName] = useState('');
   const [phone, setPhone] = useState('');
   const [email, setEmail] = useState('');
@@ -100,6 +106,27 @@ export default function BusinessInfoScreen() {
     router.back();
   }
 
+  async function handleChangePhoto() {
+    if (!session || !groomerProfile) return;
+
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ['images'],
+      quality: 0.8,
+    });
+    if (result.canceled || !result.assets[0]) return;
+
+    const asset = result.assets[0];
+    setUploadingPhoto(true);
+    try {
+      await uploadGroomerAvatar(session.user.id, groomerProfile.id, asset.uri, asset.mimeType ?? 'image/jpeg');
+      await refreshGroomerProfile();
+    } catch (err) {
+      notify('Could not upload photo', err instanceof Error ? err.message : 'Something went wrong.');
+    } finally {
+      setUploadingPhoto(false);
+    }
+  }
+
   if (loading) {
     return (
       <SafeAreaView style={[styles.container, webContentWidth('form')]} edges={['top', 'bottom']}>
@@ -120,6 +147,25 @@ export default function BusinessInfoScreen() {
         </View>
         <ScrollView style={webFlushScroll} showsVerticalScrollIndicator={false} contentContainerStyle={[styles.content, webContentWidth('form')]} keyboardShouldPersistTaps="handled">
           <Text style={styles.title}>Business info</Text>
+
+          <View style={styles.photoRow}>
+            <Pressable style={styles.photoCircle} onPress={handleChangePhoto} disabled={uploadingPhoto}>
+              {uploadingPhoto ? (
+                <ActivityIndicator color={Colors.light.tint} />
+              ) : groomerProfile?.avatarUrl ? (
+                <Image source={{ uri: groomerProfile.avatarUrl }} style={styles.photoImg} />
+              ) : (
+                <Ionicons name="paw" size={30} color={Colors.light.tint} />
+              )}
+              <View style={styles.photoEditBadge}>
+                <Ionicons name="pencil" size={12} color={Colors.light.bandText} />
+              </View>
+            </Pressable>
+            <View style={styles.photoTextWrap}>
+              <Text style={styles.photoTitle}>Business photo</Text>
+              <Text style={styles.photoSubtitle}>Shown to customers on your profile</Text>
+            </View>
+          </View>
 
           <Text style={styles.label}>Business name</Text>
           <TextInput style={styles.input} value={name} onChangeText={setName} />
@@ -178,12 +224,7 @@ export default function BusinessInfoScreen() {
             </Pressable>
           )}
 
-          <Pressable
-            style={[styles.button, saving && styles.buttonDisabled]}
-            onPress={handleSave}
-            disabled={saving}>
-            {saving ? <ActivityIndicator color="#fff" /> : <Text style={styles.buttonText}>Save</Text>}
-          </Pressable>
+          <Button label="Save" onPress={handleSave} loading={saving} style={styles.button} />
         </ScrollView>
       </KeyboardAvoidingView>
     </SafeAreaView>
@@ -219,6 +260,54 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: Colors.light.text,
     marginBottom: 20,
+  },
+  photoRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 16,
+    marginBottom: 26,
+  },
+  photoCircle: {
+    width: 76,
+    height: 76,
+    borderRadius: 38,
+    backgroundColor: 'rgba(107,143,114,0.16)',
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: Colors.light.border,
+    alignItems: 'center',
+    justifyContent: 'center',
+    overflow: 'visible',
+  },
+  photoImg: {
+    width: 76,
+    height: 76,
+    borderRadius: 38,
+  },
+  photoEditBadge: {
+    position: 'absolute',
+    bottom: -2,
+    right: -2,
+    width: 26,
+    height: 26,
+    borderRadius: 13,
+    backgroundColor: Colors.light.band,
+    borderWidth: 2,
+    borderColor: Colors.light.background,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  photoTextWrap: {
+    flex: 1,
+  },
+  photoTitle: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: Colors.light.text,
+    marginBottom: 2,
+  },
+  photoSubtitle: {
+    fontSize: 12.5,
+    color: Colors.light.textMuted,
   },
   label: {
     fontSize: 14,
@@ -270,19 +359,7 @@ const styles = StyleSheet.create({
     color: Colors.light.tint,
   },
   button: {
-    height: 48,
-    borderRadius: 10,
-    backgroundColor: Colors.light.tint,
-    alignItems: 'center',
-    justifyContent: 'center',
     marginTop: 28,
-  },
-  buttonDisabled: {
-    opacity: 0.6,
-  },
-  buttonText: {
-    color: '#fff',
-    fontSize: 16,
-    fontWeight: '600',
+    width: '100%',
   },
 });

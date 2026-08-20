@@ -9,6 +9,36 @@
   font-weight: 600;
   margin-bottom: 12px;
 }
+.sectionSpacing {
+  margin-top: 8px;
+}
+
+.sectionTitleRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.legend {
+  display: flex;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+.legendItem {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+.legendSwatch {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  display: inline-block;
+}
+.legendText {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--muted);
+}
 
 .chart {
   display: flex;
@@ -47,7 +77,22 @@
   min-height: 3px;
   transition: opacity 0.12s;
 }
-.chartCol:hover .chartBarFill {
+.chartBarStack {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+}
+.chartBarSegment {
+  width: 100%;
+  border-radius: 4px;
+  min-height: 3px;
+  transition: opacity 0.12s;
+}
+.chartBarGap {
+  height: 2px;
+}
+.chartCol:hover .chartBarFill,
+.chartCol:hover .chartBarSegment {
   opacity: 0.8;
 }
 .chartCol:hover .chartValue {
@@ -57,6 +102,15 @@
   margin-top: 6px;
   font-size: 11px;
   color: var(--muted);
+}
+
+.dayChart {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+  height: 140px;
+  margin-bottom: 28px;
+  padding: 16px;
 }
 
 .statsGrid {

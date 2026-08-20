@@ -18,6 +18,7 @@ import {
   careNeedsValid,
 } from '@/components/PetCareNeedsFields';
 import { SearchablePicker } from '@/components/SearchablePicker';
+import { Button } from '@/components/ui/Button';
 import { Colors } from '@/constants/theme';
 import { fetchActiveStaff, fetchBusyIntervals, type SalonStaff } from '@/services/availability';
 import { useAuth } from '@/services/auth-context';
@@ -624,7 +625,7 @@ export default function BookingScreen() {
               onPress={handleSavePet}
               disabled={!newPetName.trim() || savingPet}>
               {savingPet ? (
-                <ActivityIndicator color="#fff" />
+                <ActivityIndicator color={Colors.light.text} />
               ) : (
                 <Text style={styles.saveButtonText}>Save pet</Text>
               )}
@@ -677,16 +678,13 @@ export default function BookingScreen() {
 
         {submitError && <Text style={styles.error}>{submitError}</Text>}
 
-        <Pressable
-          style={[styles.confirmButton, !canConfirm && styles.buttonDisabled]}
+        <Button
+          label="Confirm booking"
           onPress={handleConfirm}
-          disabled={!canConfirm}>
-          {submitting ? (
-            <ActivityIndicator color="#fff" />
-          ) : (
-            <Text style={styles.confirmButtonText}>Confirm booking</Text>
-          )}
-        </Pressable>
+          disabled={!canConfirm}
+          loading={submitting}
+          style={styles.confirmButton}
+        />
       </ScrollView>
     </SafeAreaView>
   );
@@ -828,11 +826,16 @@ const styles = StyleSheet.create({
   },
   summaryCard: {
     marginTop: 24,
-    padding: 14,
-    borderRadius: 10,
+    padding: 16,
+    borderRadius: 16,
     backgroundColor: Colors.light.surface,
     borderWidth: StyleSheet.hairlineWidth,
     borderColor: Colors.light.border,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.08,
+    shadowRadius: 16,
+    elevation: 2,
   },
   summaryRow: {
     flexDirection: 'row',
@@ -952,7 +955,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   saveButtonText: {
-    color: '#fff',
+    color: Colors.light.text,
     fontSize: 14,
     fontWeight: '600',
   },
@@ -961,20 +964,11 @@ const styles = StyleSheet.create({
     borderColor: Colors.light.tint,
   },
   chipTextSelected: {
-    color: '#fff',
+    color: Colors.light.text,
   },
   confirmButton: {
     marginTop: 28,
-    height: 50,
-    borderRadius: 10,
-    backgroundColor: Colors.light.tint,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  confirmButtonText: {
-    color: '#fff',
-    fontSize: 16,
-    fontWeight: '600',
+    width: '100%',
   },
   buttonDisabled: {
     opacity: 0.5,

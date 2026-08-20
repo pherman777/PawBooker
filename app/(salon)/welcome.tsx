@@ -5,6 +5,7 @@ import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from
 
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { Button } from '@/components/ui/Button';
 import { Colors } from '@/constants/theme';
 import { supabase } from '@/services/supabase';
 import { useAuth } from '@/services/auth-context';
@@ -34,6 +35,7 @@ type Step = {
   done: boolean;
   required: boolean;
   route: SalonRoute;
+  icon: keyof typeof Ionicons.glyphMap;
 };
 
 export default function SalonWelcomeScreen() {
@@ -92,6 +94,7 @@ export default function SalonWelcomeScreen() {
       done: true,
       required: true,
       route: '/(salon)/business-info',
+      icon: 'briefcase-outline',
     },
     {
       key: 'services',
@@ -100,6 +103,7 @@ export default function SalonWelcomeScreen() {
       done: Boolean(state?.hasServices),
       required: true,
       route: '/(salon)/services',
+      icon: 'cut-outline',
     },
     {
       key: 'hours',
@@ -108,6 +112,7 @@ export default function SalonWelcomeScreen() {
       done: Boolean(state?.hasHours),
       required: true,
       route: '/(salon)/hours',
+      icon: 'calendar-outline',
     },
     {
       key: 'payouts',
@@ -116,6 +121,7 @@ export default function SalonWelcomeScreen() {
       done: payoutsEnabled,
       required: true,
       route: '/(salon)/payouts',
+      icon: 'card-outline',
     },
     {
       key: 'staff',
@@ -124,6 +130,7 @@ export default function SalonWelcomeScreen() {
       done: Boolean(state?.hasStaff),
       required: false,
       route: '/(salon)/staff',
+      icon: 'people-outline',
     },
     {
       key: 'supplies',
@@ -132,6 +139,7 @@ export default function SalonWelcomeScreen() {
       done: Boolean(state?.hasSupplies),
       required: false,
       route: '/(salon)/supplies',
+      icon: 'paw-outline',
     },
     {
       key: 'vaccination',
@@ -140,8 +148,12 @@ export default function SalonWelcomeScreen() {
       done: true,
       required: false,
       route: '/(salon)/vaccination',
+      icon: 'shield-checkmark-outline',
     },
   ];
+
+  const requiredSteps = steps.filter((s) => s.required);
+  const optionalSteps = steps.filter((s) => !s.required);
 
   const requiredDone = steps.filter((s) => s.required && s.done).length;
   const requiredTotal = steps.filter((s) => s.required).length;
@@ -159,59 +171,78 @@ export default function SalonWelcomeScreen() {
           you add a service.
         </Text>
 
-        <View style={[styles.statusBanner, isLive ? styles.statusLive : styles.statusPending]}>
-          <View style={styles.statusHeaderRow}>
-            <Ionicons
-              name={isLive ? 'checkmark-circle' : 'time-outline'}
-              size={20}
-              color={isLive ? Colors.light.success : Colors.light.warning}
-            />
-            <Text style={styles.statusText}>
-              {isLive
-                ? "You're all set — ready to take bookings and get paid."
-                : `${requiredDone} of ${requiredTotal} required steps done`}
+        {isLive ? (
+          <View style={styles.celebrateCard}>
+            <View style={styles.seal}>
+              <Ionicons name="paw" size={28} color={Colors.light.bandText} />
+            </View>
+            <Text style={styles.celebrateTitle}>You&rsquo;re live!</Text>
+            <Text style={styles.celebrateText}>Customers can find and book you now. Nice work.</Text>
+          </View>
+        ) : (
+          <View style={[styles.statusBanner, styles.statusPending]}>
+            <View style={styles.statusHeaderRow}>
+              <Ionicons name="time-outline" size={20} color={Colors.light.warning} />
+              <Text style={styles.statusText}>{`${requiredDone} of ${requiredTotal} required steps done`}</Text>
+            </View>
+
+            <View style={styles.progressBarTrack}>
+              <View style={[styles.progressBarFill, styles.progressBarFillPending, { width: `${progressPct}%` }]} />
+            </View>
+            <Text style={styles.progressCaption}>
+              {totalDone} of {totalSteps} steps completed
             </Text>
           </View>
-
-          <View style={styles.progressBarTrack}>
-            <View
-              style={[
-                styles.progressBarFill,
-                { width: `${progressPct}%` },
-                isLive ? styles.progressBarFillLive : styles.progressBarFillPending,
-              ]}
-            />
-          </View>
-          <Text style={styles.progressCaption}>
-            {totalDone} of {totalSteps} steps completed
-          </Text>
-        </View>
+        )}
 
         {loading && !state ? (
           <ActivityIndicator style={styles.loading} color={Colors.light.tint} />
         ) : (
-          steps.map((step) => (
-            <Pressable key={step.key} style={styles.stepRow} onPress={() => router.push(step.route)}>
-              <Ionicons
-                name={step.done ? 'checkmark-circle' : 'ellipse-outline'}
-                size={26}
-                color={step.done ? Colors.light.success : Colors.light.textMuted}
-              />
-              <View style={styles.stepBody}>
-                <View style={styles.stepTitleRow}>
-                  <Text style={styles.stepTitle}>{step.title}</Text>
-                  {!step.required && <Text style={styles.optionalTag}>Optional</Text>}
+          <>
+            <Text style={styles.sectionLabel}>Required to go live</Text>
+            {requiredSteps.map((step) => (
+              <Pressable key={step.key} style={styles.stepRow} onPress={() => router.push(step.route)}>
+                <View style={[styles.iconBadge, step.done ? styles.iconBadgeDone : styles.iconBadgePending]}>
+                  <Ionicons name={step.icon} size={19} color={step.done ? Colors.light.tint : Colors.light.textMuted} />
+                  {step.done && (
+                    <View style={styles.badgeCheck}>
+                      <Ionicons name="checkmark" size={9} color={Colors.light.bandText} />
+                    </View>
+                  )}
                 </View>
-                <Text style={styles.stepSubtitle}>{step.subtitle}</Text>
-              </View>
-              <Ionicons name="chevron-forward" size={20} color={Colors.light.textMuted} />
-            </Pressable>
-          ))
+                <View style={styles.stepBody}>
+                  <Text style={styles.stepTitle}>{step.title}</Text>
+                  <Text style={styles.stepSubtitle}>{step.subtitle}</Text>
+                </View>
+                <Ionicons name="chevron-forward" size={18} color={Colors.light.textMuted} />
+              </Pressable>
+            ))}
+
+            <Text style={styles.sectionLabel}>Optional</Text>
+            {optionalSteps.map((step) => (
+              <Pressable key={step.key} style={styles.stepRow} onPress={() => router.push(step.route)}>
+                <View style={[styles.iconBadge, step.done ? styles.iconBadgeDone : styles.iconBadgePending]}>
+                  <Ionicons name={step.icon} size={19} color={step.done ? Colors.light.tint : Colors.light.textMuted} />
+                  {step.done && (
+                    <View style={styles.badgeCheck}>
+                      <Ionicons name="checkmark" size={9} color={Colors.light.bandText} />
+                    </View>
+                  )}
+                </View>
+                <View style={styles.stepBody}>
+                  <View style={styles.stepTitleRow}>
+                    <Text style={styles.stepTitle}>{step.title}</Text>
+                    <Text style={styles.optionalTag}>Optional</Text>
+                  </View>
+                  <Text style={styles.stepSubtitle}>{step.subtitle}</Text>
+                </View>
+                <Ionicons name="chevron-forward" size={18} color={Colors.light.textMuted} />
+              </Pressable>
+            ))}
+          </>
         )}
 
-        <Pressable style={styles.dashboardButton} onPress={() => router.replace('/(salon)')}>
-          <Text style={styles.dashboardButtonText}>Go to dashboard</Text>
-        </Pressable>
+        <Button label="Go to dashboard" onPress={() => router.replace('/(salon)')} style={styles.dashboardButton} />
       </ScrollView>
     </SafeAreaView>
   );
@@ -244,11 +275,44 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     marginBottom: 20,
   },
-  statusLive: {
-    backgroundColor: 'rgba(169,203,173,0.18)',
+  celebrateCard: {
+    alignItems: 'center',
+    backgroundColor: Colors.light.surface,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: Colors.light.border,
+    borderRadius: 20,
+    paddingVertical: 26,
+    paddingHorizontal: 26,
+    marginBottom: 20,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.1,
+    shadowRadius: 16,
+    elevation: 2,
+  },
+  seal: {
+    width: 62,
+    height: 62,
+    borderRadius: 31,
+    backgroundColor: Colors.light.tint,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 14,
+  },
+  celebrateTitle: {
+    fontSize: 20,
+    fontWeight: '700',
+    color: Colors.light.text,
+    marginBottom: 6,
+  },
+  celebrateText: {
+    fontSize: 14,
+    color: Colors.light.textMuted,
+    textAlign: 'center',
   },
   statusPending: {
-    backgroundColor: 'rgba(208,142,123,0.16)',
+    // Matches dashboard's .statusPending (warning-tinted).
+    backgroundColor: 'rgba(185,133,46,0.14)',
   },
   statusHeaderRow: {
     flexDirection: 'row',
@@ -264,16 +328,15 @@ const styles = StyleSheet.create({
   progressBarTrack: {
     height: 6,
     borderRadius: 3,
-    backgroundColor: 'rgba(255,255,255,0.12)',
+    // Was a white-alpha overlay for the old dark surface - now a solid
+    // light recessed fill, matching dashboard's .progressTrack.
+    backgroundColor: Colors.light.surfaceElevated,
     overflow: 'hidden',
     marginTop: 12,
   },
   progressBarFill: {
     height: '100%',
     borderRadius: 3,
-  },
-  progressBarFillLive: {
-    backgroundColor: Colors.light.success,
   },
   progressBarFillPending: {
     backgroundColor: Colors.light.warning,
@@ -287,17 +350,59 @@ const styles = StyleSheet.create({
   loading: {
     marginTop: 24,
   },
+  sectionLabel: {
+    fontSize: 11.5,
+    fontWeight: '700',
+    letterSpacing: 1,
+    textTransform: 'uppercase',
+    color: Colors.light.textMuted,
+    marginTop: 18,
+    marginBottom: 10,
+    marginLeft: 4,
+  },
   stepRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 14,
-    paddingVertical: 16,
+    paddingVertical: 13,
     paddingHorizontal: 16,
-    borderRadius: 12,
+    borderRadius: 16,
     backgroundColor: Colors.light.surface,
     borderWidth: StyleSheet.hairlineWidth,
     borderColor: Colors.light.border,
-    marginBottom: 12,
+    marginBottom: 8,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.06,
+    shadowRadius: 10,
+    elevation: 1,
+  },
+  iconBadge: {
+    width: 40,
+    height: 40,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+    flexShrink: 0,
+  },
+  iconBadgeDone: {
+    backgroundColor: 'rgba(107,143,114,0.18)',
+  },
+  iconBadgePending: {
+    backgroundColor: Colors.light.surfaceElevated,
+  },
+  badgeCheck: {
+    position: 'absolute',
+    bottom: -3,
+    right: -3,
+    width: 16,
+    height: 16,
+    borderRadius: 8,
+    backgroundColor: Colors.light.success,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 2,
+    borderColor: Colors.light.surface,
   },
   stepBody: {
     flex: 1,
@@ -308,16 +413,16 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   stepTitle: {
-    fontSize: 16,
+    fontSize: 15,
     fontWeight: '600',
     color: Colors.light.text,
   },
   optionalTag: {
-    fontSize: 11,
-    fontWeight: '600',
-    color: Colors.light.textMuted,
-    backgroundColor: Colors.light.background,
-    paddingHorizontal: 6,
+    fontSize: 10.5,
+    fontWeight: '700',
+    color: Colors.light.bandTextMuted,
+    backgroundColor: Colors.light.band,
+    paddingHorizontal: 7,
     paddingVertical: 2,
     borderRadius: 6,
     overflow: 'hidden',
@@ -330,16 +435,6 @@ const styles = StyleSheet.create({
   },
   dashboardButton: {
     marginTop: 12,
-    height: 48,
-    borderRadius: 10,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: Colors.light.border,
-  },
-  dashboardButtonText: {
-    fontSize: 15,
-    fontWeight: '600',
-    color: Colors.light.tint,
+    width: '100%',
   },
 });

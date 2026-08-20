@@ -534,7 +534,7 @@ export default function SalonDashboardScreen() {
               <Ionicons name="menu-outline" size={22} color={Colors.light.text} />
               {groomerProfile?.plan !== 'pro' && (
                 <View style={styles.lockBadge}>
-                  <Ionicons name="lock-closed" size={9} color="#fff" />
+                  <Ionicons name="lock-closed" size={9} color={Colors.light.text} />
                 </View>
               )}
             </Pressable>
@@ -606,7 +606,7 @@ export default function SalonDashboardScreen() {
                     <Ionicons
                       name="alert-circle-outline"
                       size={17}
-                      color={statFilter === 'pending' ? '#fff' : Colors.light.warning}
+                      color={statFilter === 'pending' ? Colors.light.text : Colors.light.warning}
                     />
                   </View>
                   <Text style={[styles.statValue, statFilter === 'pending' && styles.statValueActive]}>
@@ -627,7 +627,7 @@ export default function SalonDashboardScreen() {
                     <Ionicons
                       name="calendar-outline"
                       size={16}
-                      color={statFilter === 'upcoming' ? '#fff' : Colors.light.tint}
+                      color={statFilter === 'upcoming' ? Colors.light.text : Colors.light.tint}
                     />
                   </View>
                   <Text style={[styles.statValue, statFilter === 'upcoming' && styles.statValueActive]}>
@@ -655,7 +655,7 @@ export default function SalonDashboardScreen() {
                     <Ionicons
                       name="cash-outline"
                       size={16}
-                      color={statFilter === 'ready_to_bill' ? '#fff' : Colors.light.success}
+                      color={statFilter === 'ready_to_bill' ? Colors.light.text : Colors.light.success}
                     />
                   </View>
                   <Text style={[styles.statValue, statFilter === 'ready_to_bill' && styles.statValueActive]}>
@@ -688,7 +688,7 @@ export default function SalonDashboardScreen() {
                   <Ionicons
                     name="list"
                     size={15}
-                    color={viewMode === 'list' ? '#fff' : Colors.light.textMuted}
+                    color={viewMode === 'list' ? Colors.light.text : Colors.light.textMuted}
                   />
                   <Text style={[styles.toggleText, viewMode === 'list' && styles.toggleTextActive]}>
                     Cards
@@ -700,7 +700,7 @@ export default function SalonDashboardScreen() {
                   <Ionicons
                     name="calendar-outline"
                     size={15}
-                    color={viewMode === 'calendar' ? '#fff' : Colors.light.textMuted}
+                    color={viewMode === 'calendar' ? Colors.light.text : Colors.light.textMuted}
                   />
                   <Text style={[styles.toggleText, viewMode === 'calendar' && styles.toggleTextActive]}>
                     Calendar
@@ -1006,11 +1006,13 @@ const styles = StyleSheet.create({
     borderColor: Colors.light.tint,
     borderLeftColor: Colors.light.tint,
   },
+  // White-on-sage measured weaker contrast than dark ink-on-sage (same fix
+  // already made on the dashboard's equivalent stat cards).
   statValueActive: {
-    color: '#fff',
+    color: Colors.light.text,
   },
   statLabelActive: {
-    color: 'rgba(255,255,255,0.85)',
+    color: 'rgba(43,51,44,0.75)',
   },
   clearFilter: {
     marginTop: -6,
@@ -1057,7 +1059,7 @@ const styles = StyleSheet.create({
     color: Colors.light.textMuted,
   },
   toggleTextActive: {
-    color: '#fff',
+    color: Colors.light.text,
   },
   dayListLabel: {
     fontSize: 15,
@@ -1103,7 +1105,7 @@ const styles = StyleSheet.create({
   groupBadgeText: {
     fontSize: 12,
     fontWeight: '700',
-    color: '#fff',
+    color: Colors.light.text,
   },
   groupPetCare: {
     marginTop: 8,
@@ -1152,12 +1154,12 @@ const styles = StyleSheet.create({
     color: Colors.light.textMuted,
   },
   actions: {
-    flexDirection: 'row',
-    gap: 10,
+    flexDirection: 'column',
+    gap: 8,
     marginTop: 14,
   },
   actionButtonFlex: {
-    flex: 1,
+    width: '100%',
   },
   empty: {
     flex: 1,

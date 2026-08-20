@@ -5,6 +5,7 @@ import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Switch, Text, Vie
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import type { GroomerHours } from '@/types';
+import { Button } from '@/components/ui/Button';
 import { Colors } from '@/constants/theme';
 import { DAYS_OF_WEEK, dayLabel, formatTime } from '@/utils/hours';
 import { TimePickerModal } from '@/components/TimePickerModal';
@@ -142,12 +143,7 @@ export default function HoursScreen() {
           );
         })}
 
-        <Pressable
-          style={[styles.button, saving && styles.buttonDisabled]}
-          onPress={handleSave}
-          disabled={saving}>
-          {saving ? <ActivityIndicator color="#fff" /> : <Text style={styles.buttonText}>Save</Text>}
-        </Pressable>
+        <Button label="Save" onPress={handleSave} loading={saving} style={styles.button} />
       </ScrollView>
 
       <TimePickerModal
@@ -201,9 +197,17 @@ const styles = StyleSheet.create({
     color: Colors.light.textMuted,
   },
   dayRow: {
-    paddingVertical: 12,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: Colors.light.border,
+    padding: 16,
+    marginBottom: 10,
+    backgroundColor: Colors.light.surface,
+    borderRadius: 14,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: Colors.light.border,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.06,
+    shadowRadius: 12,
+    elevation: 1,
   },
   dayHeader: {
     flexDirection: 'row',
@@ -242,19 +246,7 @@ const styles = StyleSheet.create({
     color: Colors.light.textMuted,
   },
   button: {
-    height: 48,
-    borderRadius: 10,
-    backgroundColor: Colors.light.tint,
-    alignItems: 'center',
-    justifyContent: 'center',
     marginTop: 28,
-  },
-  buttonDisabled: {
-    opacity: 0.6,
-  },
-  buttonText: {
-    color: '#fff',
-    fontSize: 16,
-    fontWeight: '600',
+    width: '100%',
   },
 });

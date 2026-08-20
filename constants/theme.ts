@@ -1,35 +1,42 @@
-// "Warm Stone" — a warmer, more contrasted revision of the original
-// black-and-green palette. Diverges from the marketing site's still-original
-// colors on purpose (public/styles/site.css is unchanged) — follow-up work
-// should bring the marketing site to match so the two don't drift apart.
+// "Hybrid" — dark chrome (nav bars, primary buttons) paired with light warm
+// content surfaces, matching the redesigned dashboard (dashboard/app/
+// globals.css) and marketing site. Evolved from "Warm Stone" (the previous
+// all-dark theme): same sage/clay brand identity, but dark stayed too heavy
+// for a public-facing product — these are the dashboard's own validated hex
+// values, reused as-is rather than re-derived, so every surface stays
+// pixel-consistent across web and native.
 // Kept under the `light` key (rather than renamed) so the ~60 files already
 // importing `Colors.light.*` don't need touching.
-const stone = {
-  text: '#F2F1E9',
-  textMuted: '#C2C4B4',
-  background: '#2C302A',
-  // Full-bleed section/nav-bar background, one step darker than `background`
-  // — the marketing site's layered ground -> band -> surface -> surface-2
-  // depth, which the app didn't have before.
+const hybrid = {
+  text: '#2B332C',
+  textMuted: '#6B7264',
+  background: '#EAE7DB',
+  // Full-bleed nav-bar/chrome background - the one place that stays dark.
+  // Same hex on both platforms; only `background`/`surface`/`text` flipped
+  // from dark to light in this revision.
   band: '#24281F',
-  surface: '#363A31',
-  // Elevated cards sitting on top of `surface` (marketing's "surface-2").
-  surfaceElevated: '#40453A',
-  border: '#52584A',
-  tint: '#9CC2A0',
-  secondary: '#D89C87',
-  tabIconDefault: '#C2C4B4',
-  tabIconSelected: '#9CC2A0',
-  // success/warning/danger used to double up with tint/secondary (warning
-  // was literally the same hex as secondary) - now distinct hues so state
-  // colors never get confused with the brand accent.
-  success: '#7FB86B',
-  warning: '#D9A75A',
-  danger: '#E2685A',
+  surface: '#FBFAF4',
+  // Elevated cards sitting on top of `surface`.
+  surfaceElevated: '#F1EFE4',
+  border: '#DCDFD0',
+  tint: '#6B8F72',
+  secondary: '#BB7360',
+  tabIconDefault: '#B7BAA9',
+  tabIconSelected: '#6B8F72',
+  success: '#4F8A5B',
+  warning: '#B9852E',
+  danger: '#B14B3E',
+  // Text/borders drawn *on* `band` - `text`/`textMuted`/`border` are now the
+  // light-surface (dark-on-light) values, so anything rendered directly on
+  // the dark band (nav bars, filled dark chrome) needs these instead, or it
+  // reads as illegible dark-on-dark.
+  bandText: '#F3F2EA',
+  bandTextMuted: '#B7BAA9',
+  bandBorder: '#3C4136',
 };
 
 export const Colors = {
-  light: stone,
+  light: hybrid,
 } as const;
 
 export type ThemeColors = typeof Colors.light;

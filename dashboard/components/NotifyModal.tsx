@@ -62,6 +62,21 @@ export function NotifyModalProvider({ children }: Props) {
     }
   }, []);
 
+  // ?notify=1 - lets a link from elsewhere in the app (e.g. the sign-in
+  // page's "sign up" link, for a visitor who isn't a groomer) land here with
+  // the waitlist modal already open, since real customer account creation
+  // isn't live yet - this *is* the customer signup flow for now.
+  useEffect(() => {
+    if (new URLSearchParams(window.location.search).get('notify') === '1') {
+      setEmail('');
+      setIsGroomer(false);
+      setError(false);
+      setSuccess(false);
+      setModal({ open: true });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   function openModal() {
     setEmail('');
     setIsGroomer(false);
@@ -155,7 +170,7 @@ export function NotifyModalProvider({ children }: Props) {
                       checked={isGroomer}
                       onChange={(e) => setIsGroomer(e.target.checked)}
                     />
-                    I&rsquo;m a groomer
+                    <span>I&rsquo;m a groomer</span>
                   </label>
                   {error && <p className={styles.modalError}>Something went wrong &mdash; please try again.</p>}
                   <div className={styles.modalActions}>

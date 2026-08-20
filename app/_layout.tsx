@@ -208,7 +208,7 @@ function HeaderBrand({ title }: { title?: string }) {
     <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
       <Logo size={22} tile={false} />
       {title ? (
-        <Text style={{ fontSize: 17, fontWeight: '600', color: Colors.light.text }}>{title}</Text>
+        <Text style={{ fontSize: 17, fontWeight: '600', color: Colors.light.bandText }}>{title}</Text>
       ) : null}
     </View>
   );
@@ -232,8 +232,8 @@ export default function RootLayout() {
                   // RouteGuard already lets a logged-in groomer reach
                   // chat/help/contact-support.
                   headerStyle: { backgroundColor: Colors.light.band },
-                  headerTintColor: Colors.light.text,
-                  headerTitleStyle: { color: Colors.light.text },
+                  headerTintColor: Colors.light.bandText,
+                  headerTitleStyle: { color: Colors.light.bandText },
                   headerShadowVisible: false,
                 }}>
                 <Stack.Screen name="(auth)" />

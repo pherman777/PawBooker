@@ -1,7 +1,8 @@
+import { Ionicons } from '@expo/vector-icons';
 import * as Location from 'expo-location';
 import { useRouter } from 'expo-router';
 import { useEffect, useMemo, useState } from 'react';
-import { ActivityIndicator, FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, FlatList, Image, Pressable, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { AddressSearchInput, type SelectedLocation } from '@/components/AddressSearchInput';
@@ -153,18 +154,27 @@ export default function BrowseScreen() {
             <Pressable
               style={styles.card}
               onPress={() => router.push({ pathname: '/groomer/[id]', params: { id: item.groomer.id } })}>
-              <Text style={styles.cardName}>{item.groomer.name}</Text>
-              <Text style={styles.cardAddress}>{item.groomer.address}</Text>
-              <View style={styles.cardFooter}>
-                <Text style={styles.cardRating}>
-                  ★ {item.groomer.rating.toFixed(1)} ({item.groomer.reviewCount})
-                  {item.distance != null && Number.isFinite(item.distance)
-                    ? ` · ${item.distance.toFixed(1)} mi`
-                    : ''}
-                </Text>
-                <Text style={styles.cardPrice}>
-                  from ${(item.groomer.priceFromCents / 100).toFixed(0)}
-                </Text>
+              <View style={styles.cardAvatar}>
+                {item.groomer.avatarUrl ? (
+                  <Image source={{ uri: item.groomer.avatarUrl }} style={styles.cardAvatarImg} />
+                ) : (
+                  <Ionicons name="paw" size={22} color={Colors.light.tint} />
+                )}
+              </View>
+              <View style={styles.cardBody}>
+                <Text style={styles.cardName}>{item.groomer.name}</Text>
+                <Text style={styles.cardAddress}>{item.groomer.address}</Text>
+                <View style={styles.cardFooter}>
+                  <Text style={styles.cardRating}>
+                    ★ {item.groomer.rating.toFixed(1)} ({item.groomer.reviewCount})
+                    {item.distance != null && Number.isFinite(item.distance)
+                      ? ` · ${item.distance.toFixed(1)} mi`
+                      : ''}
+                  </Text>
+                  <Text style={styles.cardPrice}>
+                    from ${(item.groomer.priceFromCents / 100).toFixed(0)}
+                  </Text>
+                </View>
               </View>
             </Pressable>
           )}
@@ -212,11 +222,35 @@ const styles = StyleSheet.create({
     paddingBottom: 24,
   },
   card: {
+    flexDirection: 'row',
+    gap: 14,
     backgroundColor: Colors.light.surface,
-    borderRadius: 12,
+    borderRadius: 16,
     padding: 16,
     borderWidth: StyleSheet.hairlineWidth,
     borderColor: Colors.light.border,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.08,
+    shadowRadius: 16,
+    elevation: 2,
+  },
+  cardAvatar: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: 'rgba(107,143,114,0.16)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    flexShrink: 0,
+  },
+  cardAvatarImg: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+  },
+  cardBody: {
+    flex: 1,
   },
   cardName: {
     fontSize: 17,

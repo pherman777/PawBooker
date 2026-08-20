@@ -321,7 +321,7 @@ export default function ProfileScreen() {
                 onPress={handleRedeemInvite}
                 disabled={!inviteCode.trim() || redeeming}>
                 {redeeming ? (
-                  <ActivityIndicator color="#fff" size="small" />
+                  <ActivityIndicator color={Colors.light.text} size="small" />
                 ) : (
                   <Text style={styles.inviteApplyText}>Apply</Text>
                 )}
@@ -544,7 +544,7 @@ const styles = StyleSheet.create({
   inviteApplyText: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#fff',
+    color: Colors.light.text,
   },
   listBusinessText: {
     fontSize: 15,

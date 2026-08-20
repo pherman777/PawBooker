@@ -5,6 +5,7 @@ import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from
 
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { Button } from '@/components/ui/Button';
 import { Colors } from '@/constants/theme';
 import { cancelSubscription } from '@/services/stripe';
 import { notify } from '@/utils/confirm';
@@ -161,13 +162,13 @@ export default function PlanScreen() {
             </Text>
           </View>
         ) : isPro && hasSubscription ? (
-          <Pressable style={styles.cancelButton} onPress={handleCancel} disabled={working}>
-            {working ? (
-              <ActivityIndicator color={Colors.light.danger} size="small" />
-            ) : (
-              <Text style={styles.cancelButtonText}>Cancel subscription</Text>
-            )}
-          </Pressable>
+          <Button
+            label="Cancel subscription"
+            variant="danger"
+            onPress={handleCancel}
+            loading={working}
+            style={styles.cancelButton}
+          />
         ) : isPro ? (
           <View style={styles.cancelNotice}>
             <Ionicons name="checkmark-circle-outline" size={18} color={Colors.light.textMuted} />
@@ -214,11 +215,16 @@ const styles = StyleSheet.create({
   },
   planCard: {
     backgroundColor: Colors.light.surface,
-    borderRadius: 14,
+    borderRadius: 16,
     padding: 20,
     borderWidth: StyleSheet.hairlineWidth,
     borderColor: Colors.light.border,
     marginBottom: 24,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.08,
+    shadowRadius: 16,
+    elevation: 2,
   },
   planCardActive: {
     backgroundColor: Colors.light.tint,
@@ -230,7 +236,7 @@ const styles = StyleSheet.create({
     color: Colors.light.text,
   },
   planNameActive: {
-    color: '#fff',
+    color: Colors.light.text,
   },
   planPrice: {
     marginTop: 4,
@@ -273,17 +279,7 @@ const styles = StyleSheet.create({
   },
   cancelButton: {
     marginTop: 20,
-    height: 48,
-    borderRadius: 10,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: Colors.light.danger,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  cancelButtonText: {
-    fontSize: 15,
-    fontWeight: '600',
-    color: Colors.light.danger,
+    width: '100%',
   },
   cancelNotice: {
     marginTop: 20,

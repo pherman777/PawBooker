@@ -1,6 +1,7 @@
+import { Ionicons } from '@expo/vector-icons';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useEffect, useState } from 'react';
-import { ActivityIndicator, Linking, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Image, Linking, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { Colors } from '@/constants/theme';
@@ -158,8 +159,19 @@ export default function GroomerDetailScreen() {
   return (
     <SafeAreaView style={styles.container} edges={['bottom']}>
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.content}>
-        <Text style={styles.name}>{groomer.name}</Text>
-        <Text style={styles.address}>{groomer.address}</Text>
+        <View style={styles.headerRow}>
+          <View style={styles.avatar}>
+            {groomer.avatarUrl ? (
+              <Image source={{ uri: groomer.avatarUrl }} style={styles.avatarImg} />
+            ) : (
+              <Ionicons name="paw" size={28} color={Colors.light.tint} />
+            )}
+          </View>
+          <View style={styles.headerText}>
+            <Text style={styles.name}>{groomer.name}</Text>
+            <Text style={styles.address}>{groomer.address}</Text>
+          </View>
+        </View>
 
         {groomer.latitude != null && groomer.longitude != null && (
           <View style={styles.directionsWrapper}>
@@ -204,7 +216,7 @@ export default function GroomerDetailScreen() {
                   onPress={() => handleBookPress(service.id)}
                   disabled={startingBookingFor === service.id}>
                   {startingBookingFor === service.id ? (
-                    <ActivityIndicator color="#fff" size="small" />
+                    <ActivityIndicator color={Colors.light.text} size="small" />
                   ) : (
                     <Text style={styles.bookButtonText}>Book</Text>
                   )}
@@ -284,6 +296,28 @@ const styles = StyleSheet.create({
     margin: 20,
     fontSize: 15,
     color: Colors.light.danger,
+  },
+  headerRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 14,
+  },
+  avatar: {
+    width: 64,
+    height: 64,
+    borderRadius: 32,
+    backgroundColor: 'rgba(107,143,114,0.16)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    flexShrink: 0,
+  },
+  avatarImg: {
+    width: 64,
+    height: 64,
+    borderRadius: 32,
+  },
+  headerText: {
+    flex: 1,
   },
   name: {
     fontSize: 26,
@@ -380,7 +414,7 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.light.tint,
   },
   bookButtonText: {
-    color: '#fff',
+    color: Colors.light.text,
     fontSize: 14,
     fontWeight: '600',
   },
