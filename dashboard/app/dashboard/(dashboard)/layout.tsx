@@ -7,6 +7,7 @@ import { BusinessAssistantFab } from '@/components/BusinessAssistantFab';
 import { Button } from '@/components/Button';
 import { Nav } from '@/components/Nav';
 import { useAuth } from '@/lib/auth';
+import { supabase } from '@/lib/supabase';
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   const router = useRouter();
@@ -28,8 +29,12 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     return (
       <div className="page-loading page-loading-message">
         <p>No salon found for this account.</p>
-        <p className="muted">Finish listing your business to get to your setup steps.</p>
+        <p className="muted">
+          This account isn&apos;t set up as a groomer. Finish listing your business, or sign out and use a
+          groomer account.
+        </p>
         <Button label="List your business" onClick={() => router.push('/dashboard/sign-up')} />
+        <Button label="Sign out" variant="ghost" onClick={() => supabase.auth.signOut()} />
       </div>
     );
   }
