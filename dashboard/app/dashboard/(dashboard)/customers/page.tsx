@@ -1,6 +1,7 @@
 'use client';
 
 import { Users } from 'lucide-react';
+import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
 
@@ -86,10 +87,7 @@ export default function CustomersPage() {
       {!loading && !error && customers.length > 0 && (
         <div className={styles.list}>
           {customers.map((c) => (
-            <button
-              key={c.customerId}
-              className={`card ${styles.row}`}
-              onClick={() => router.push(`/dashboard/customers/${c.customerId}`)}>
+            <Link key={c.customerId} href={`/dashboard/customers/${c.customerId}`} className={`card ${styles.row}`}>
               <div className={styles.rowLeft}>
                 <div className={styles.avatar}>{initials(c.name || c.email)}</div>
                 <div>
@@ -100,7 +98,7 @@ export default function CustomersPage() {
               <span className={styles.rowMeta}>
                 {c.pets.length === 0 ? 'No pets yet' : `${c.pets.length} pet${c.pets.length > 1 ? 's' : ''}`}
               </span>
-            </button>
+            </Link>
           ))}
         </div>
       )}

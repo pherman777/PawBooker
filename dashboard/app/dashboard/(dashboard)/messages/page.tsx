@@ -1,7 +1,7 @@
 'use client';
 
 import { MessageCircle, MoreVertical } from 'lucide-react';
-import { useRouter } from 'next/navigation';
+import Link from 'next/link';
 import { useCallback, useEffect, useState } from 'react';
 
 import { useAuth } from '@/lib/auth';
@@ -12,7 +12,6 @@ import styles from './page.module.css';
 // Port of app/(salon)/messages.tsx - the groomer's inbox, previously
 // only available in the native app.
 export default function MessagesPage() {
-  const router = useRouter();
   const { groomerProfile } = useAuth();
   const [threads, setThreads] = useState<ThreadRow[]>([]);
   const [loading, setLoading] = useState(true);
@@ -64,13 +63,13 @@ export default function MessagesPage() {
 
           {threads.map((thread) => (
             <div key={thread.id} className={`card ${styles.row}`}>
-              <button type="button" className={styles.rowText} onClick={() => router.push(`/dashboard/messages/${thread.id}`)}>
+              <Link href={`/dashboard/messages/${thread.id}`} className={styles.rowText}>
                 <div className={styles.rowHeader}>
                   <span className={styles.rowName}>{thread.customerLabel}</span>
                   {thread.needsHuman && <span className={styles.needsHumanPill}>Needs you</span>}
                 </div>
                 {thread.lastMessage && <div className={styles.rowPreview}>{thread.lastMessage}</div>}
-              </button>
+              </Link>
               {thread.unread && <span className={styles.unreadDot} />}
               <button type="button" className={styles.menuBtn} onClick={() => setOpenMenuId((v) => (v === thread.id ? null : thread.id))} aria-label="Conversation options">
                 <MoreVertical size={18} strokeWidth={2} />

@@ -1,5 +1,6 @@
 'use client';
 
+import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
 
@@ -123,13 +124,16 @@ export function BookingCard({ entry, busy, onAccept, onDecline, onCompleteServic
       )}
 
       {readyToBill.length > 0 && (
-        <Button
-          label={`Complete & invoice (${readyToBill.length} ${readyToBill.length === 1 ? 'pet' : 'pets'})`}
-          onClick={() =>
-            router.push(isGroup ? `/dashboard/complete-group/${entry.key}` : `/dashboard/complete/${readyToBill[0].id}`)
-          }
-          block
-        />
+        // Link, not a Button+router.push onClick - Link prefetches the
+        // destination route's JS/CSS on hover/viewport-visibility, which is
+        // what actually fixes the page briefly rendering unstyled right
+        // after navigating (router.push has no equivalent prefetch on its
+        // own unless called out explicitly).
+        <Link
+          href={isGroup ? `/dashboard/complete-group/${entry.key}` : `/dashboard/complete/${readyToBill[0].id}`}
+          className="btn btn-primary btn-block">
+          {`Complete & invoice (${readyToBill.length} ${readyToBill.length === 1 ? 'pet' : 'pets'})`}
+        </Link>
       )}
 
       {active && <Button label={isGroup ? 'Cancel visit' : 'Cancel'} variant="danger" onClick={() => onCancel(ids)} disabled={busy} block />}
