@@ -1,6 +1,9 @@
+'use client';
+
 import Image from 'next/image';
 import Link from 'next/link';
 
+import { useNotifyModal } from '@/components/NotifyModal';
 import styles from '@/app/marketing.module.css';
 
 type Props = {
@@ -10,8 +13,13 @@ type Props = {
 // Shared across the marketing homepage and the four inner pages
 // (privacy/support/delete-account/upgrade). Only the homepage shows the
 // "Log in / Sign up" CTA, matching the original public/index.html vs.
-// public/{support,privacy,...}.html nav markup.
+// public/{support,privacy,...}.html nav markup. Real sign-in/sign-up isn't
+// live on this domain yet (see dashboard/middleware.ts) - this opens the
+// same waitlist modal as the rest of the homepage instead of linking to
+// /dashboard/sign-in directly.
 export function SiteHeader({ showAuthCta }: Props) {
+  const { openModal } = useNotifyModal();
+
   return (
     <header className={styles.nav}>
       <div className={`${styles.wrap} ${styles.navInner}`}>
@@ -23,9 +31,9 @@ export function SiteHeader({ showAuthCta }: Props) {
           <Link href="/#owners">For pet owners</Link>
           <Link href="/#groomers">For groomers</Link>
           {showAuthCta && (
-            <Link className={`btn btn-sm ${styles.btnSage}`} data-btn href="/dashboard/sign-in">
+            <button className={`btn btn-sm ${styles.btnSage}`} data-btn onClick={() => openModal()}>
               Log in / Sign up
-            </Link>
+            </button>
           )}
         </nav>
       </div>
