@@ -1,10 +1,11 @@
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useEffect, useState } from 'react';
-import { ActivityIndicator, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { Colors } from '@/constants/theme';
+import { getOrCreateGroomerThread } from '@/services/chat';
 import {
   fetchCustomerBookingHistory,
   fetchCustomerPetDetails,
@@ -16,6 +17,7 @@ import {
 import { useAuth } from '@/services/auth-context';
 import { webContentWidth } from '@/constants/webLayout';
 import { webFlushScroll } from '@/constants/webScroll';
+import { notify } from '@/utils/confirm';
 
 function formatWhen(iso: string) {
   return new Date(iso).toLocaleString(undefined, {
@@ -38,6 +40,20 @@ export default function CustomerDetailScreen() {
   const [bookings, setBookings] = useState<CustomerBookingHistoryRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [messaging, setMessaging] = useState(false);
+
+  async function handleMessage() {
+    if (!groomerProfile) return;
+    setMessaging(true);
+    try {
+      const threadId = await getOrCreateGroomerThread(customerId, groomerProfile.id);
+      router.push({ pathname: '/chat/[threadId]', params: { threadId } });
+    } catch (err) {
+      notify('Could not start conversation', err instanceof Error ? err.message : 'Something went wrong.');
+    } finally {
+      setMessaging(false);
+    }
+  }
 
   useEffect(() => {
     if (!groomerProfile) return;
@@ -87,6 +103,14 @@ export default function CustomerDetailScreen() {
             {customer.name ? customer.email : 'No name on file yet'}
             {customer.phone ? ` · ${customer.phone}` : ''}
           </Text>
+
+          <Pressable style={styles.messageButton} onPress={handleMessage} disabled={messaging}>
+            {messaging ? (
+              <ActivityIndicator color={Colors.light.tint} size="small" />
+            ) : (
+              <Text style={styles.messageButtonText}>Message this customer</Text>
+            )}
+          </Pressable>
 
           <Text style={styles.sectionTitle}>Pets</Text>
           {pets.length === 0 && <Text style={styles.emptyText}>No pets on file.</Text>}
@@ -165,6 +189,20 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: Colors.light.textMuted,
     marginBottom: 20,
+  },
+  messageButton: {
+    height: 44,
+    borderRadius: 10,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: Colors.light.tint,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 24,
+  },
+  messageButtonText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: Colors.light.tint,
   },
   sectionTitle: {
     fontSize: 17,
