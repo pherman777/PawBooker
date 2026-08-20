@@ -17,6 +17,7 @@
 }
 .lineItemDescription {
   flex: 1;
+  min-width: 0;
   font-size: 15px;
 }
 .lineItemAmount {
@@ -36,9 +37,14 @@
   display: flex;
   gap: 8px;
   margin-top: 12px;
+  min-width: 0;
 }
 .addItemForm input {
   height: 44px;
+  /* Flex items default to min-width: auto (their intrinsic content width),
+     not 0 - without this, these inputs refuse to shrink below that and
+     force the whole row wider than the page's intended max-width. */
+  min-width: 0;
 }
 .descriptionInput {
   flex: 2;
