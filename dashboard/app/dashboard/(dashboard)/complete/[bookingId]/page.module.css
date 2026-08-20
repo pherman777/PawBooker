@@ -10,6 +10,10 @@
   font-weight: 600;
 }
 
+.invoiceCard {
+  padding: 4px 20px;
+}
+
 .lineItemRow {
   display: flex;
   align-items: center;

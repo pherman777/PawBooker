@@ -229,7 +229,7 @@ export default function CompleteBookingPage() {
       <PetCareBox info={petCare} />
 
       <h2 className={styles.sectionTitle}>Invoice items</h2>
-      <Card>
+      <Card className={styles.invoiceCard}>
         {lineItems.map((item, index) => (
           <div key={`${item.description}-${index}`} className={styles.lineItemRow}>
             <span className={styles.lineItemDescription}>{item.description}</span>
