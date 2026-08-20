@@ -21,6 +21,9 @@ type Props = {
 // one viewing - it only appears when a GROOMER is viewing the thread, where
 // otherwise an unlabeled customer bubble sat indistinguishable next to
 // labeled "Assistant" bubbles, looking like the bot replying to itself.
+// Bot messages get their own centered, clay-tinted bubble style (see
+// bubbleRowBot/bubbleBot below) so they're never mistaken for the other
+// party's messages just because both fall outside `ownSenderTypes`.
 function bubbleLabel(senderType: ChatSenderType) {
   if (senderType === 'bot') return 'Assistant';
   if (senderType === 'groomer') return 'Groomer';
@@ -54,10 +57,13 @@ export function ChatView({ messages, ownSenderTypes, value, onChangeValue, onSen
       <div className={styles.list} ref={listRef}>
         {messages.map((item) => {
           const isOwn = ownSenderTypes.includes(item.senderType);
+          const isBot = item.senderType === 'bot';
           const label = bubbleLabel(item.senderType);
+          const rowClass = isOwn ? styles.bubbleRowOwn : isBot ? styles.bubbleRowBot : '';
+          const bubbleClass = isOwn ? styles.bubbleOwn : isBot ? styles.bubbleBot : styles.bubbleOther;
           return (
-            <div key={item.id} className={`${styles.bubbleRow} ${isOwn ? styles.bubbleRowOwn : ''}`}>
-              <div className={`${styles.bubble} ${isOwn ? styles.bubbleOwn : styles.bubbleOther}`}>
+            <div key={item.id} className={`${styles.bubbleRow} ${rowClass}`}>
+              <div className={`${styles.bubble} ${bubbleClass}`}>
                 {label && !isOwn && <div className={styles.bubbleLabel}>{label}</div>}
                 <div className={styles.bubbleText}>{item.body}</div>
               </div>

@@ -30,6 +30,9 @@ type Props = {
 // one viewing - it only appears when a GROOMER is viewing the thread, where
 // otherwise an unlabeled customer bubble sat indistinguishable next to
 // labeled "Assistant" bubbles, looking like the bot replying to itself.
+// Bot messages get their own centered, clay-tinted bubble style (see
+// bubbleRowBot/bubbleBot below) so they're never mistaken for the other
+// party's messages just because both fall outside `ownSenderTypes`.
 function bubbleLabel(senderType: ChatSenderType) {
   if (senderType === 'bot') return 'Assistant';
   if (senderType === 'groomer') return 'Groomer';
@@ -82,11 +85,14 @@ export function ChatView({ messages, ownSenderTypes, value, onChangeValue, onSen
         onContentSizeChange={() => listRef.current?.scrollToEnd({ animated: true })}
         renderItem={({ item }) => {
           const isOwn = ownSenderTypes.includes(item.senderType);
+          const isBot = item.senderType === 'bot';
           const label = bubbleLabel(item.senderType);
           return (
-            <View style={[styles.bubbleRow, isOwn && styles.bubbleRowOwn]}>
-              <View style={[styles.bubble, isOwn ? styles.bubbleOwn : styles.bubbleOther]}>
-                {label && !isOwn && <Text style={styles.bubbleLabel}>{label}</Text>}
+            <View style={[styles.bubbleRow, isOwn && styles.bubbleRowOwn, isBot && styles.bubbleRowBot]}>
+              <View style={[styles.bubble, isOwn ? styles.bubbleOwn : isBot ? styles.bubbleBot : styles.bubbleOther]}>
+                {label && !isOwn && (
+                  <Text style={[styles.bubbleLabel, isBot && styles.bubbleLabelBot]}>{label}</Text>
+                )}
                 <Text style={[styles.bubbleText, isOwn && styles.bubbleTextOwn]}>{item.body}</Text>
               </View>
             </View>
@@ -147,6 +153,9 @@ const styles = StyleSheet.create({
   bubbleRowOwn: {
     justifyContent: 'flex-end',
   },
+  bubbleRowBot: {
+    justifyContent: 'center',
+  },
   bubble: {
     maxWidth: '78%',
     borderRadius: 14,
@@ -161,6 +170,15 @@ const styles = StyleSheet.create({
   bubbleOwn: {
     backgroundColor: Colors.light.tint,
   },
+  // Matches the web ChatView's `color-mix(in srgb, var(--clay) 14/35%, ...)`
+  // tints (RN has no color-mix), so bot bubbles read the same on both
+  // platforms - a clay tint, distinct from both the sage "own" bubble and
+  // the plain "other" surface bubble.
+  bubbleBot: {
+    backgroundColor: '#F2E7DF',
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: '#D0B9A9',
+  },
   bubbleLabel: {
     fontSize: 11,
     fontWeight: '700',
@@ -168,6 +186,9 @@ const styles = StyleSheet.create({
     marginBottom: 2,
     textTransform: 'uppercase',
     letterSpacing: 0.3,
+  },
+  bubbleLabelBot: {
+    color: Colors.light.secondary,
   },
   bubbleText: {
     fontSize: 15,
