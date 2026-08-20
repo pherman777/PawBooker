@@ -46,3 +46,16 @@ export function formatTime(time: string): string {
   const hour12 = hour % 12 === 0 ? 12 : hour % 12;
   return `${hour12}:${minute} ${period}`;
 }
+
+// Added for the /book groomer-profile and booking pages - the rest of this
+// file was ported for the groomer-side hours settings page, which never
+// needed these two.
+export function formatDayHours(hours: DayHours): string {
+  if (!hours) return 'Closed';
+  return `${formatTime(hours.open)} – ${formatTime(hours.close)}`;
+}
+
+export function todayKey(): keyof GroomerHours {
+  const jsDay = new Date().getDay();
+  return DAYS_OF_WEEK[(jsDay + 6) % 7];
+}

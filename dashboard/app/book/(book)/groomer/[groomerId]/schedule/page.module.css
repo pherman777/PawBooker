@@ -1,0 +1,193 @@
+.serviceName {
+  font-size: 24px;
+  font-weight: 700;
+}
+.serviceMeta {
+  margin-top: 4px;
+  font-size: 15px;
+  color: var(--muted);
+}
+.noteBanner {
+  margin-top: 16px;
+  padding: 12px;
+}
+.noteBannerLabel {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--muted);
+  margin-bottom: 4px;
+}
+.noteBannerText {
+  font-size: 14px;
+  line-height: 1.4;
+}
+
+.sectionTitle {
+  margin-top: 24px;
+  margin-bottom: 10px;
+  font-size: 17px;
+  font-weight: 600;
+}
+
+.dayScroll {
+  display: flex;
+  gap: 8px;
+  overflow-x: auto;
+  padding-bottom: 4px;
+}
+.chip {
+  flex-shrink: 0;
+  padding: 10px 14px;
+  border-radius: 10px;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  text-align: center;
+  cursor: pointer;
+}
+.chipSelected {
+  background: var(--sage);
+  border-color: var(--sage);
+  color: #fff;
+}
+.dayChipWeekday {
+  font-size: 12px;
+  color: var(--muted);
+}
+.chipSelected .dayChipWeekday {
+  color: #fff;
+}
+.dayChipDate {
+  margin-top: 2px;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.select {
+  max-width: 320px;
+}
+
+.timeGrid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.timeChip {
+  padding: 10px 14px;
+  border-radius: 10px;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  font-size: 14px;
+  cursor: pointer;
+}
+.hint {
+  font-size: 14px;
+  color: var(--muted);
+}
+.discountHint {
+  margin-top: -4px;
+  margin-bottom: 10px;
+  font-size: 13px;
+  line-height: 1.4;
+  color: var(--muted);
+}
+
+.petRow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.petChip {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+}
+.petChipDisabled {
+  opacity: 0.5;
+}
+.petChipHint {
+  font-size: 11px;
+  color: var(--danger);
+}
+.addPetChip {
+  border-style: dashed;
+  color: var(--sage);
+  font-weight: 600;
+}
+
+.careNeedsBlock {
+  margin-top: 16px;
+  padding: 14px;
+  border-radius: 10px;
+  border: 1px solid var(--border);
+}
+.careNeedsPetLabel {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--muted);
+  margin-bottom: 8px;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+}
+.petServiceWrap {
+  margin-bottom: 14px;
+}
+.petServiceLabel {
+  font-size: 13px;
+  font-weight: 600;
+  margin-bottom: 8px;
+}
+
+.addPetForm {
+  margin-top: 12px;
+  padding: 14px;
+  border-radius: 10px;
+  border: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.speciesRow {
+  display: flex;
+  gap: 8px;
+}
+
+.summaryCard {
+  margin-top: 24px;
+  padding: 16px;
+}
+.summaryRow {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+  font-size: 14px;
+}
+.summaryDiscount {
+  color: var(--sage);
+}
+.summaryTotalRow {
+  margin-bottom: 0;
+  padding-top: 10px;
+  border-top: 1px solid var(--border);
+  font-weight: 600;
+}
+.summaryTotalValue {
+  font-size: 16px;
+  font-weight: 700;
+}
+.summaryNote {
+  margin-top: 10px;
+  font-size: 12px;
+  line-height: 1.4;
+  color: var(--muted);
+}
+
+.paymentNotice {
+  margin-top: 20px;
+  padding: 14px;
+}
+.paymentNoticeText {
+  font-size: 14px;
+  color: var(--muted);
+}

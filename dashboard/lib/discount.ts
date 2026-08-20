@@ -38,3 +38,22 @@ export function perBookingDiscountCents(
       : Math.round((snapshot.value * thisServiceCents) / groupServiceTotalCents);
   return Math.max(0, Math.min(thisServiceCents, raw));
 }
+
+// The discount in cents for a group of `petCount` pets whose combined
+// services total `baseCents`, at the moment a booking is being created (as
+// opposed to perBookingDiscountCents, applied to an already-stored
+// snapshot). Added for the /book booking flow - the rest of this file was
+// ported for the groomer-side discount settings page and manual booking
+// modal, which never needed this one.
+export function computeGroupDiscountCents(baseCents: number, petCount: number, rule: MultiPetDiscount | null): number {
+  if (!rule || petCount < rule.minPets) return 0;
+  const raw = rule.type === 'percent' ? Math.round((baseCents * rule.value) / 100) : rule.value;
+  return Math.max(0, Math.min(baseCents, raw));
+}
+
+// A short human label for a rule, e.g. "10% off 3+ pets" or "$15 off 2+
+// pets" - used on the booking flow's pricing summary.
+export function describeMultiPetDiscount(rule: MultiPetDiscount): string {
+  const amount = rule.type === 'percent' ? `${rule.value}%` : `$${(rule.value / 100).toFixed(0)}`;
+  return `${amount} off ${rule.minPets}+ pets`;
+}
