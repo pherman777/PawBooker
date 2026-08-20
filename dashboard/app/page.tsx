@@ -9,10 +9,20 @@ import { SiteHeader } from '@/components/SiteHeader';
 
 import styles from './marketing.module.css';
 
-function NotifyButton({ className, children }: { className: string; children: React.ReactNode }) {
+function NotifyButton({
+  className,
+  children,
+  groomer,
+  style,
+}: {
+  className: string;
+  children: React.ReactNode;
+  groomer?: boolean;
+  style?: React.CSSProperties;
+}) {
   const { openModal } = useNotifyModal();
   return (
-    <button className={className} onClick={openModal}>
+    <button className={className} style={style} onClick={() => openModal({ groomer })}>
       {children}
     </button>
   );
@@ -127,15 +137,15 @@ export default function MarketingHomePage() {
                 calendar and the missed calls. Start free, and upgrade to Pro when you&rsquo;re ready to grow.
               </p>
               <div className={styles.ctaRow}>
-                <Link className="btn btn-secondary" href="/dashboard/sign-up">
+                <NotifyButton className="btn btn-secondary" groomer>
                   List your business
-                </Link>
+                </NotifyButton>
                 <a className={`btn ${styles.btnGhostBand}`} href="#how">
                   See how it works
                 </a>
               </div>
               <p className={styles.upgradeExisting}>
-                Already on PawBooker? <Link href="/dashboard/sign-in">Log in</Link> &middot; <Link href="/upgrade">Upgrade to Pro &rarr;</Link>
+                Already on PawBooker? <Link href="/upgrade">Upgrade to Pro &rarr;</Link>
               </p>
             </div>
             <div className={styles.priceCard}>
@@ -171,9 +181,9 @@ export default function MarketingHomePage() {
                   Your own AI assistant for the day-to-day
                 </li>
               </ul>
-              <Link className="btn btn-secondary" href="/dashboard/sign-up" style={{ width: '100%', display: 'flex' }}>
+              <NotifyButton className="btn btn-secondary" groomer style={{ width: '100%', display: 'flex' }}>
                 List your business
-              </Link>
+              </NotifyButton>
               <p className={styles.freeNote}>Start free &mdash; no contract, cancel anytime.</p>
             </div>
           </div>

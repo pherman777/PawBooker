@@ -10,7 +10,7 @@ type ModalState = { open: boolean } | null;
 
 type NotifyContextValue = {
   inviteCode: string | null;
-  openModal: () => void;
+  openModal: (opts?: { groomer?: boolean }) => void;
 };
 
 const NotifyContext = createContext<NotifyContextValue>({ inviteCode: null, openModal: () => {} });
@@ -63,13 +63,17 @@ export function NotifyModalProvider({ children }: Props) {
   }, []);
 
   // ?notify=1 - lets a link from elsewhere in the app (e.g. the sign-in
-  // page's "sign up" link, for a visitor who isn't a groomer) land here with
-  // the waitlist modal already open, since real customer account creation
-  // isn't live yet - this *is* the customer signup flow for now.
+  // page's "sign up" link, for a visitor who isn't a groomer, or middleware
+  // redirecting a pre-launch host away from real sign-in/sign-up) land here
+  // with the waitlist modal already open, since real account creation isn't
+  // live on this host yet - this *is* the signup flow for now. `groomer=1`
+  // pre-checks "I'm a groomer" for a groomer who was redirected off of
+  // /dashboard/sign-up specifically.
   useEffect(() => {
-    if (new URLSearchParams(window.location.search).get('notify') === '1') {
+    const params = new URLSearchParams(window.location.search);
+    if (params.get('notify') === '1') {
       setEmail('');
-      setIsGroomer(false);
+      setIsGroomer(params.get('groomer') === '1');
       setError(false);
       setSuccess(false);
       setModal({ open: true });
@@ -77,9 +81,9 @@ export function NotifyModalProvider({ children }: Props) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  function openModal() {
+  function openModal(opts?: { groomer?: boolean }) {
     setEmail('');
-    setIsGroomer(false);
+    setIsGroomer(Boolean(opts?.groomer));
     setError(false);
     setSuccess(false);
     setModal({ open: true });

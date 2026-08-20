@@ -1,7 +1,7 @@
 'use client';
 
 import { useSearchParams } from 'next/navigation';
-import { useState } from 'react';
+import { Suspense, useState } from 'react';
 
 import { SiteFooter } from '@/components/SiteFooter';
 import { SiteHeader } from '@/components/SiteHeader';
@@ -9,6 +9,14 @@ import { SiteHeader } from '@/components/SiteHeader';
 import styles from '../marketing.module.css';
 
 export default function UpgradePage() {
+  return (
+    <Suspense>
+      <UpgradePageContent />
+    </Suspense>
+  );
+}
+
+function UpgradePageContent() {
   const success = useSearchParams().get('success') === '1';
   const [email, setEmail] = useState('');
 
