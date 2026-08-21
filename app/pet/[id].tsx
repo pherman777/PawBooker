@@ -18,6 +18,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { BreedPicker } from '@/components/BreedPicker';
 import { PetIdEmergencyFields, PetIdentity } from '@/components/PetIdEmergencyFields';
 import { Colors } from '@/constants/theme';
+import { useLightStatusBar } from '@/hooks/useLightStatusBar';
 import { useAuth } from '@/services/auth-context';
 import { supabase } from '@/services/supabase';
 import { deleteStorageFile, getSignedUrl, uploadPetDocument, uploadPetPhoto } from '@/services/storage';
@@ -36,6 +37,7 @@ type PendingDocument = {
 };
 
 export default function PetDetailScreen() {
+  useLightStatusBar();
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
   const { session } = useAuth();

@@ -308,7 +308,7 @@ export default function RootLayout() {
               </WebShell>
             </RouteGuard>
           </AuthProvider>
-          <StatusBar style="light" />
+          <StatusBar style="dark" />
         </StripeRoot>
       </SafeAreaProvider>
     </KeyboardProvider>

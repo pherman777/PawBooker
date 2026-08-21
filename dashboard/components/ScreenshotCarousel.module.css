@@ -1,0 +1,66 @@
+.carouselWrap {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 18px;
+}
+
+.carousel {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 20px;
+}
+
+.arrow {
+  flex-shrink: 0;
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--ink);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  box-shadow: var(--shadow);
+}
+.arrow:hover { border-color: var(--sage); color: var(--sage); }
+
+.shot {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  padding: 18px;
+  text-align: center;
+  box-shadow: var(--shadow);
+  width: 328px;
+}
+.shot img {
+  width: 100%;
+  max-width: 260px;
+  border-radius: 16px;
+  display: block;
+  margin: 0 auto 14px;
+  box-shadow: 0 8px 20px -10px rgba(43, 51, 44, 0.35);
+}
+.shot p { font-size: 14px; font-weight: 600; margin: 0; color: var(--ink); }
+
+.dots { display: flex; gap: 8px; }
+.dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  border: none;
+  background: var(--border);
+  cursor: pointer;
+  padding: 0;
+}
+.dotActive { background: var(--sage); width: 20px; border-radius: 4px; }
+
+@media (max-width: 600px) {
+  .carousel { gap: 10px; }
+  .arrow { width: 36px; height: 36px; }
+  .shot { width: 240px; padding: 12px; }
+}

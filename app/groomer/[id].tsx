@@ -14,8 +14,10 @@ import { DAYS_OF_WEEK, dayLabel, formatDayHours, todayKey } from '@/utils/hours'
 import { formatPhoneForDisplay, phoneToTelHref } from '@/utils/phone';
 import { StarRating } from '@/components/StarRating';
 import { DirectionsButton } from '@/components/DirectionsButton';
+import { useLightStatusBar } from '@/hooks/useLightStatusBar';
 
 export default function GroomerDetailScreen() {
+  useLightStatusBar();
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
   const { session } = useAuth();

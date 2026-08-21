@@ -5,11 +5,13 @@ import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-nati
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { Colors } from '@/constants/theme';
+import { useLightStatusBar } from '@/hooks/useLightStatusBar';
 import { useAuth } from '@/services/auth-context';
 import { getOrCreateAppSupportThread } from '@/services/chat';
 import { notify } from '@/utils/confirm';
 
 export default function HelpScreen() {
+  useLightStatusBar();
   const router = useRouter();
   const { session } = useAuth();
   const [openingChat, setOpeningChat] = useState(false);

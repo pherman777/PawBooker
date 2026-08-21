@@ -9,6 +9,12 @@ const nextConfig: NextConfig = {
   turbopack: {
     root: path.join(__dirname),
   },
+  // "localhost" itself always redirects "/" to "/dashboard" (see middleware.ts -
+  // it's reserved for testing the real signed-in app). *.localhost subdomains
+  // resolve to 127.0.0.1 natively in every browser with no /etc/hosts edit, and
+  // aren't caught by that redirect, so this is how the marketing homepage gets
+  // viewed locally - visit http://dev.localhost:3000/ instead of localhost.
+  allowedDevOrigins: ["dev.localhost"],
 };
 
 export default nextConfig;

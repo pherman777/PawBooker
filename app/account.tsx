@@ -13,12 +13,14 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { PasswordInput } from '@/components/PasswordInput';
 import { Button } from '@/components/ui/Button';
 import { Colors } from '@/constants/theme';
+import { useLightStatusBar } from '@/hooks/useLightStatusBar';
 import { useAuth } from '@/services/auth-context';
 import { supabase } from '@/services/supabase';
 import { notify } from '@/utils/confirm';
 import { formatPhoneAsTyped, formatPhoneForDisplay } from '@/utils/phone';
 
 export default function AccountScreen() {
+  useLightStatusBar();
   const { session } = useAuth();
   const currentEmail = session?.user.email ?? '';
 

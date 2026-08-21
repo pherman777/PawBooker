@@ -81,13 +81,6 @@
 .shot img { width: 100%; max-width: 260px; border-radius: 16px; display: block; margin: 0 auto 14px; box-shadow: 0 8px 20px -10px rgba(43,51,44,0.35); }
 .shot p { font-size: 14px; font-weight: 600; margin: 0; color: var(--ink); }
 
-.shotsPair { display: grid; grid-template-columns: repeat(2, 1fr); gap: 24px; max-width: 620px; margin: 0 auto; }
-.shotsPair > * { min-width: 0; }
-
-@media (max-width: 600px) {
-  .shotsPair { grid-template-columns: 1fr; max-width: 320px; }
-}
-
 /* Groomers band - dark chrome again on purpose: the "become a pro" moment
    echoes the same dark band as the nav and the dashboard's own chrome. */
 .band { background: var(--band); }

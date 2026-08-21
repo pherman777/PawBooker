@@ -36,6 +36,7 @@ import {
 } from '@/utils/discount';
 import { hasCurrentRabiesVaccination } from '@/utils/vaccination';
 import { formatTime } from '@/utils/hours';
+import { useLightStatusBar } from '@/hooks/useLightStatusBar';
 
 type ServiceInfo = {
   id: string;
@@ -68,6 +69,7 @@ function nextDays(count: number) {
 }
 
 export default function BookingScreen() {
+  useLightStatusBar();
   const { groomerId, serviceId, petId, note } = useLocalSearchParams<{
     groomerId: string;
     serviceId: string;

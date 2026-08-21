@@ -12,6 +12,7 @@ import {
 } from '@/components/PetIdEmergencyFields';
 import { Button } from '@/components/ui/Button';
 import { Colors } from '@/constants/theme';
+import { useLightStatusBar } from '@/hooks/useLightStatusBar';
 import { useAuth } from '@/services/auth-context';
 import { supabase } from '@/services/supabase';
 import type { Pet } from '@/types';
@@ -20,6 +21,7 @@ import { sanitizeDecimalInput } from '@/utils/number';
 const PET_SPECIES: Pet['species'][] = ['dog', 'cat', 'other'];
 
 export default function NewPetScreen() {
+  useLightStatusBar();
   const router = useRouter();
   const { session } = useAuth();
 

@@ -5,6 +5,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { ChatView } from '@/components/ChatView';
 import { Colors } from '@/constants/theme';
+import { useLightStatusBar } from '@/hooks/useLightStatusBar';
 import { useAuth } from '@/services/auth-context';
 import { sendChatMessage, sendGroomerChatMessage } from '@/services/chat';
 import { supabase } from '@/services/supabase';
@@ -12,6 +13,7 @@ import type { ChatMessage } from '@/types';
 import { notify } from '@/utils/confirm';
 
 export default function ChatScreen() {
+  useLightStatusBar();
   const { threadId } = useLocalSearchParams<{ threadId: string }>();
   const { session, groomerProfile } = useAuth();
   const isGroomer = Boolean(groomerProfile);

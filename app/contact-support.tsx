@@ -5,10 +5,12 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { Button } from '@/components/ui/Button';
 import { Colors } from '@/constants/theme';
+import { useLightStatusBar } from '@/hooks/useLightStatusBar';
 import { contactSupport } from '@/services/support';
 import { notify } from '@/utils/confirm';
 
 export default function ContactSupportScreen() {
+  useLightStatusBar();
   const router = useRouter();
   const [subject, setSubject] = useState('');
   const [message, setMessage] = useState('');

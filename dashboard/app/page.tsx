@@ -4,6 +4,7 @@ import Image from 'next/image';
 import Link from 'next/link';
 
 import { NotifyModalProvider, useNotifyModal } from '@/components/NotifyModal';
+import { ScreenshotCarousel } from '@/components/ScreenshotCarousel';
 import { SiteFooter } from '@/components/SiteFooter';
 import { SiteHeader } from '@/components/SiteHeader';
 
@@ -196,26 +197,40 @@ export default function MarketingHomePage() {
             <p className="eyebrow">See it in action</p>
             <h2>Your day, at a glance.</h2>
           </div>
-          <div className={styles.shotsPair}>
-            <div className={styles.shot}>
-              <Image
-                src="/images/screenshot-groomer-dashboard.png"
-                alt="Groomer dashboard showing booking requests to accept or decline"
-                width={277}
-                height={600}
-              />
-              <p>Accept requests and manage your day</p>
-            </div>
-            <div className={styles.shot}>
-              <Image
-                src="/images/screenshot-groomer-insights.png"
-                alt="Business insights showing revenue, repeat customers, and tips"
-                width={277}
-                height={600}
-              />
-              <p>Track revenue and repeat customers</p>
-            </div>
-          </div>
+          <ScreenshotCarousel
+            slides={[
+              {
+                src: '/images/screenshot-groomer-setup.png',
+                alt: 'Business info screen for setting up a salon profile',
+                caption: 'Set up your salon in minutes',
+              },
+              {
+                src: '/images/screenshot-groomer-staff.png',
+                alt: 'Groomers list showing salon staff',
+                caption: 'Add your groomers',
+              },
+              {
+                src: '/images/screenshot-groomer-hours.png',
+                alt: 'Weekly hours screen for setting availability',
+                caption: 'Set your hours',
+              },
+              {
+                src: '/images/screenshot-groomer-dashboard.png',
+                alt: 'Groomer dashboard showing booking requests to accept or decline',
+                caption: 'Accept requests and manage your day',
+              },
+              {
+                src: '/images/screenshot-groomer-insights.png',
+                alt: 'Business insights showing revenue, repeat customers, and tips',
+                caption: 'Track revenue and repeat customers',
+              },
+              {
+                src: '/images/screenshot-groomer-chat.png',
+                alt: 'AI business assistant answering questions about revenue and pending requests',
+                caption: 'Ask your AI assistant anything',
+              },
+            ]}
+          />
         </div>
       </section>
 
