@@ -78,12 +78,12 @@
 .shots { display: grid; grid-template-columns: repeat(3, 1fr); gap: 24px; }
 .shots > * { min-width: 0; }
 .shot { background: var(--surface); border: 1px solid var(--border); border-radius: 20px; padding: 18px; text-align: center; box-shadow: var(--shadow); }
-.shot img { width: 100%; max-width: 190px; border-radius: 16px; display: block; margin: 0 auto 14px; box-shadow: 0 8px 20px -10px rgba(43,51,44,0.35); }
+.shot img { width: 100%; max-width: 260px; border-radius: 16px; display: block; margin: 0 auto 14px; box-shadow: 0 8px 20px -10px rgba(43,51,44,0.35); }
 .shot p { font-size: 14px; font-weight: 600; margin: 0; color: var(--ink); }
 
 .shotsSolo { display: flex; justify-content: center; }
-.shotsSolo .shot { max-width: 260px; }
-.shotsSolo .shot img { max-width: 220px; }
+.shotsSolo .shot { max-width: 320px; }
+.shotsSolo .shot img { max-width: 280px; }
 
 /* Groomers band - dark chrome again on purpose: the "become a pro" moment
    echoes the same dark band as the nav and the dashboard's own chrome. */
