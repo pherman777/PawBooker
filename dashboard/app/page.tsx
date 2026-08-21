@@ -216,6 +216,11 @@ export default function MarketingHomePage() {
               <p>Track revenue and repeat customers</p>
             </div>
           </div>
+          <p className={styles.tourCta}>
+            <Link className="btn btn-secondary" href="/dashboard/tour">
+              Take a tour of the groomer dashboard &rarr;
+            </Link>
+          </p>
         </div>
       </section>
 

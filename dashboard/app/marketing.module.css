@@ -83,6 +83,7 @@
 
 .shotsPair { display: grid; grid-template-columns: repeat(2, 1fr); gap: 24px; max-width: 620px; margin: 0 auto; }
 .shotsPair > * { min-width: 0; }
+.tourCta { text-align: center; margin: 32px 0 0; }
 
 @media (max-width: 600px) {
   .shotsPair { grid-template-columns: 1fr; max-width: 320px; }
