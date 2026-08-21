@@ -3,6 +3,7 @@
 import Image from 'next/image';
 import Link from 'next/link';
 
+import { BrowserFrame } from '@/components/BrowserFrame';
 import { NotifyModalProvider, useNotifyModal } from '@/components/NotifyModal';
 import { ScreenshotCarousel } from '@/components/ScreenshotCarousel';
 import { SiteFooter } from '@/components/SiteFooter';
@@ -245,6 +246,25 @@ export default function MarketingHomePage() {
                 caption: 'Ask your AI assistant anything',
               },
             ]}
+          />
+        </div>
+      </section>
+
+      <section className={styles.section} style={{ paddingTop: 0 }}>
+        <div className={styles.wrap}>
+          <div className={`${styles.secHead} ${styles.secHeadCenter}`}>
+            <p className="eyebrow">Also on the web</p>
+            <h2>Prefer a bigger screen? Run your salon from any browser.</h2>
+            <p>
+              Everything in the app is on the web too &mdash; bookings, customers, insights, your AI assistant. Sign
+              in from your laptop when you&rsquo;re at the front desk, no install required.
+            </p>
+          </div>
+          <BrowserFrame
+            src="/images/screenshot-desktop-dashboard.png"
+            alt="PawBooker groomer dashboard open in a desktop browser"
+            width={1440}
+            height={820}
           />
         </div>
       </section>
