@@ -190,6 +190,26 @@ export default function MarketingHomePage() {
         </div>
       </div>
 
+      <section className={styles.section}>
+        <div className={styles.wrap}>
+          <div className={`${styles.secHead} ${styles.secHeadCenter}`}>
+            <p className="eyebrow">See it in action</p>
+            <h2>Your day, at a glance.</h2>
+          </div>
+          <div className={styles.shotsSolo}>
+            <div className={styles.shot}>
+              <Image
+                src="/images/screenshot-groomer-dashboard.png"
+                alt="Groomer dashboard showing booking requests to accept or decline"
+                width={277}
+                height={600}
+              />
+              <p>Accept requests and manage your day</p>
+            </div>
+          </div>
+        </div>
+      </section>
+
       <section id="how" className={styles.section}>
         <div className={styles.wrap}>
           <div className={styles.secHead}>
