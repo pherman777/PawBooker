@@ -93,64 +93,72 @@ export default function GroomerProfilePage() {
   const hasCoords = groomer.latitude != null && groomer.longitude != null;
 
   return (
-    <div>
-      <div className={styles.headerRow}>
-        <div className={styles.avatar}>
-          {groomer.avatarUrl ? (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img src={groomer.avatarUrl} alt="" />
-          ) : (
-            <PawPrint size={28} strokeWidth={2} />
-          )}
-        </div>
-        <div>
-          <h1 className={styles.name}>{groomer.name}</h1>
-          <p className={styles.address}>{groomer.address}</p>
-        </div>
-      </div>
+    <div className="settings-page width-form">
+      <button type="button" className="back-link" onClick={() => router.back()}>
+        ← Back
+      </button>
 
-      {hasCoords && (
-        <p style={{ marginTop: 10 }}>
-          <a
-            className="sign-in-footer-link"
-            href={`https://www.google.com/maps/dir/?api=1&destination=${groomer.latitude},${groomer.longitude}`}
-            target="_blank"
-            rel="noopener noreferrer">
-            Get directions
-          </a>
-        </p>
-      )}
-
-      <p className={styles.rating}>
-        ★ {groomer.rating.toFixed(1)} ({groomer.reviewCount} reviews)
-      </p>
-      {groomer.bio && <p className={styles.bio}>{groomer.bio}</p>}
-
-      {groomer.isDeactivated ? (
-        <p className={styles.deactivatedNotice}>This salon is no longer accepting messages or bookings.</p>
-      ) : (
-        <Button label="Message this groomer" variant="secondary" onClick={handleMessage} loading={messaging} />
-      )}
-
-      <p className={styles.sectionTitle}>Services</p>
-      {groomer.services.map((service) => (
-        <div key={service.id} className={styles.serviceRow}>
-          <div className={styles.serviceInfo}>
-            <div className={styles.serviceName}>{service.name}</div>
-            <div className={styles.serviceMeta}>{service.durationMinutes} min</div>
-            {service.description && <div className={styles.serviceDescription}>{service.description}</div>}
-          </div>
-          <div className={styles.serviceAction}>
-            <div className={styles.servicePrice}>${(service.priceCents / 100).toFixed(0)}</div>
-            {!groomer.isDeactivated && (
-              <Button label="Book" size="sm" onClick={() => handleBookPress(service.id)} loading={startingBookingFor === service.id} />
+      <div className={`card ${styles.headerCard}`}>
+        <div className={styles.headerRow}>
+          <div className={styles.avatar}>
+            {groomer.avatarUrl ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img src={groomer.avatarUrl} alt="" />
+            ) : (
+              <PawPrint size={28} strokeWidth={2} />
             )}
           </div>
+          <div>
+            <h1 className={styles.name}>{groomer.name}</h1>
+            <p className={styles.address}>{groomer.address}</p>
+          </div>
         </div>
-      ))}
+
+        {hasCoords && (
+          <p style={{ marginTop: 10 }}>
+            <a
+              className="sign-in-footer-link"
+              href={`https://www.google.com/maps/dir/?api=1&destination=${groomer.latitude},${groomer.longitude}`}
+              target="_blank"
+              rel="noopener noreferrer">
+              Get directions
+            </a>
+          </p>
+        )}
+
+        <p className={styles.rating}>
+          ★ {groomer.rating.toFixed(1)} ({groomer.reviewCount} reviews)
+        </p>
+        {groomer.bio && <p className={styles.bio}>{groomer.bio}</p>}
+
+        {groomer.isDeactivated ? (
+          <p className={styles.deactivatedNotice}>This salon is no longer accepting messages or bookings.</p>
+        ) : (
+          <Button label="Message this groomer" variant="secondary" onClick={handleMessage} loading={messaging} />
+        )}
+      </div>
+
+      <div className={`card ${styles.sectionCard}`}>
+        <p className={styles.sectionTitle}>Services</p>
+        {groomer.services.map((service) => (
+          <div key={service.id} className={styles.serviceRow}>
+            <div className={styles.serviceInfo}>
+              <div className={styles.serviceName}>{service.name}</div>
+              <div className={styles.serviceMeta}>{service.durationMinutes} min</div>
+              {service.description && <div className={styles.serviceDescription}>{service.description}</div>}
+            </div>
+            <div className={styles.serviceAction}>
+              <div className={styles.servicePrice}>${(service.priceCents / 100).toFixed(0)}</div>
+              {!groomer.isDeactivated && (
+                <Button label="Book" size="sm" onClick={() => handleBookPress(service.id)} loading={startingBookingFor === service.id} />
+              )}
+            </div>
+          </div>
+        ))}
+      </div>
 
       {groomer.hours && (
-        <>
+        <div className={`card ${styles.sectionCard}`}>
           <p className={styles.sectionTitle}>Hours</p>
           {DAYS_OF_WEEK.map((day) => (
             <div key={day} className={styles.hoursRow}>
@@ -158,11 +166,11 @@ export default function GroomerProfilePage() {
               <span className={day === todayKey() ? styles.hoursToday : ''}>{formatDayHours(groomer.hours![day])}</span>
             </div>
           ))}
-        </>
+        </div>
       )}
 
       {(groomer.phone || groomer.email) && (
-        <>
+        <div className={`card ${styles.sectionCard}`}>
           <p className={styles.sectionTitle}>Contact</p>
           {groomer.phone && (
             <a className={styles.contactLink} href={`tel:${groomer.phone.replace(/[^\d+]/g, '')}`}>
@@ -174,21 +182,23 @@ export default function GroomerProfilePage() {
               {groomer.email}
             </a>
           )}
-        </>
+        </div>
       )}
 
-      <p className={styles.sectionTitle}>Reviews</p>
-      {reviews.length === 0 && <p className="page-subtitle">No reviews yet.</p>}
-      {reviews.map((review) => (
-        <div key={review.id} className={styles.reviewRow}>
-          <div className={styles.reviewHeader}>
-            <StarRating value={review.rating} size={16} />
-            <span className={styles.reviewDate}>{new Date(review.createdAt).toLocaleDateString(undefined, { month: 'short', year: 'numeric' })}</span>
+      <div className={`card ${styles.sectionCard}`}>
+        <p className={styles.sectionTitle}>Reviews</p>
+        {reviews.length === 0 && <p className="page-subtitle">No reviews yet.</p>}
+        {reviews.map((review) => (
+          <div key={review.id} className={styles.reviewRow}>
+            <div className={styles.reviewHeader}>
+              <StarRating value={review.rating} size={16} />
+              <span className={styles.reviewDate}>{new Date(review.createdAt).toLocaleDateString(undefined, { month: 'short', year: 'numeric' })}</span>
+            </div>
+            <div className={styles.reviewAuthor}>Verified customer</div>
+            {review.comment && <p className={styles.reviewComment}>{review.comment}</p>}
           </div>
-          <div className={styles.reviewAuthor}>Verified customer</div>
-          {review.comment && <p className={styles.reviewComment}>{review.comment}</p>}
-        </div>
-      ))}
+        ))}
+      </div>
     </div>
   );
 }
