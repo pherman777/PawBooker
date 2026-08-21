@@ -75,12 +75,6 @@
 .featureCard h3 { font-size: 19px; margin: 0 0 8px; }
 .featureCard p { margin: 0; color: var(--muted); font-size: 15px; line-height: 1.55; }
 
-.shots { display: grid; grid-template-columns: repeat(3, 1fr); gap: 24px; }
-.shots > * { min-width: 0; }
-.shot { background: var(--surface); border: 1px solid var(--border); border-radius: 20px; padding: 18px; text-align: center; box-shadow: var(--shadow); }
-.shot img { width: 100%; max-width: 260px; border-radius: 16px; display: block; margin: 0 auto 14px; box-shadow: 0 8px 20px -10px rgba(43,51,44,0.35); }
-.shot p { font-size: 14px; font-weight: 600; margin: 0; color: var(--ink); }
-
 /* Groomers band - dark chrome again on purpose: the "become a pro" moment
    echoes the same dark band as the nav and the dashboard's own chrome. */
 .band { background: var(--band); }

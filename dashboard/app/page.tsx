@@ -110,20 +110,35 @@ export default function MarketingHomePage() {
             <p className="eyebrow">See it in action</p>
             <h2>Find a groomer, check the details, book the visit.</h2>
           </div>
-          <div className={styles.shots}>
-            <div className={styles.shot}>
-              <Image src="/images/screenshot-browse.png" alt="Browse tab showing nearby groomers" width={277} height={600} />
-              <p>Find a groomer near you</p>
-            </div>
-            <div className={styles.shot}>
-              <Image src="/images/screenshot-groomer-detail.png" alt="Groomer detail page with services and reviews" width={277} height={600} />
-              <p>See services, reviews, and pricing</p>
-            </div>
-            <div className={styles.shot}>
-              <Image src="/images/screenshot-bookings.png" alt="Bookings tab showing upcoming appointments" width={277} height={600} />
-              <p>Manage your appointments</p>
-            </div>
-          </div>
+          <ScreenshotCarousel
+            slides={[
+              {
+                src: '/images/screenshot-browse.png',
+                alt: 'Browse tab showing nearby groomers',
+                caption: 'Find a groomer near you',
+              },
+              {
+                src: '/images/screenshot-groomer-detail.png',
+                alt: 'Groomer detail page with services and reviews',
+                caption: 'See services, reviews, and pricing',
+              },
+              {
+                src: '/images/screenshot-bookings.png',
+                alt: 'Bookings tab showing upcoming appointments',
+                caption: 'Manage your appointments',
+              },
+              {
+                src: '/images/screenshot-profile.png',
+                alt: 'Profile screen showing pets Biscuit and Luna',
+                caption: 'Set up your pets once',
+              },
+              {
+                src: '/images/screenshot-customer-chat.png',
+                alt: 'Chat with the AI booking assistant to schedule an appointment',
+                caption: 'Book through a quick chat',
+              },
+            ]}
+          />
         </div>
       </section>
 
