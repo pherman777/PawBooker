@@ -196,7 +196,7 @@ export default function MarketingHomePage() {
             <p className="eyebrow">See it in action</p>
             <h2>Your day, at a glance.</h2>
           </div>
-          <div className={styles.shotsSolo}>
+          <div className={styles.shotsPair}>
             <div className={styles.shot}>
               <Image
                 src="/images/screenshot-groomer-dashboard.png"
@@ -205,6 +205,15 @@ export default function MarketingHomePage() {
                 height={600}
               />
               <p>Accept requests and manage your day</p>
+            </div>
+            <div className={styles.shot}>
+              <Image
+                src="/images/screenshot-groomer-insights.png"
+                alt="Business insights showing revenue, repeat customers, and tips"
+                width={277}
+                height={600}
+              />
+              <p>Track revenue and repeat customers</p>
             </div>
           </div>
         </div>
