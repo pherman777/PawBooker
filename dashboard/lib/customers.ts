@@ -47,17 +47,28 @@ export type CustomerPetDetail = CustomerPet & {
   vetPhone: string | null;
 };
 
-// Full pet detail beyond what the search RPC returns - RLS already lets a
-// groomer read any pet with a booking at their salon
-// (0008_groomer_accounts.sql), so this is a plain query, no RPC needed.
+// Full pet detail beyond what the search RPC returns. Uses
+// groomer_customer_pet_details (0061), scoped the same way as
+// groomer_search_customers - via the groomer_customers link, not per-pet
+// bookings - so this agrees with the pet count shown on the customer list.
 export async function fetchCustomerPetDetails(customerId: string): Promise<CustomerPetDetail[]> {
-  const { data, error } = await supabase
-    .from('pets')
-    .select('id, name, species, breed, color, weight_lbs, is_microchipped, microchip_number, vet_name, vet_phone')
-    .eq('owner_id', customerId);
+  const { data, error } = await supabase.rpc('groomer_customer_pet_details', { p_customer_id: customerId });
   if (error) throw error;
 
-  return (data ?? []).map((p) => ({
+  return (
+    (data ?? []) as {
+      id: string;
+      name: string;
+      species: string;
+      breed: string | null;
+      color: string | null;
+      weight_lbs: number | null;
+      is_microchipped: boolean;
+      microchip_number: string | null;
+      vet_name: string | null;
+      vet_phone: string | null;
+    }[]
+  ).map((p) => ({
     id: p.id,
     name: p.name,
     species: p.species,
