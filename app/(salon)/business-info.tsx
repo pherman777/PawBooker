@@ -5,8 +5,6 @@ import { useEffect, useState } from 'react';
 import {
   ActivityIndicator,
   Image,
-  KeyboardAvoidingView,
-  Platform,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -14,6 +12,7 @@ import {
   TextInput,
   View,
 } from 'react-native';
+import { KeyboardAvoidingView } from 'react-native-keyboard-controller';
 
 import { SafeAreaView } from 'react-native-safe-area-context';
 
@@ -137,9 +136,7 @@ export default function BusinessInfoScreen() {
 
   return (
     <SafeAreaView style={[styles.container, webContentWidth('form')]} edges={['top', 'bottom']}>
-      <KeyboardAvoidingView
-        style={styles.flex}
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+      <KeyboardAvoidingView style={styles.flex} behavior="padding">
         <View style={styles.topRow}>
           <Text style={styles.backLink} onPress={() => router.back()}>
             ← Back
