@@ -1,0 +1,5 @@
+json_key_file("/Users/philherman/PawBooker/google-play-service-account.json")
+package_name("com.professionalhomebody.PawBooker")
+
+app_identifier("com.professionalhomebody.PawBooker")
+apple_id("6796093159")

@@ -1,0 +1,23 @@
+default_platform(:ios)
+
+platform :ios do
+  desc "Upload App Store screenshots only, no binary or metadata"
+  lane :upload_screenshots do
+    app_store_connect_api_key(
+      key_id: "7846QPK39L",
+      issuer_id: "b413ae3a-c1ef-4714-9382-deade8cd27e9",
+      key_filepath: File.expand_path("~/.appstoreconnect/private_keys/AuthKey_7846QPK39L.p8"),
+      duration: 500,
+      in_house: false
+    )
+
+    deliver(
+      screenshots_path: File.expand_path("appstore_screenshots", __dir__),
+      skip_binary_upload: true,
+      skip_metadata: true,
+      skip_app_version_update: true,
+      overwrite_screenshots: true,
+      force: true
+    )
+  end
+end
