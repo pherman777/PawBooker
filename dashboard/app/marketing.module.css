@@ -167,6 +167,9 @@
   background: color-mix(in srgb, var(--clay) 14%, var(--surface)); border: 1px solid var(--border); border-radius: 12px;
   padding: 16px 18px; font-size: 14px; line-height: 1.6; color: var(--muted); margin-bottom: 36px;
 }
+
+.contactCard { padding: 24px 28px; margin-top: 28px; }
+.contactCard h2 { margin-top: 0; }
 .notice strong { color: var(--clay); }
 
 .successCard { background: var(--sage); color: #fff; border-radius: 16px; padding: 26px; margin-top: 28px; }

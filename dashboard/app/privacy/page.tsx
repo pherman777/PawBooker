@@ -158,7 +158,7 @@ export default function PrivacyPage() {
         <h2>Changes to This Policy</h2>
         <p>We may update this Privacy Policy from time to time. We&rsquo;ll update the &ldquo;Last updated&rdquo; date above when we do.</p>
 
-        <div className="card">
+        <div className={`card ${styles.contactCard}`}>
           <h2>Contact us</h2>
           <p style={{ marginBottom: 0 }}>
             Questions about this policy or your data? Email <a href="mailto:support@paw-booker.com">support@paw-booker.com</a>.
