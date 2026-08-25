@@ -14,6 +14,7 @@ import {
   type CustomerSummary,
 } from '@/lib/customers';
 import { getOrCreateGroomerThread } from '@/lib/groomerChat';
+import { fetchPetNotes, savePetNote } from '@/lib/petNotes';
 
 import styles from './page.module.css';
 
@@ -39,6 +40,23 @@ export default function CustomerDetailPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [messaging, setMessaging] = useState(false);
+  const [notes, setNotes] = useState<Record<string, string>>({});
+  const [savingPetId, setSavingPetId] = useState<string | null>(null);
+  const [savedPetId, setSavedPetId] = useState<string | null>(null);
+
+  async function handleSaveNote(petId: string) {
+    if (!groomerProfile) return;
+    setSavingPetId(petId);
+    setSavedPetId(null);
+    try {
+      await savePetNote(groomerProfile.id, petId, notes[petId] ?? '');
+      setSavedPetId(petId);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Could not save the note');
+    } finally {
+      setSavingPetId(null);
+    }
+  }
 
   async function handleMessage() {
     if (!groomerProfile) return;
@@ -69,6 +87,12 @@ export default function CustomerDetailPage() {
         setCustomer(customers.find((c) => c.customerId === customerId) ?? null);
         setPets(petDetails);
         setBookings(history);
+
+        const petNotes = await fetchPetNotes(
+          groomerProfile!.id,
+          petDetails.map((p) => p.id)
+        );
+        if (!cancelled) setNotes(petNotes);
       } catch (err) {
         if (!cancelled) setError(err instanceof Error ? err.message : 'Something went wrong');
       } finally {
@@ -122,6 +146,24 @@ export default function CustomerDetailPage() {
                   {p.vetPhone ? ` (${p.vetPhone})` : ''}
                 </p>
               )}
+
+              <p className={styles.noteLabel}>Grooming notes (private — the client never sees this)</p>
+              <textarea
+                className={styles.noteInput}
+                placeholder="Blade/guard used, temperament, anything worth other groomers knowing..."
+                value={notes[p.id] ?? ''}
+                onChange={(e) => setNotes((prev) => ({ ...prev, [p.id]: e.target.value }))}
+                rows={3}
+              />
+              <div className={styles.noteActions}>
+                <Button
+                  label="Save note"
+                  variant="secondary"
+                  onClick={() => handleSaveNote(p.id)}
+                  loading={savingPetId === p.id}
+                />
+                {savedPetId === p.id && <span className={styles.noteSaved}>Saved</span>}
+              </div>
             </div>
           ))}
 

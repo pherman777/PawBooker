@@ -6,8 +6,10 @@ import { useParams, useRouter } from 'next/navigation';
 import { Button } from '@/components/Button';
 import { Card } from '@/components/Card';
 import { PetCareBox } from '@/components/PetCareBox';
+import { PetNoteBox } from '@/components/PetNoteBox';
 import type { PetCareInfo } from '@/lib/bookings';
 import { perBookingDiscountCents, type GroupDiscountSnapshot } from '@/lib/discount';
+import { fetchPetNotes } from '@/lib/petNotes';
 import { chargeBooking, markBookingPaidCash } from '@/lib/stripe';
 import { supabase } from '@/lib/supabase';
 
@@ -29,6 +31,7 @@ export default function CompleteBookingPage() {
 
   const [petName, setPetName] = useState('');
   const [petCare, setPetCare] = useState<PetCareInfo>({});
+  const [petNote, setPetNote] = useState('');
   const [serviceName, setServiceName] = useState('');
   const [lineItems, setLineItems] = useState<LineItem[]>([]);
   const [newDescription, setNewDescription] = useState('');
@@ -46,7 +49,7 @@ export default function CompleteBookingPage() {
         supabase
           .from('bookings')
           .select(
-            'customer_id, groomer_id, group_id, is_anxious, is_matted, needs_extra_care, care_notes, pets(name, is_microchipped, microchip_number, vet_name, vet_phone), groomer_services(name, price_cents), groomers(plan)'
+            'customer_id, groomer_id, group_id, pet_id, is_anxious, is_matted, needs_extra_care, care_notes, pets(name, is_microchipped, microchip_number, vet_name, vet_phone), groomer_services(name, price_cents), groomers(plan)'
           )
           .eq('id', bookingId)
           .single(),
@@ -76,6 +79,12 @@ export default function CompleteBookingPage() {
         vetPhone: pet?.vet_phone ?? undefined,
       });
       setServiceName(service?.name ?? 'Service');
+
+      const petId = bookingResult.data.pet_id as string | null;
+      if (petId) {
+        const notes = await fetchPetNotes(bookingResult.data.groomer_id, [petId]);
+        if (!cancelled) setPetNote(notes[petId] ?? '');
+      }
 
       // An app-acquired customer's first booking must be paid by card so the
       // 5% acquisition fee is collectible - mirrors the server-side rule.
@@ -227,6 +236,7 @@ export default function CompleteBookingPage() {
       </p>
 
       <PetCareBox info={petCare} />
+      <PetNoteBox note={petNote} />
 
       <h2 className={styles.sectionTitle}>Invoice items</h2>
       <Card className={styles.invoiceCard}>

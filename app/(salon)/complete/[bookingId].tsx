@@ -8,6 +8,8 @@ import { Colors } from '@/constants/theme';
 import { Logo } from '@/components/Logo';
 import { Button } from '@/components/ui/Button';
 import { PetCareSummary, type PetCareInfo } from '@/components/PetCareSummary';
+import { PetNoteBox } from '@/components/PetNoteBox';
+import { fetchPetNotes } from '@/services/petNotes';
 import { chargeBooking, markBookingPaidCash } from '@/services/stripe';
 import { notify } from '@/utils/confirm';
 import { perBookingDiscountCents, type GroupDiscountSnapshot } from '@/utils/discount';
@@ -26,6 +28,7 @@ export default function CompleteBookingScreen() {
 
   const [petName, setPetName] = useState('');
   const [petCare, setPetCare] = useState<PetCareInfo>({});
+  const [petNote, setPetNote] = useState('');
   const [serviceName, setServiceName] = useState('');
   const [lineItems, setLineItems] = useState<LineItem[]>([]);
   const [newDescription, setNewDescription] = useState('');
@@ -44,7 +47,7 @@ export default function CompleteBookingScreen() {
         supabase
           .from('bookings')
           .select(
-            'customer_id, groomer_id, group_id, is_anxious, is_matted, needs_extra_care, care_notes, pets(name, is_microchipped, microchip_number, vet_name, vet_phone), groomer_services(name, price_cents), groomers(plan)'
+            'customer_id, groomer_id, group_id, pet_id, is_anxious, is_matted, needs_extra_care, care_notes, pets(name, is_microchipped, microchip_number, vet_name, vet_phone), groomer_services(name, price_cents), groomers(plan)'
           )
           .eq('id', bookingId)
           .single(),
@@ -83,6 +86,12 @@ export default function CompleteBookingScreen() {
         vetPhone: pet?.vet_phone ?? undefined,
       });
       setServiceName(service?.name ?? 'Service');
+
+      const petId = bookingResult.data.pet_id as string | null;
+      if (petId) {
+        const notes = await fetchPetNotes(bookingResult.data.groomer_id, [petId]);
+        if (!cancelled) setPetNote(notes[petId] ?? '');
+      }
 
       // An app-acquired customer's first booking must be paid by card so the 5%
       // acquisition fee is collectible. Mirror the server's rule so we can
@@ -249,6 +258,7 @@ export default function CompleteBookingScreen() {
         </Text>
 
         <PetCareSummary info={petCare} />
+        <PetNoteBox note={petNote} />
 
         <Text style={styles.sectionTitle}>Invoice items</Text>
         {lineItems.map((item, index) => (

@@ -8,6 +8,8 @@ import { Colors } from '@/constants/theme';
 import { Logo } from '@/components/Logo';
 import { Button } from '@/components/ui/Button';
 import { PetCareSummary, type PetCareInfo } from '@/components/PetCareSummary';
+import { PetNoteBox } from '@/components/PetNoteBox';
+import { fetchPetNotes } from '@/services/petNotes';
 import { chargeBookingGroup, markBookingPaidCash } from '@/services/stripe';
 import { notify } from '@/utils/confirm';
 import { perBookingDiscountCents, type GroupDiscountSnapshot } from '@/utils/discount';
@@ -21,6 +23,7 @@ type PetInvoice = {
   bookingId: string;
   petName: string;
   petCare: PetCareInfo;
+  note: string;
   serviceName: string;
   lineItems: LineItem[];
 };
@@ -55,7 +58,7 @@ export default function CompleteGroupScreen() {
     const { data: bookingRows, error } = await supabase
       .from('bookings')
       .select(
-        'id, customer_id, groomer_id, starts_at, service_completed_at, status, is_anxious, is_matted, needs_extra_care, care_notes, pets(name, is_microchipped, microchip_number, vet_name, vet_phone), groomer_services(name, price_cents), groomers(plan)'
+        'id, customer_id, groomer_id, pet_id, starts_at, service_completed_at, status, is_anxious, is_matted, needs_extra_care, care_notes, pets(name, is_microchipped, microchip_number, vet_name, vet_phone), groomer_services(name, price_cents), groomers(plan)'
       )
       .eq('group_id', groupId)
       .eq('status', 'confirmed')
@@ -100,6 +103,9 @@ export default function CompleteGroupScreen() {
       itemsByBooking.set(item.booking_id, list);
     }
 
+    const petIds = billable.map((b) => b.pet_id).filter((id): id is string => Boolean(id));
+    const notesByPet = await fetchPetNotes(billable[0].groomer_id, petIds);
+
     const invoices: PetInvoice[] = billable.map((b) => {
       const pet = b.pets as unknown as PetRow | null;
       const service = b.groomer_services as unknown as { name: string; price_cents: number };
@@ -127,6 +133,7 @@ export default function CompleteGroupScreen() {
           vetName: pet?.vet_name ?? undefined,
           vetPhone: pet?.vet_phone ?? undefined,
         },
+        note: (b.pet_id && notesByPet[b.pet_id]) || '',
         serviceName: service?.name ?? 'Service',
         lineItems,
       };
@@ -298,6 +305,7 @@ export default function CompleteGroupScreen() {
           <View key={pet.bookingId} style={styles.petCard}>
             <Text style={styles.petName}>{pet.petName}</Text>
             <PetCareSummary info={pet.petCare} />
+            <PetNoteBox note={pet.note} />
 
             {pet.lineItems.map((item, index) => (
               <View key={`${item.description}-${index}`} style={styles.lineItemRow}>

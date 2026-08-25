@@ -6,8 +6,10 @@ import { useParams, useRouter } from 'next/navigation';
 import { Button } from '@/components/Button';
 import { Card } from '@/components/Card';
 import { PetCareBox } from '@/components/PetCareBox';
+import { PetNoteBox } from '@/components/PetNoteBox';
 import type { PetCareInfo } from '@/lib/bookings';
 import { perBookingDiscountCents, type GroupDiscountSnapshot } from '@/lib/discount';
+import { fetchPetNotes } from '@/lib/petNotes';
 import { chargeBookingGroup, markBookingPaidCash } from '@/lib/stripe';
 import { supabase } from '@/lib/supabase';
 
@@ -19,6 +21,7 @@ type PetInvoice = {
   bookingId: string;
   petName: string;
   petCare: PetCareInfo;
+  note: string;
   serviceName: string;
   lineItems: LineItem[];
 };
@@ -51,7 +54,7 @@ export default function CompleteGroupPage() {
     const { data: bookingRows, error } = await supabase
       .from('bookings')
       .select(
-        'id, customer_id, groomer_id, starts_at, service_completed_at, status, is_anxious, is_matted, needs_extra_care, care_notes, pets(name, is_microchipped, microchip_number, vet_name, vet_phone), groomer_services(name, price_cents), groomers(plan)'
+        'id, customer_id, groomer_id, pet_id, starts_at, service_completed_at, status, is_anxious, is_matted, needs_extra_care, care_notes, pets(name, is_microchipped, microchip_number, vet_name, vet_phone), groomer_services(name, price_cents), groomers(plan)'
       )
       .eq('group_id', groupId)
       .eq('status', 'confirmed')
@@ -94,6 +97,9 @@ export default function CompleteGroupPage() {
       itemsByBooking.set(item.booking_id, list);
     }
 
+    const petIds = billable.map((b) => b.pet_id).filter((id): id is string => Boolean(id));
+    const notesByPet = await fetchPetNotes(billable[0].groomer_id, petIds);
+
     const invoices: PetInvoice[] = billable.map((b) => {
       const pet = b.pets as unknown as PetRow | null;
       const service = b.groomer_services as unknown as { name: string; price_cents: number };
@@ -121,6 +127,7 @@ export default function CompleteGroupPage() {
           vetName: pet?.vet_name ?? undefined,
           vetPhone: pet?.vet_phone ?? undefined,
         },
+        note: (b.pet_id && notesByPet[b.pet_id]) || '',
         serviceName: service?.name ?? 'Service',
         lineItems,
       };
@@ -271,6 +278,7 @@ export default function CompleteGroupPage() {
         <Card key={pet.bookingId} className={styles.petCard}>
           <p className={styles.petName}>{pet.petName}</p>
           <PetCareBox info={pet.petCare} />
+          <PetNoteBox note={pet.note} />
 
           {pet.lineItems.map((item, index) => (
             <div key={`${item.description}-${index}`} className={styles.lineItemRow}>

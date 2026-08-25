@@ -1,10 +1,11 @@
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useEffect, useState } from 'react';
-import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { Colors } from '@/constants/theme';
+import { Button } from '@/components/ui/Button';
 import { getOrCreateGroomerThread } from '@/services/chat';
 import {
   fetchCustomerBookingHistory,
@@ -14,6 +15,7 @@ import {
   type CustomerPetDetail,
   type CustomerSummary,
 } from '@/services/customers';
+import { fetchPetNotes, savePetNote } from '@/services/petNotes';
 import { useAuth } from '@/services/auth-context';
 import { webContentWidth } from '@/constants/webLayout';
 import { webFlushScroll } from '@/constants/webScroll';
@@ -41,6 +43,23 @@ export default function CustomerDetailScreen() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [messaging, setMessaging] = useState(false);
+  const [notes, setNotes] = useState<Record<string, string>>({});
+  const [savingPetId, setSavingPetId] = useState<string | null>(null);
+  const [savedPetId, setSavedPetId] = useState<string | null>(null);
+
+  async function handleSaveNote(petId: string) {
+    if (!groomerProfile) return;
+    setSavingPetId(petId);
+    setSavedPetId(null);
+    try {
+      await savePetNote(groomerProfile.id, petId, notes[petId] ?? '');
+      setSavedPetId(petId);
+    } catch (err) {
+      notify('Could not save the note', err instanceof Error ? err.message : 'Something went wrong.');
+    } finally {
+      setSavingPetId(null);
+    }
+  }
 
   async function handleMessage() {
     if (!groomerProfile) return;
@@ -71,6 +90,12 @@ export default function CustomerDetailScreen() {
         setCustomer(customers.find((c) => c.customerId === customerId) ?? null);
         setPets(petDetails);
         setBookings(history);
+
+        const petNotes = await fetchPetNotes(
+          groomerProfile!.id,
+          petDetails.map((p) => p.id)
+        );
+        if (!cancelled) setNotes(petNotes);
       } catch (err) {
         if (!cancelled) setError(err instanceof Error ? err.message : 'Something went wrong');
       } finally {
@@ -131,6 +156,27 @@ export default function CustomerDetailScreen() {
                   {p.vetPhone ? ` (${p.vetPhone})` : ''}
                 </Text>
               )}
+
+              <Text style={styles.noteLabel}>Grooming notes (private — the client never sees this)</Text>
+              <TextInput
+                style={styles.noteInput}
+                placeholder="Blade/guard used, temperament, anything worth other groomers knowing..."
+                placeholderTextColor={Colors.light.textMuted}
+                value={notes[p.id] ?? ''}
+                onChangeText={(text) => setNotes((prev) => ({ ...prev, [p.id]: text }))}
+                multiline
+                numberOfLines={3}
+              />
+              <View style={styles.noteActions}>
+                <Button
+                  label="Save note"
+                  variant="secondary"
+                  size="sm"
+                  onPress={() => handleSaveNote(p.id)}
+                  loading={savingPetId === p.id}
+                />
+                {savedPetId === p.id && <Text style={styles.noteSaved}>Saved</Text>}
+              </View>
             </View>
           ))}
 
@@ -244,6 +290,35 @@ const styles = StyleSheet.create({
     marginTop: 8,
     fontSize: 12.5,
     color: Colors.light.textMuted,
+  },
+  noteLabel: {
+    marginTop: 12,
+    marginBottom: 6,
+    fontSize: 12,
+    fontWeight: '600',
+    color: Colors.light.textMuted,
+  },
+  noteInput: {
+    fontSize: 13.5,
+    lineHeight: 18,
+    color: Colors.light.text,
+    padding: 10,
+    borderRadius: 8,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: Colors.light.border,
+    backgroundColor: Colors.light.background,
+    textAlignVertical: 'top',
+    minHeight: 70,
+  },
+  noteActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    marginTop: 8,
+  },
+  noteSaved: {
+    fontSize: 12.5,
+    color: Colors.light.success,
   },
   bookingRow: {
     flexDirection: 'row',
