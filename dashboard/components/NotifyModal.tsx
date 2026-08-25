@@ -126,7 +126,20 @@ export function NotifyModalProvider({ children }: Props) {
               type="button"
               className={styles.inviteBannerClose}
               aria-label="Dismiss"
-              onClick={() => setBannerDismissed(true)}>
+              onClick={() => {
+                // Dismissing only set React state, not persisted anywhere -
+                // the underlying code stayed in localStorage, so the banner
+                // came right back on the next visit/reload. Clear the
+                // storage too so dismiss actually sticks; a fresh
+                // ?invite= link still re-shows it, which is correct.
+                try {
+                  localStorage.removeItem('pawbooker_invite_code');
+                } catch {
+                  // localStorage can be unavailable (private browsing)
+                }
+                setInviteCode(null);
+                setBannerDismissed(true);
+              }}>
               &times;
             </button>
           </div>
