@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'expo-router';
 import { ActivityIndicator, Pressable, ScrollView, Share, StyleSheet, Text, View } from 'react-native';
+import QRCode from 'react-native-qrcode-svg';
 
 import { SafeAreaView } from 'react-native-safe-area-context';
 
@@ -66,6 +67,19 @@ export default function InviteScreen() {
             <View style={styles.codeCard}>
               <Text style={styles.codeLabel}>Your invite code</Text>
               <Text style={styles.code}>{code ?? '—'}</Text>
+              {code && (
+                <>
+                  <View style={styles.qr}>
+                    <QRCode
+                      value={`https://paw-booker.com/?invite=${code}`}
+                      size={140}
+                      color={Colors.light.text}
+                      backgroundColor={Colors.light.surface}
+                    />
+                  </View>
+                  <Text style={styles.qrCaption}>Show this to a walk-in to scan instead of reading the code aloud</Text>
+                </>
+              )}
             </View>
 
             <Button label="Share invite" onPress={handleShare} disabled={!code} style={styles.shareButton} />
@@ -138,6 +152,17 @@ const styles = StyleSheet.create({
     fontWeight: '800',
     letterSpacing: 4,
     color: Colors.light.text,
+  },
+  qr: {
+    marginTop: 20,
+  },
+  qrCaption: {
+    marginTop: 10,
+    paddingHorizontal: 24,
+    fontSize: 12,
+    lineHeight: 17,
+    color: Colors.light.textMuted,
+    textAlign: 'center',
   },
   shareButton: {
     marginTop: 20,
