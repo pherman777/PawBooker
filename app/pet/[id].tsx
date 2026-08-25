@@ -249,13 +249,20 @@ export default function PetDetailScreen() {
   async function handleDeletePet() {
     if (!pet) return;
 
+    // Only an upcoming/active booking blocks deletion - a completed or
+    // cancelled one doesn't need the pet to still exist. The FK on
+    // bookings.pet_id is ON DELETE SET NULL (0040_account_deletion.sql), so
+    // past bookings/invoices survive with the pet reference cleared; every
+    // screen that displays a booking's pet name already falls back to
+    // "Pet" when that join is null.
     const { count } = await supabase
       .from('bookings')
       .select('id', { count: 'exact', head: true })
-      .eq('pet_id', pet.id);
+      .eq('pet_id', pet.id)
+      .in('status', ['pending', 'confirmed']);
 
     if (count && count > 0) {
-      notify('Can’t delete', `${pet.name} has existing bookings and can’t be deleted.`);
+      notify('Can’t delete', `${pet.name} has an upcoming booking and can’t be deleted until it's completed or cancelled.`);
       return;
     }
 
