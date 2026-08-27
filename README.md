@@ -1,6 +1,6 @@
 # PawBooker
 
-A production pet-grooming marketplace: customers book appointments with independent groomers, and groomers run their entire business — scheduling, payments, inventory, client communication — from the app. Live on iOS, Android, and web at [paw-booker.com](https://paw-booker.com).
+A pet-grooming marketplace built end-to-end: customers book appointments with independent groomers, and groomers run their business — scheduling, payments, inventory, client communication — from the app.
 
 This repo is the full monorepo behind it: a React Native/Expo customer + groomer app, a Next.js web dashboard, and a Supabase backend with 25+ edge functions handling payments, notifications, and an AI business assistant.
 
@@ -35,4 +35,6 @@ components/     Shared React Native UI components
 
 ## Status
 
-Shipped and in active use: native apps on the App Store and Google Play, web dashboard and customer booking live at paw-booker.com.
+Built solo end-to-end: mobile apps, web dashboard, and backend. Submitted to the App Store for review; Google Play submission planned next. A preview site at [paw-booker.com](https://paw-booker.com) showcases the app's UI/UX from both the customer and groomer perspective (not yet functional for live bookings).
+
+This was a real attempt to solve a problem I saw firsthand — independent groomers are hard to discover and often rely on clunky manual booking — and while groomer adoption didn't take off, the project reflects a complete, production-quality build across the full stack.
