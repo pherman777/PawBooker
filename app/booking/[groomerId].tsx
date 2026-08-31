@@ -153,6 +153,16 @@ export default function BookingScreen() {
     });
   }, [selectedDate, service, staffSelection, staff.length, salonHours, busy, closures, totalDurationMinutes]);
 
+  // A change to the date, staff, or which pets/services are selected can
+  // shift totalDurationMinutes and invalidate a previously chosen slot - but
+  // only clear it when that's actually true, not on every change, so picking
+  // a second pet doesn't blow away a time that still fits both.
+  useEffect(() => {
+    if (selectedTime && !availableTimes.includes(selectedTime)) {
+      setSelectedTime(null);
+    }
+  }, [availableTimes, selectedTime]);
+
   const subtotalCents = selectedPetServices.reduce((sum, row) => sum + row.service.priceCents, 0);
   const discountCents = computeGroupDiscountCents(subtotalCents, selectedPetIds.size, discountRule);
   const totalCents = subtotalCents - discountCents;
@@ -445,10 +455,7 @@ export default function BookingScreen() {
               <Pressable
                 key={day.toISOString()}
                 style={[styles.dayChip, isSelected && styles.chipSelected, isClosed && styles.dayChipClosed]}
-                onPress={() => {
-                  setSelectedDate(day);
-                  setSelectedTime(null);
-                }}>
+                onPress={() => setSelectedDate(day)}>
                 <Text style={[styles.dayChipWeekday, isSelected && styles.chipTextSelected]}>
                   {day.toLocaleDateString(undefined, { weekday: 'short' })}
                 </Text>
@@ -473,41 +480,9 @@ export default function BookingScreen() {
                 { id: 'any', label: 'First available' },
                 ...staff.map((member) => ({ id: member.id, label: member.name })),
               ]}
-              onChange={(id) => {
-                setStaffSelection(id);
-                setSelectedTime(null);
-              }}
+              onChange={(id) => setStaffSelection(id)}
             />
           </>
-        )}
-
-        <Text style={styles.sectionTitle}>Choose a time</Text>
-        {!selectedDate ? (
-          <Text style={styles.timeHint}>Pick a date to see available times.</Text>
-        ) : availableTimes.length === 0 ? (
-          <Text style={styles.timeHint}>
-            {(() => {
-              const closure = closureForDate(closures, selectedDate);
-              if (closure) return `Closed that day${closure.note ? ` - ${closure.note}` : ''}. Try another date.`;
-              return `No open times on this day${staffSelection === 'any' ? '' : ' for this groomer'}. Try another date.`;
-            })()}
-          </Text>
-        ) : (
-          <View style={styles.timeGrid}>
-            {availableTimes.map((slot) => {
-              const isSelected = selectedTime === slot;
-              return (
-                <Pressable
-                  key={slot}
-                  style={[styles.timeChip, isSelected && styles.chipSelected]}
-                  onPress={() => setSelectedTime(slot)}>
-                  <Text style={[styles.timeChipText, isSelected && styles.chipTextSelected]}>
-                    {formatTime(slot)}
-                  </Text>
-                </Pressable>
-              );
-            })}
-          </View>
         )}
 
         <Text style={styles.sectionTitle}>Which pets?</Text>
@@ -534,8 +509,6 @@ export default function BookingScreen() {
                     );
                     return;
                   }
-                  // Toggling a pet changes the total time, so the chosen slot may no
-                  // longer fit the group - clear it and make them repick.
                   const wasSelected = selectedPetIds.has(pet.id);
                   setSelectedPetIds((prev) => {
                     const next = new Set(prev);
@@ -558,7 +531,6 @@ export default function BookingScreen() {
                     }
                     return next;
                   });
-                  setSelectedTime(null);
                 }}>
                 <Text style={[styles.petChipText, isSelected && styles.chipTextSelected]}>{pet.name}</Text>
                 {!isEligible && <Text style={styles.petChipHint}>Vaccination required</Text>}
@@ -596,10 +568,7 @@ export default function BookingScreen() {
                         id: svc.id,
                         label: `${svc.name} · $${(svc.priceCents / 100).toFixed(0)}`,
                       }))}
-                      onChange={(id) => {
-                        setPetServiceIds((prev) => ({ ...prev, [pet.id]: id }));
-                        setSelectedTime(null);
-                      }}
+                      onChange={(id) => setPetServiceIds((prev) => ({ ...prev, [pet.id]: id }))}
                     />
                   </View>
                 )}
@@ -649,6 +618,39 @@ export default function BookingScreen() {
               )}
             </Pressable>
           </View>
+        )}
+
+        {selectedPetIds.size > 0 && (
+          <>
+            <Text style={styles.sectionTitle}>Choose a time</Text>
+            {!selectedDate ? (
+              <Text style={styles.timeHint}>Pick a date to see available times.</Text>
+            ) : availableTimes.length === 0 ? (
+              <Text style={styles.timeHint}>
+                {(() => {
+                  const closure = closureForDate(closures, selectedDate);
+                  if (closure) return `Closed that day${closure.note ? ` - ${closure.note}` : ''}. Try another date.`;
+                  return `No open times on this day${staffSelection === 'any' ? '' : ' for this groomer'}. Try another date.`;
+                })()}
+              </Text>
+            ) : (
+              <View style={styles.timeGrid}>
+                {availableTimes.map((slot) => {
+                  const isSelected = selectedTime === slot;
+                  return (
+                    <Pressable
+                      key={slot}
+                      style={[styles.timeChip, isSelected && styles.chipSelected]}
+                      onPress={() => setSelectedTime(slot)}>
+                      <Text style={[styles.timeChipText, isSelected && styles.chipTextSelected]}>
+                        {formatTime(slot)}
+                      </Text>
+                    </Pressable>
+                  );
+                })}
+              </View>
+            )}
+          </>
         )}
 
         {selectedPetIds.size > 0 && (
