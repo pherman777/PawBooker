@@ -421,7 +421,7 @@ export default function BookingScreen() {
 
   const selectedCareNeedsValid = [...selectedPetIds].every((id) => {
     const pet = pets.find((p) => p.id === id);
-    if (pet?.species !== 'dog') return true;
+    if (pet?.species !== 'dog' && pet?.species !== 'cat') return true;
     return careNeedsValid(petCareNeeds[id] ?? EMPTY_CARE_NEEDS);
   });
 
@@ -548,7 +548,7 @@ export default function BookingScreen() {
           .filter((pet) => selectedPetIds.has(pet.id))
           .map((pet) => {
             const showServicePicker = allServices.length > 1;
-            const showCareNeeds = pet.species === 'dog';
+            const showCareNeeds = pet.species === 'dog' || pet.species === 'cat';
             if (!showServicePicker && !showCareNeeds) return null;
             const chosenServiceId = petServiceIds[pet.id] ?? service?.id;
 
@@ -577,6 +577,7 @@ export default function BookingScreen() {
                   <PetCareNeedsFields
                     value={petCareNeeds[pet.id] ?? EMPTY_CARE_NEEDS}
                     onChange={(next) => setPetCareNeeds((prev) => ({ ...prev, [pet.id]: next }))}
+                    petType={pet.species as 'dog' | 'cat'}
                   />
                 )}
               </View>

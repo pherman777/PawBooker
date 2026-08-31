@@ -35,9 +35,10 @@ export function careNeedsValid(value: CareNeeds): boolean {
 type Props = {
   value: CareNeeds;
   onChange: (next: CareNeeds) => void;
+  petType: 'dog' | 'cat';
 };
 
-export function PetCareNeedsFields({ value, onChange }: Props) {
+export function PetCareNeedsFields({ value, onChange, petType }: Props) {
   const anyFlag = careNeedsAnyFlag(value);
 
   function toggle(key: keyof Omit<CareNeeds, 'careNotes'>) {
@@ -46,7 +47,7 @@ export function PetCareNeedsFields({ value, onChange }: Props) {
 
   return (
     <View style={styles.container}>
-      <Text style={styles.title}>Does your dog need any special care this visit?</Text>
+      <Text style={styles.title}>Does your {petType} need any special care this visit?</Text>
       <Text style={styles.subtitle}>Check all that apply so your groomer can plan for a safe, comfortable visit.</Text>
 
       {CARE_FLAGS.map((flag) => {
@@ -65,7 +66,7 @@ export function PetCareNeedsFields({ value, onChange }: Props) {
         <>
           <TextInput
             style={styles.notes}
-            placeholder="Tell your groomer what helps keep your dog calm and safe, and describe any matting or special needs…"
+            placeholder={`Tell your groomer what helps keep your ${petType} calm and safe, and describe any matting or special needs…`}
             placeholderTextColor={Colors.light.textMuted}
             value={value.careNotes}
             onChangeText={(text) => onChange({ ...value, careNotes: text })}
@@ -73,7 +74,7 @@ export function PetCareNeedsFields({ value, onChange }: Props) {
             textAlignVertical="top"
           />
           <Text style={styles.priceHint}>
-            Your groomer may adjust the final price based on your dog&apos;s needs.
+            Your groomer may adjust the final price based on your {petType}&apos;s needs.
           </Text>
         </>
       )}
