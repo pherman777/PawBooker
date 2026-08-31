@@ -176,14 +176,7 @@ export default function PlanScreen() {
               You&apos;re on a complimentary Pro plan — no billing and nothing to cancel.
             </Text>
           </View>
-        ) : (
-          <View style={styles.upgradeNotice}>
-            <Text style={styles.upgradeNoticeText}>
-              Upgrading to Pro is done on the PawBooker website, not in the app. Visit paw-booker.com/upgrade
-              from a browser to subscribe.
-            </Text>
-          </View>
-        )}
+        ) : null}
       </ScrollView>
     </SafeAreaView>
   );
@@ -263,19 +256,6 @@ const styles = StyleSheet.create({
   },
   loading: {
     marginTop: 24,
-  },
-  upgradeNotice: {
-    marginTop: 20,
-    padding: 16,
-    borderRadius: 10,
-    backgroundColor: Colors.light.surface,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: Colors.light.border,
-  },
-  upgradeNoticeText: {
-    fontSize: 14,
-    lineHeight: 20,
-    color: Colors.light.text,
   },
   cancelButton: {
     marginTop: 20,
