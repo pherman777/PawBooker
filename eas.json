@@ -19,6 +19,10 @@
     },
     "production": {
       "autoIncrement": true
+    },
+    "beta": {
+      "extends": "production",
+      "environment": "preview"
     }
   },
   "submit": {
@@ -37,7 +41,8 @@
       },
       "android": {
         "serviceAccountKeyPath": "./google-play-service-account.json",
-        "track": "alpha"
+        "track": "alpha",
+        "releaseStatus": "draft"
       }
     }
   }

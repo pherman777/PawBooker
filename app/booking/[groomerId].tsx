@@ -24,6 +24,7 @@ import { fetchActiveStaff, fetchBusyIntervals, type SalonStaff } from '@/service
 import { useAuth } from '@/services/auth-context';
 import { createGroupBooking, type PetBookingInput } from '@/services/bookings';
 import { notifyGroomer, sendBookingEmail } from '@/services/notifications';
+import { skipPaymentMethodRequirement } from '@/services/stripe';
 import { supabase } from '@/services/supabase';
 import type { GroomerHours, Pet } from '@/types';
 import { computeAvailableTimes, type BusyInterval, type StaffSelection } from '@/utils/availability';
@@ -413,7 +414,7 @@ export default function BookingScreen() {
   const canConfirm =
     Boolean(selectedDate && selectedTime && selectedPetIds.size > 0) &&
     selectedCareNeedsValid &&
-    hasPaymentMethod &&
+    (hasPaymentMethod || skipPaymentMethodRequirement) &&
     !submitting;
 
   return (
@@ -671,7 +672,7 @@ export default function BookingScreen() {
           </View>
         )}
 
-        {!hasPaymentMethod && (
+        {!hasPaymentMethod && !skipPaymentMethodRequirement && (
           <View style={styles.paymentNotice}>
             <Text style={styles.paymentNoticeText}>
               Add a payment method before booking. You&apos;ll be charged after your appointment is

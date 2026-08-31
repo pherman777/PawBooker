@@ -6,6 +6,12 @@ import { supabase } from '@/services/supabase';
 // keep in sync) so switching Stripe to live mode automatically flips this too.
 export const isStripeTestMode = !process.env.EXPO_PUBLIC_STRIPE_PUBLISHABLE_KEY?.startsWith('pk_live');
 
+// Lets beta-test builds through the "must have a saved card" gate before
+// booking, since the shared backend only has a live Stripe secret key - a
+// test publishable key wouldn't actually work end-to-end. Never set this in
+// production; it's for handing testers a build that doesn't require a real card.
+export const skipPaymentMethodRequirement = process.env.EXPO_PUBLIC_SKIP_PAYMENT_REQUIREMENT === 'true';
+
 // supabase-js's default error for a non-2xx Edge Function response is the
 // generic "Edge Function returned a non-2xx status code" - it doesn't surface
 // the function's actual {error: "..."} response body. Unwrap it so callers
