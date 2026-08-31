@@ -13,6 +13,7 @@
 
 export type BusyInterval = { startsAt: Date; durationMinutes: number };
 export type TimeSlot = { label: string; startsAt: string };
+export type ClosedRange = { start_date: string; end_date: string; note: string | null };
 
 export const DAY_KEYS = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'] as const;
 
@@ -52,6 +53,19 @@ export function zonedTimeToUtc(year: number, month: number, day: number, hour: n
 // this function is actually running in.
 export function weekdayKeyForDate(year: number, month: number, day: number): (typeof DAY_KEYS)[number] {
   return DAY_KEYS[new Date(Date.UTC(year, month - 1, day)).getUTCDay()];
+}
+
+function dateKeyFromParts(year: number, month: number, day: number): string {
+  return `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+}
+
+// groomer_closures.start_date/end_date come back from Postgres as plain
+// 'YYYY-MM-DD' strings, which sort lexically the same as chronologically -
+// a straight string comparison against a same-format key is enough, no Date
+// parsing needed (and no timezone to get wrong).
+export function isDateClosed(closures: ClosedRange[], year: number, month: number, day: number): ClosedRange | null {
+  const key = dateKeyFromParts(year, month, day);
+  return closures.find((c) => key >= c.start_date && key <= c.end_date) ?? null;
 }
 
 // Every candidate slot is computed as a real, timezone-correct UTC instant

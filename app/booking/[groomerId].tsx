@@ -20,14 +20,14 @@ import {
 import { SearchablePicker } from '@/components/SearchablePicker';
 import { Button } from '@/components/ui/Button';
 import { Colors } from '@/constants/theme';
-import { fetchActiveStaff, fetchBusyIntervals, type SalonStaff } from '@/services/availability';
+import { fetchActiveStaff, fetchBusyIntervals, fetchClosures, type SalonStaff } from '@/services/availability';
 import { useAuth } from '@/services/auth-context';
 import { createGroupBooking, type PetBookingInput } from '@/services/bookings';
 import { notifyGroomer, sendBookingEmail } from '@/services/notifications';
 import { skipPaymentMethodRequirement } from '@/services/stripe';
 import { supabase } from '@/services/supabase';
 import type { GroomerHours, Pet } from '@/types';
-import { computeAvailableTimes, type BusyInterval, type StaffSelection } from '@/utils/availability';
+import { closureForDate, computeAvailableTimes, type BusyInterval, type ClosedRange, type StaffSelection } from '@/utils/availability';
 import { notify } from '@/utils/confirm';
 import {
   computeGroupDiscountCents,
@@ -92,6 +92,7 @@ export default function BookingScreen() {
   const [salonHours, setSalonHours] = useState<GroomerHours | null>(null);
   const [staff, setStaff] = useState<SalonStaff[]>([]);
   const [busy, setBusy] = useState<BusyInterval[]>([]);
+  const [closures, setClosures] = useState<ClosedRange[]>([]);
   const [staffSelection, setStaffSelection] = useState<string>('any'); // 'any' or a staff id
   const [discountRule, setDiscountRule] = useState<MultiPetDiscount | null>(null);
   const [requiresVaccination, setRequiresVaccination] = useState(true);
@@ -148,8 +149,9 @@ export default function BookingScreen() {
       durationMinutes: totalDurationMinutes,
       busy,
       selection,
+      closures,
     });
-  }, [selectedDate, service, staffSelection, staff.length, salonHours, busy, totalDurationMinutes]);
+  }, [selectedDate, service, staffSelection, staff.length, salonHours, busy, closures, totalDurationMinutes]);
 
   const subtotalCents = selectedPetServices.reduce((sum, row) => sum + row.service.priceCents, 0);
   const discountCents = computeGroupDiscountCents(subtotalCents, selectedPetIds.size, discountRule);
@@ -166,7 +168,7 @@ export default function BookingScreen() {
       const windowEnd = new Date(windowStart);
       windowEnd.setDate(windowEnd.getDate() + DAYS_AHEAD);
 
-      const [serviceResult, allServicesResult, petsResult, billingResult, hoursResult, staffResult, busyResult, profileResult] =
+      const [serviceResult, allServicesResult, petsResult, billingResult, hoursResult, staffResult, busyResult, profileResult, closuresResult] =
         await Promise.all([
           supabase
             .from('groomer_services')
@@ -190,6 +192,7 @@ export default function BookingScreen() {
           fetchActiveStaff(groomerId),
           fetchBusyIntervals(groomerId, windowStart, windowEnd),
           supabase.from('profiles').select('name').eq('user_id', session.user.id).maybeSingle(),
+          fetchClosures(groomerId, windowStart, windowEnd),
         ]);
 
       if (!cancelled) {
@@ -199,6 +202,7 @@ export default function BookingScreen() {
         setRequiresVaccination(hoursResult.data?.requires_rabies_vaccination ?? true);
         setStaff(staffResult);
         setBusy(busyResult);
+        setClosures(closuresResult);
         setCustomerName(profileResult.data?.name ?? undefined);
       }
 
@@ -436,10 +440,11 @@ export default function BookingScreen() {
         <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.dayScroll}>
           {days.map((day) => {
             const isSelected = selectedDate?.toDateString() === day.toDateString();
+            const isClosed = closureForDate(closures, day) != null;
             return (
               <Pressable
                 key={day.toISOString()}
-                style={[styles.dayChip, isSelected && styles.chipSelected]}
+                style={[styles.dayChip, isSelected && styles.chipSelected, isClosed && styles.dayChipClosed]}
                 onPress={() => {
                   setSelectedDate(day);
                   setSelectedTime(null);
@@ -450,6 +455,7 @@ export default function BookingScreen() {
                 <Text style={[styles.dayChipDate, isSelected && styles.chipTextSelected]}>
                   {day.toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}
                 </Text>
+                {isClosed && <Text style={styles.dayChipClosedLabel}>Closed</Text>}
               </Pressable>
             );
           })}
@@ -480,7 +486,11 @@ export default function BookingScreen() {
           <Text style={styles.timeHint}>Pick a date to see available times.</Text>
         ) : availableTimes.length === 0 ? (
           <Text style={styles.timeHint}>
-            No open times on this day{staffSelection === 'any' ? '' : ' for this groomer'}. Try another date.
+            {(() => {
+              const closure = closureForDate(closures, selectedDate);
+              if (closure) return `Closed that day${closure.note ? ` - ${closure.note}` : ''}. Try another date.`;
+              return `No open times on this day${staffSelection === 'any' ? '' : ' for this groomer'}. Try another date.`;
+            })()}
           </Text>
         ) : (
           <View style={styles.timeGrid}>
@@ -774,6 +784,15 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '600',
     color: Colors.light.text,
+  },
+  dayChipClosed: {
+    opacity: 0.5,
+  },
+  dayChipClosedLabel: {
+    marginTop: 2,
+    fontSize: 10,
+    fontWeight: '600',
+    color: Colors.light.danger,
   },
   timeGrid: {
     flexDirection: 'row',

@@ -16,6 +16,15 @@ import { StarRating } from '@/components/StarRating';
 import { DirectionsButton } from '@/components/DirectionsButton';
 import { useLightStatusBar } from '@/hooks/useLightStatusBar';
 
+function toDateOnly(date: Date): string {
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+}
+
+function formatClosureDate(key: string): string {
+  const [year, month, day] = key.split('-').map(Number);
+  return new Date(year, month - 1, day).toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+}
+
 export default function GroomerDetailScreen() {
   useLightStatusBar();
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -28,6 +37,7 @@ export default function GroomerDetailScreen() {
   const [messaging, setMessaging] = useState(false);
   const [isDeactivated, setIsDeactivated] = useState(false);
   const [startingBookingFor, setStartingBookingFor] = useState<string | null>(null);
+  const [closures, setClosures] = useState<{ id: string; start_date: string; end_date: string; note: string | null }[]>([]);
 
   async function handleMessage() {
     if (!session || !groomer) return;
@@ -71,7 +81,7 @@ export default function GroomerDetailScreen() {
     let cancelled = false;
 
     async function loadGroomer() {
-      const [groomerResult, reviewsResult] = await Promise.all([
+      const [groomerResult, reviewsResult, closuresResult] = await Promise.all([
         supabase
           .from('groomers')
           .select(
@@ -85,6 +95,12 @@ export default function GroomerDetailScreen() {
           .eq('groomer_id', id)
           .order('created_at', { ascending: false })
           .limit(20),
+        supabase
+          .from('groomer_closures')
+          .select('id, start_date, end_date, note')
+          .eq('groomer_id', id)
+          .gte('end_date', toDateOnly(new Date()))
+          .order('start_date', { ascending: true }),
       ]);
 
       if (cancelled) return;
@@ -133,6 +149,7 @@ export default function GroomerDetailScreen() {
         );
       }
 
+      setClosures(closuresResult.data ?? []);
       setLoading(false);
     }
 
@@ -242,6 +259,21 @@ export default function GroomerDetailScreen() {
                 </View>
               );
             })}
+          </>
+        )}
+
+        {closures.length > 0 && (
+          <>
+            <Text style={styles.sectionTitle}>Upcoming closures</Text>
+            {closures.map((closure) => (
+              <View key={closure.id} style={styles.hoursRow}>
+                <Text style={styles.hoursDay}>
+                  {formatClosureDate(closure.start_date)}
+                  {closure.end_date !== closure.start_date ? ` – ${formatClosureDate(closure.end_date)}` : ''}
+                </Text>
+                {closure.note && <Text style={styles.hoursTime}>{closure.note}</Text>}
+              </View>
+            ))}
           </>
         )}
 

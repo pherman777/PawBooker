@@ -278,6 +278,7 @@ export default function SalonDashboardScreen() {
       { label: 'Multi-pet discount', onPress: () => router.push('/(salon)/discount') },
       { label: 'Vaccination requirement', onPress: () => router.push('/(salon)/vaccination') },
       { label: 'Hours', onPress: () => router.push('/(salon)/hours') },
+      { label: 'Closures', onPress: () => router.push('/(salon)/closures') },
       { label: 'Groomers', onPress: () => router.push('/(salon)/staff') },
       { label: 'Invite your customers', onPress: () => router.push('/(salon)/invite') },
       {

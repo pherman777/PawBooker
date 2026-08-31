@@ -5,9 +5,11 @@ import { checkRateLimit } from '../_shared/rate-limit.ts';
 import {
   DAY_KEYS,
   availableTimes,
+  isDateClosed,
   weekdayKeyForDate,
   zonedTimeToUtc,
   type BusyInterval,
+  type ClosedRange,
 } from '../_shared/availability.ts';
 
 const corsHeaders = {
@@ -211,6 +213,7 @@ Deno.serve(async (req) => {
     // create_booking/check_availability cases further down.
     let eligiblePets: { id: string; name: string; species: string; eligible: boolean }[] = [];
     let salonBusy: BusyInterval[] = [];
+    let salonClosures: ClosedRange[] = [];
     let salonCapacity = 1;
     let customerEmail: string | null = null;
     let customerName: string | null = null;
@@ -266,7 +269,8 @@ Rules:
         .map((s) => `${s.name} ($${(s.price_cents / 100).toFixed(0)}, ${s.duration_minutes} min)`)
         .join(', ');
 
-      const [petsResult, busyResult, staffResult, customerAuthResult, customerProfileResult] = await Promise.all([
+      const windowEnd = new Date(now.getTime() + 14 * 24 * 60 * 60 * 1000);
+      const [petsResult, busyResult, staffResult, customerAuthResult, customerProfileResult, closuresResult] = await Promise.all([
         supabase
           .from('pets')
           .select('id, name, species, pet_documents(document_type, expires_at)')
@@ -274,7 +278,7 @@ Rules:
         supabase.rpc('salon_busy_intervals', {
           p_salon_id: thread.groomer_id,
           p_from: now.toISOString(),
-          p_to: new Date(now.getTime() + 14 * 24 * 60 * 60 * 1000).toISOString(),
+          p_to: windowEnd.toISOString(),
         }),
         supabase.from('salon_staff').select('id').eq('salon_id', thread.groomer_id).eq('active', true),
         // Same pattern as create-manual-booking - needed so an AI-created
@@ -283,9 +287,16 @@ Rules:
         // instead of falling back to a blank "Customer" label.
         serviceRoleClient.auth.admin.getUserById(thread.customer_id),
         supabase.from('profiles').select('name').eq('user_id', thread.customer_id).maybeSingle(),
+        supabase
+          .from('groomer_closures')
+          .select('start_date, end_date, note')
+          .eq('groomer_id', thread.groomer_id)
+          .lte('start_date', windowEnd.toISOString().slice(0, 10))
+          .gte('end_date', now.toISOString().slice(0, 10)),
       ]);
       customerEmail = customerAuthResult.data?.user?.email ?? null;
       customerName = customerProfileResult.data?.name ?? null;
+      salonClosures = (closuresResult.data ?? []) as ClosedRange[];
 
       const todayIso = now.toISOString().slice(0, 10);
       eligiblePets = (petsResult.data ?? []).map((p) => ({
@@ -314,6 +325,10 @@ Rules:
         return dayHours ? `${label} ${dayHours.open}-${dayHours.close}` : `${label} closed`;
       }).join(', ');
 
+      const closuresSummary = salonClosures
+        .map((c) => `${c.start_date}${c.end_date !== c.start_date ? ` to ${c.end_date}` : ''}${c.note ? ` (${c.note})` : ''}`)
+        .join(', ');
+
       const nowInSalonZone = now.toLocaleString('en-US', {
         weekday: 'long',
         year: 'numeric',
@@ -335,6 +350,7 @@ Current date/time: ${nowInSalonZone}
 IMPORTANT: The current year is ${currentYear} - not a year from your training data. Any date you work out (e.g. "next Monday," "this Friday") MUST use ${currentYear} unless the customer explicitly names a different year. Getting the year wrong will silently return zero availability and make you incorrectly tell the customer nothing is open.
 
 Salon hours: ${hoursSummary}
+${closuresSummary ? `Closed for the following date(s) in the next two weeks, in addition to the above - never propose or book a time in these ranges: ${closuresSummary}` : ''}
 
 Salon services: ${servicesSummary || 'Not listed'}
 
@@ -383,7 +399,8 @@ Rules:
         }
 
         const weekday = weekdayKeyForDate(year, month, day);
-        const dayHours = groomer!.hours?.[weekday] ?? null;
+        const closure = isDateClosed(salonClosures, year, month, day);
+        const dayHours = closure ? null : (groomer!.hours?.[weekday] ?? null);
 
         const slots = availableTimes({
           year,
@@ -403,7 +420,14 @@ Rules:
         // for (e.g. they said "Monday" but this says tuesday), silently
         // work out the correct date and call check_availability again -
         // don't report results for the wrong day.
-        if (slots.length === 0) return { date: input.date, weekday, slots: [], note: dayHours ? 'No open times that day.' : 'Salon is closed that day.' };
+        if (slots.length === 0) {
+          const note = closure
+            ? `Salon closed that day${closure.note ? ` (${closure.note})` : ''}.`
+            : dayHours
+              ? 'No open times that day.'
+              : 'Salon is closed that day.';
+          return { date: input.date, weekday, slots: [], note };
+        }
         return { date: input.date, weekday, slots };
       }
 
@@ -434,11 +458,15 @@ Rules:
           day: '2-digit',
         }).formatToParts(startsAt);
         const partsByType = Object.fromEntries(zonedParts.map((p) => [p.type, p.value]));
-        const dayHours = groomer!.hours?.[weekdayKeyForDate(Number(partsByType.year), Number(partsByType.month), Number(partsByType.day))] ?? null;
+        const bookingYear = Number(partsByType.year);
+        const bookingMonth = Number(partsByType.month);
+        const bookingDay = Number(partsByType.day);
+        const closure = isDateClosed(salonClosures, bookingYear, bookingMonth, bookingDay);
+        const dayHours = closure ? null : (groomer!.hours?.[weekdayKeyForDate(bookingYear, bookingMonth, bookingDay)] ?? null);
         const stillOpen = availableTimes({
-          year: Number(partsByType.year),
-          month: Number(partsByType.month),
-          day: Number(partsByType.day),
+          year: bookingYear,
+          month: bookingMonth,
+          day: bookingDay,
           dayHours,
           durationMinutes: service.duration_minutes,
           busy: salonBusy,
@@ -520,7 +548,8 @@ Rules:
           day: '2-digit',
         }).formatToParts(newDate);
         const partsByType = Object.fromEntries(zonedParts.map((p) => [p.type, p.value]));
-        const dayHours = groomer!.hours?.[weekdayKeyForDate(Number(partsByType.year), Number(partsByType.month), Number(partsByType.day))] ?? null;
+        const rescheduleClosure = isDateClosed(salonClosures, Number(partsByType.year), Number(partsByType.month), Number(partsByType.day));
+        const dayHours = rescheduleClosure ? null : (groomer!.hours?.[weekdayKeyForDate(Number(partsByType.year), Number(partsByType.month), Number(partsByType.day))] ?? null);
         const stillOpen = availableTimes({
           year: Number(partsByType.year),
           month: Number(partsByType.month),

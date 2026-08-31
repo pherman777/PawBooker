@@ -1,0 +1,73 @@
+.emptyText {
+  font-size: 14px;
+  color: var(--muted);
+  margin-bottom: 16px;
+}
+.closureRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 18px;
+  margin-bottom: 10px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  box-shadow: var(--shadow);
+}
+.closureDates {
+  font-size: 15px;
+  font-weight: 600;
+}
+.closureNote {
+  margin-top: 2px;
+  font-size: 13px;
+  color: var(--muted);
+}
+.removeLink {
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--danger);
+}
+.addForm {
+  margin-top: 8px;
+  padding: 18px;
+  border-radius: 14px;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  box-shadow: var(--shadow);
+}
+.fieldLabel {
+  display: block;
+  font-size: 13px;
+  font-weight: 600;
+  margin-bottom: 8px;
+  margin-top: 12px;
+}
+.dateField {
+  width: 100%;
+  height: 44px;
+  border-radius: 10px;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--ink);
+  padding: 0 14px;
+  font-size: 15px;
+}
+.noteField {
+  width: 100%;
+  height: 44px;
+  border-radius: 10px;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--ink);
+  padding: 0 12px;
+  font-size: 15px;
+}
+.addFormButtons {
+  display: flex;
+  gap: 10px;
+  margin-top: 20px;
+}

@@ -1,7 +1,7 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 
 import { pushTokensForUser, sendExpoPushToTokens } from '../_shared/push.ts';
-import { availableTimes, weekdayKeyForDate, type BusyInterval } from '../_shared/availability.ts';
+import { availableTimes, isDateClosed, weekdayKeyForDate, type BusyInterval, type ClosedRange } from '../_shared/availability.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -193,11 +193,19 @@ Deno.serve(async (req) => {
 
     async function executeTool(name: string, input: Record<string, unknown>): Promise<ToolResult> {
       if (name === 'get_business_profile') {
-        const { data } = await supabase
-          .from('groomers')
-          .select('address, phone, email, bio, hours, requires_rabies_vaccination, multi_pet_discount')
-          .eq('id', groomer.id)
-          .single();
+        const [{ data }, closuresResult] = await Promise.all([
+          supabase
+            .from('groomers')
+            .select('address, phone, email, bio, hours, requires_rabies_vaccination, multi_pet_discount')
+            .eq('id', groomer.id)
+            .single(),
+          supabase
+            .from('groomer_closures')
+            .select('start_date, end_date, note')
+            .eq('groomer_id', groomer.id)
+            .gte('end_date', new Date().toISOString().slice(0, 10))
+            .order('start_date', { ascending: true }),
+        ]);
 
         const DAY_ORDER = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'] as const;
         const DAY_LABELS: Record<string, string> = {
@@ -221,6 +229,12 @@ Deno.serve(async (req) => {
           }
         }
 
+        const upcomingClosures = (closuresResult.data ?? []).map((c) => ({
+          from: c.start_date,
+          to: c.end_date,
+          note: c.note ?? undefined,
+        }));
+
         return {
           name: groomer.name,
           plan: groomer.plan,
@@ -231,6 +245,7 @@ Deno.serve(async (req) => {
           hours,
           requiresRabiesVaccination: data?.requires_rabies_vaccination ?? true,
           multiPetDiscount,
+          upcomingClosures,
         };
       }
 
@@ -623,14 +638,21 @@ Deno.serve(async (req) => {
         const service = booking.groomer_services as unknown as { name: string; duration_minutes: number } | null;
         const durationMinutes = service?.duration_minutes ?? 60;
 
-        const [hoursResult, staffResult, busyResult] = await Promise.all([
+        const closuresWindowEnd = new Date(now.getTime() + 14 * 24 * 60 * 60 * 1000);
+        const [hoursResult, staffResult, busyResult, closuresResult] = await Promise.all([
           supabase.from('groomers').select('hours').eq('id', groomer.id).single(),
           supabase.from('salon_staff').select('id').eq('salon_id', groomer.id).eq('active', true),
           supabase.rpc('salon_busy_intervals', {
             p_salon_id: groomer.id,
             p_from: now.toISOString(),
-            p_to: new Date(now.getTime() + 14 * 24 * 60 * 60 * 1000).toISOString(),
+            p_to: closuresWindowEnd.toISOString(),
           }),
+          supabase
+            .from('groomer_closures')
+            .select('start_date, end_date, note')
+            .eq('groomer_id', groomer.id)
+            .lte('start_date', closuresWindowEnd.toISOString().slice(0, 10))
+            .gte('end_date', now.toISOString().slice(0, 10)),
         ]);
         const hours = (hoursResult.data?.hours ?? null) as Record<string, { open: string; close: string } | null> | null;
         const capacity = Math.max((staffResult.data ?? []).length, 1);
@@ -638,6 +660,7 @@ Deno.serve(async (req) => {
           startsAt: new Date(b.starts_at),
           durationMinutes: b.duration_minutes,
         }));
+        const closures = (closuresResult.data ?? []) as ClosedRange[];
 
         const origDateFields = Object.fromEntries(
           new Intl.DateTimeFormat('en-US', { timeZone: groomer.timezone, year: 'numeric', month: '2-digit', day: '2-digit' })
@@ -663,7 +686,7 @@ Deno.serve(async (req) => {
           const year = Number(parts.year);
           const month = Number(parts.month);
           const day = Number(parts.day);
-          const dayHours = hours?.[weekdayKeyForDate(year, month, day)] ?? null;
+          const dayHours = isDateClosed(closures, year, month, day) ? null : (hours?.[weekdayKeyForDate(year, month, day)] ?? null);
           const slots = availableTimes({ year, month, day, dayHours, durationMinutes, busy, capacity, now, timeZone: groomer.timezone });
           if (slots.length > 0) {
             options.push({
@@ -754,7 +777,7 @@ You can take these actions, always by confirming the specific thing first and wa
 - cancel_booking: cancel a pending or confirmed booking.
 - propose_reschedule: message a customer about an existing booking with a few open alternative days/times to pick from, so they can reschedule themselves.
 - update_supply_stock: set a supply's on-hand quantity.
-For anything else - adding/editing services, adding/removing staff, changing hours or the multi-pet discount rule, reordering supplies with a vendor, sending a win-back reminder, connecting Stripe payouts - you have no tool for it. Tell the groomer which dashboard screen does it: Services, Staff, Hours, Discount, Vaccination requirement, Supplies, Payouts, or Reminders.
+For anything else - adding/editing services, adding/removing staff, changing hours or the multi-pet discount rule, adding or removing a closed date (holiday/vacation), reordering supplies with a vendor, sending a win-back reminder, connecting Stripe payouts - you have no tool for it. Tell the groomer which dashboard screen does it: Services, Staff, Hours, Closures, Discount, Vaccination requirement, Supplies, Payouts, or Reminders. get_business_profile's upcomingClosures tells you what's already scheduled if the groomer just wants to know, not set one.
 
 You also know how the PawBooker app works generally, and can answer "how do I..." questions about it directly:
 - Payouts: a groomer connects a bank account under Payouts (Stripe Connect) to receive booking payments and tips directly; until connected, completed bookings can't be charged.

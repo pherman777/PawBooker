@@ -7,6 +7,20 @@ export type BusyInterval = {
   staffId: string | null;
 };
 
+export type ClosedRange = { start_date: string; end_date: string; note: string | null };
+
+function dateKey(date: Date): string {
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+}
+
+// closures' start_date/end_date are plain 'YYYY-MM-DD' strings, which sort
+// lexically the same as chronologically - a straight string comparison
+// against a same-format key is enough, no Date parsing needed.
+export function closureForDate(closures: ClosedRange[], date: Date): ClosedRange | null {
+  const key = dateKey(date);
+  return closures.find((c) => key >= c.start_date && key <= c.end_date) ?? null;
+}
+
 // 'any' = first-available: a slot is open while fewer bookings overlap it than
 // the salon has groomers. 'staff' = a specific groomer: open unless one of their
 // own bookings overlaps (unassigned "any" bookings don't block a specific
@@ -38,6 +52,7 @@ type ComputeParams = {
   durationMinutes: number;
   busy: BusyInterval[];
   selection: StaffSelection;
+  closures?: ClosedRange[];
   now?: Date;
   stepMinutes?: number;
 };
@@ -45,16 +60,19 @@ type ComputeParams = {
 // Returns the bookable start times ("HH:MM") for one day, respecting the salon's
 // hours, the service length, and what's already booked. A salon that hasn't set
 // hours falls back to a default 9-5 window so it stays bookable; a day explicitly
-// marked closed returns no slots.
+// marked closed (weekly or a one-off closure) returns no slots.
 export function computeAvailableTimes({
   date,
   hours,
   durationMinutes,
   busy,
   selection,
+  closures = [],
   now = new Date(),
   stepMinutes = STEP_MINUTES,
 }: ComputeParams): string[] {
+  if (closureForDate(closures, date)) return [];
+
   const dayKey = DAYS_OF_WEEK[(date.getDay() + 6) % 7];
   const dayHours: DayHours = hours ? hours[dayKey] : { open: DEFAULT_OPEN, close: DEFAULT_CLOSE };
   if (!dayHours) return [];
