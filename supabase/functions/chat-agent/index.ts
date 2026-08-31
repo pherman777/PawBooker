@@ -2,6 +2,13 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 
 import { pushTokensForUser, sendExpoPushToTokens } from '../_shared/push.ts';
 import { checkRateLimit } from '../_shared/rate-limit.ts';
+import {
+  DAY_KEYS,
+  availableTimes,
+  weekdayKeyForDate,
+  zonedTimeToUtc,
+  type BusyInterval,
+} from '../_shared/availability.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -23,102 +30,6 @@ function jsonResponse(body: unknown, status = 200) {
 }
 
 type ToolResult = { success?: boolean; error?: string; [key: string]: unknown };
-
-// Availability logic below is adapted from utils/availability.ts's
-// computeAvailableTimes (edge functions run in Deno and can't import the RN
-// app's source files across that module boundary, same reason
-// dashboard/business-info/page.tsx inlines phone/email helpers instead of
-// sharing them) - but reworked to be timezone-aware, since unlike the
-// native/web booking screens (which run on the customer's own device and
-// implicitly treat device-local time as salon-local time), this runs
-// server-side on Deno Deploy in UTC and has to explicitly convert.
-type BusyInterval = { startsAt: Date; durationMinutes: number };
-
-function timeToMinutes(time: string): number {
-  const [hour, minute] = time.split(':').map(Number);
-  return hour * 60 + minute;
-}
-
-// This function runs on Deno Deploy, which is always UTC - it is NOT the
-// customer's device (unlike the native/web booking screens, which build
-// Date objects in the device's own local time and implicitly rely on the
-// customer being near the salon). A wall-clock "9:00 AM" in the salon's own
-// timeZone has to be explicitly converted to the correct UTC instant here,
-// or every AI-booked appointment would land off by the salon's UTC offset.
-// Standard guess-and-correct technique using only Intl (no external tz lib
-// available in this Deno runtime).
-function zonedTimeToUtc(year: number, month: number, day: number, hour: number, minute: number, timeZone: string): Date {
-  const guess = new Date(Date.UTC(year, month - 1, day, hour, minute));
-  const formatter = new Intl.DateTimeFormat('en-US', {
-    timeZone,
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit',
-    hour: '2-digit',
-    minute: '2-digit',
-    hour12: false,
-  });
-  const parts = Object.fromEntries(formatter.formatToParts(guess).map((p) => [p.type, p.value]));
-  const observedHour = Number(parts.hour) % 24; // Intl can format midnight as "24"
-  const asIfUtc = Date.UTC(Number(parts.year), Number(parts.month) - 1, Number(parts.day), observedHour, Number(parts.minute));
-  const offsetMs = asIfUtc - guess.getTime();
-  return new Date(guess.getTime() - offsetMs);
-}
-
-type TimeSlot = { label: string; startsAt: string };
-
-// Every candidate slot is computed as a real, timezone-correct UTC instant
-// via zonedTimeToUtc, then compared against busy intervals (already
-// absolute UTC instants, straight from the DB) as absolute times - never as
-// "minutes since midnight," which is meaningless without also knowing which
-// timezone's midnight. availableTimes() returns both a human label (for the
-// AI to relay as-is) and the exact ISO instant (for create_booking to
-// receive back verbatim) so the model never has to compute a datetime
-// itself.
-function availableTimes(params: {
-  year: number;
-  month: number;
-  day: number;
-  dayHours: { open: string; close: string } | null;
-  durationMinutes: number;
-  busy: BusyInterval[];
-  capacity: number;
-  now: Date;
-  timeZone: string;
-}): TimeSlot[] {
-  const { year, month, day, dayHours, durationMinutes, busy, capacity, now, timeZone } = params;
-  if (!dayHours) return [];
-
-  const openMin = timeToMinutes(dayHours.open);
-  const closeMin = timeToMinutes(dayHours.close);
-
-  const slots: TimeSlot[] = [];
-  for (let start = openMin; start + durationMinutes <= closeMin; start += 30) {
-    const slotStart = zonedTimeToUtc(year, month, day, Math.floor(start / 60), start % 60, timeZone);
-    if (slotStart.getTime() <= now.getTime()) continue;
-    const slotEndMs = slotStart.getTime() + durationMinutes * 60000;
-
-    const overlapping = busy.filter((b) => {
-      const bStart = b.startsAt.getTime();
-      const bEnd = bStart + b.durationMinutes * 60000;
-      return slotStart.getTime() < bEnd && bStart < slotEndMs;
-    });
-    if (overlapping.length >= Math.max(capacity, 1)) continue;
-
-    const label = slotStart.toLocaleString('en-US', { hour: 'numeric', minute: '2-digit', timeZone });
-    slots.push({ label, startsAt: slotStart.toISOString() });
-  }
-  return slots;
-}
-
-// A calendar date's weekday doesn't depend on timezone (Aug 24 2026 is a
-// Monday everywhere) - safe to compute via UTC regardless of what timezone
-// this function is actually running in.
-function weekdayKeyForDate(year: number, month: number, day: number): (typeof DAY_KEYS)[number] {
-  return DAY_KEYS[new Date(Date.UTC(year, month - 1, day)).getUTCDay()];
-}
-
-const DAY_KEYS = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'] as const;
 
 const GROOMER_TOOLS = [
   {
@@ -155,12 +66,16 @@ const GROOMER_TOOLS = [
   {
     name: 'reschedule_booking',
     description:
-      'Reschedule an existing booking to a new date and time. Only call this after the customer has explicitly confirmed a SPECIFIC new date/time in their most recent message.',
+      "Reschedule an existing booking to a new date and time. Call check_availability for the new date and this booking's service first, then only call this after the customer has explicitly confirmed a SPECIFIC slot from those results.",
     input_schema: {
       type: 'object',
       properties: {
         booking_id: { type: 'string', description: 'The id of the booking to reschedule' },
-        new_starts_at: { type: 'string', description: 'New appointment time as an ISO 8601 datetime string' },
+        new_starts_at: {
+          type: 'string',
+          description:
+            "The exact startsAt value from a slot check_availability returned for the new date - copy it exactly, never write your own datetime.",
+        },
       },
       required: ['booking_id', 'new_starts_at'],
     },
@@ -431,7 +346,7 @@ ${bookingsSummary}
 You can help with: answering questions about services, hours, or their bookings; reporting what a booking was charged and its payment status (shown above); checking availability and booking a NEW appointment; rescheduling or cancelling an existing booking listed above.
 
 Rules:
-- To book a new appointment: figure out which pet and service, work out the calendar date carefully from "Current date/time" above (double-check your day-of-week arithmetic - it's easy to get wrong), call check_availability, and propose specific times using each slot's label. check_availability's result echoes back which weekday your requested date actually falls on - if that doesn't match what the customer asked for (e.g. they said "Monday" but it says tuesday), silently work out the correct date and call it again rather than reporting results for the wrong day. Once the customer confirms one, call create_booking with that exact slot's startsAt value copied verbatim - never write your own datetime. Never state or imply a time is open without having just checked it.
+- To book a new appointment, or reschedule an existing one to a new date/time: figure out which pet and service (for a reschedule, the service is the existing booking's own service), work out the calendar date carefully from "Current date/time" above (double-check your day-of-week arithmetic - it's easy to get wrong), call check_availability, and propose specific times using each slot's label. check_availability's result echoes back which weekday your requested date actually falls on - if that doesn't match what the customer asked for (e.g. they said "Monday" but it says tuesday), silently work out the correct date and call it again rather than reporting results for the wrong day. Once the customer confirms one, call create_booking or reschedule_booking with that exact slot's startsAt value copied verbatim - never write your own datetime, even one that looks obviously right (e.g. "8am" is NOT "08:00:00Z" - the salon's local time and UTC are different clocks). Never state or imply a time is open without having just checked it.
 - A pet marked as needing a rabies vaccination above can't be booked - tell the customer they'll need to add a current rabies vaccination record to that pet's profile in the app first, and offer to escalate if they have questions about that.
 - Never call create_booking, reschedule_booking, or cancel_booking until the customer has explicitly confirmed, in their most recent message, that they want you to proceed with a SPECIFIC time/change you already proposed. Always state it in plain language first and wait for a clear yes.
 - Only act on bookings listed above - never invent or guess a booking id.
@@ -574,7 +489,7 @@ Rules:
         const bookingId = String(input.booking_id);
         const { data: booking } = await supabase
           .from('bookings')
-          .select('id, status')
+          .select('id, status, groomer_services(duration_minutes)')
           .eq('id', bookingId)
           .eq('customer_id', thread.customer_id)
           .eq('groomer_id', thread.groomer_id)
@@ -589,6 +504,35 @@ Rules:
         if (Number.isNaN(newDate.getTime()) || newDate < now) {
           return { error: 'The new date/time must be a valid time in the future.' };
         }
+
+        // Re-validate server-side rather than trusting the model's copied
+        // value actually came from a real, still-current check_availability
+        // result - recompute that day's slots in the salon's own timezone
+        // (not the server's) and require an exact match. Without this, a
+        // model-invented ISO string (e.g. treating "8am salon time" as
+        // literal UTC) would get written straight to the DB, landing the
+        // booking hours off from what the customer actually agreed to.
+        const bookingDuration = (booking.groomer_services as unknown as { duration_minutes: number } | null)?.duration_minutes ?? 60;
+        const zonedParts = new Intl.DateTimeFormat('en-US', {
+          timeZone: groomer!.timezone,
+          year: 'numeric',
+          month: '2-digit',
+          day: '2-digit',
+        }).formatToParts(newDate);
+        const partsByType = Object.fromEntries(zonedParts.map((p) => [p.type, p.value]));
+        const dayHours = groomer!.hours?.[weekdayKeyForDate(Number(partsByType.year), Number(partsByType.month), Number(partsByType.day))] ?? null;
+        const stillOpen = availableTimes({
+          year: Number(partsByType.year),
+          month: Number(partsByType.month),
+          day: Number(partsByType.day),
+          dayHours,
+          durationMinutes: bookingDuration,
+          busy: salonBusy,
+          capacity: salonCapacity,
+          now,
+          timeZone: groomer!.timezone,
+        }).some((slot) => slot.startsAt === newDate.toISOString());
+        if (!stillOpen) return { error: 'That time is no longer available - call check_availability again for current open times.' };
 
         const { error } = await supabase
           .from('bookings')

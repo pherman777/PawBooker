@@ -1,5 +1,8 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 
+import { pushTokensForUser, sendExpoPushToTokens } from '../_shared/push.ts';
+import { availableTimes, weekdayKeyForDate, type BusyInterval } from '../_shared/availability.ts';
+
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
@@ -97,6 +100,22 @@ const TOOLS = [
       properties: {
         booking_id: { type: 'string' },
         reason: { type: 'string', description: 'Brief reason the customer will see, based on what the groomer said' },
+      },
+      required: ['booking_id', 'reason'],
+    },
+  },
+  {
+    name: 'propose_reschedule',
+    description:
+      "Message a customer about an existing pending or confirmed booking to ask if they can move it to a different day, offering a few open alternative times to pick from. Finds the open times itself and sends the message directly - only call this after the groomer has explicitly confirmed, in their most recent message, which specific booking to ask about and why.",
+    input_schema: {
+      type: 'object',
+      properties: {
+        booking_id: { type: 'string', description: "The id of the pending or confirmed booking to ask about rescheduling" },
+        reason: {
+          type: 'string',
+          description: 'Brief, customer-facing reason for the reschedule ask, based on what the groomer said (e.g. "I\'m out sick that day")',
+        },
       },
       required: ['booking_id', 'reason'],
     },
@@ -586,6 +605,116 @@ Deno.serve(async (req) => {
         return { success: true };
       }
 
+      if (name === 'propose_reschedule') {
+        const bookingId = String(input.booking_id);
+        const reason = String(input.reason ?? '').trim();
+
+        const { data: booking } = await supabase
+          .from('bookings')
+          .select('id, status, starts_at, customer_id, groomer_services(name, duration_minutes)')
+          .eq('id', bookingId)
+          .eq('groomer_id', groomer.id)
+          .maybeSingle();
+        if (!booking) return { error: 'Booking not found at this salon.' };
+        if (booking.status !== 'pending' && booking.status !== 'confirmed') {
+          return { error: `Booking is already ${booking.status} - nothing to reschedule.` };
+        }
+
+        const service = booking.groomer_services as unknown as { name: string; duration_minutes: number } | null;
+        const durationMinutes = service?.duration_minutes ?? 60;
+
+        const [hoursResult, staffResult, busyResult] = await Promise.all([
+          supabase.from('groomers').select('hours').eq('id', groomer.id).single(),
+          supabase.from('salon_staff').select('id').eq('salon_id', groomer.id).eq('active', true),
+          supabase.rpc('salon_busy_intervals', {
+            p_salon_id: groomer.id,
+            p_from: now.toISOString(),
+            p_to: new Date(now.getTime() + 14 * 24 * 60 * 60 * 1000).toISOString(),
+          }),
+        ]);
+        const hours = (hoursResult.data?.hours ?? null) as Record<string, { open: string; close: string } | null> | null;
+        const capacity = Math.max((staffResult.data ?? []).length, 1);
+        const busy: BusyInterval[] = ((busyResult.data ?? []) as { starts_at: string; duration_minutes: number }[]).map((b) => ({
+          startsAt: new Date(b.starts_at),
+          durationMinutes: b.duration_minutes,
+        }));
+
+        const origDateFields = Object.fromEntries(
+          new Intl.DateTimeFormat('en-US', { timeZone: groomer.timezone, year: 'numeric', month: '2-digit', day: '2-digit' })
+            .formatToParts(new Date(booking.starts_at))
+            .map((p) => [p.type, p.value])
+        );
+        const origDateKey = `${origDateFields.year}${origDateFields.month}${origDateFields.day}`;
+
+        // One option per day, starting tomorrow ("a different day" per the
+        // groomer's ask) - skip the booking's own current day so we never
+        // propose the time it's already at.
+        const options: { label: string; startsAt: string }[] = [];
+        for (let dayOffset = 1; dayOffset <= 10 && options.length < 4; dayOffset++) {
+          const d = new Date(now.getTime() + dayOffset * 86400000);
+          const parts = Object.fromEntries(
+            new Intl.DateTimeFormat('en-US', { timeZone: groomer.timezone, year: 'numeric', month: '2-digit', day: '2-digit' })
+              .formatToParts(d)
+              .map((p) => [p.type, p.value])
+          );
+          const dateKey = `${parts.year}${parts.month}${parts.day}`;
+          if (dateKey === origDateKey) continue;
+
+          const year = Number(parts.year);
+          const month = Number(parts.month);
+          const day = Number(parts.day);
+          const dayHours = hours?.[weekdayKeyForDate(year, month, day)] ?? null;
+          const slots = availableTimes({ year, month, day, dayHours, durationMinutes, busy, capacity, now, timeZone: groomer.timezone });
+          if (slots.length > 0) {
+            options.push({
+              label: `${d.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', timeZone: groomer.timezone })} at ${slots[0].label}`,
+              startsAt: slots[0].startsAt,
+            });
+          }
+        }
+
+        if (options.length === 0) {
+          return { error: 'No open alternative times found in the next 10 days - tell the groomer to message the customer manually from Messages instead.' };
+        }
+
+        const { data: existingThread } = await serviceRoleClient
+          .from('chat_threads')
+          .select('id')
+          .eq('customer_id', booking.customer_id)
+          .eq('groomer_id', groomer.id)
+          .eq('thread_type', 'groomer')
+          .maybeSingle();
+
+        let threadId = existingThread?.id as string | undefined;
+        if (!threadId) {
+          const { data: createdThread, error: threadError } = await serviceRoleClient
+            .from('chat_threads')
+            .insert({ customer_id: booking.customer_id, groomer_id: groomer.id, thread_type: 'groomer' })
+            .select('id')
+            .single();
+          if (threadError || !createdThread) return { error: threadError?.message ?? 'Could not start a conversation with this customer.' };
+          threadId = createdThread.id;
+        }
+
+        const oldWhen = new Date(booking.starts_at).toLocaleString('en-US', {
+          weekday: 'long', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit', timeZone: groomer.timezone,
+        });
+        const optionsList = options.map((o) => `- ${o.label}`).join('\n');
+        const messageBody =
+          `Hi! About your ${service?.name ?? 'appointment'} on ${oldWhen}${reason ? ` - ${reason}` : ''}, could we move it to one of these instead?\n${optionsList}\n\nJust reply with the one that works, or let me know if none of these do and we'll find another time.`;
+
+        await serviceRoleClient.from('chat_messages').insert({
+          thread_id: threadId,
+          sender_type: 'bot',
+          body: messageBody,
+        });
+
+        const customerTokens = await pushTokensForUser(serviceRoleClient, booking.customer_id);
+        await sendExpoPushToTokens(customerTokens, groomer.name, messageBody, { threadId });
+
+        return { success: true, threadId, proposedOptions: options.map((o) => o.label) };
+      }
+
       if (name === 'update_supply_stock') {
         const supplyName = String(input.supply_name ?? '');
         const quantity = Number(input.quantity_on_hand);
@@ -623,6 +752,7 @@ Current date/time: ${now.toLocaleString('en-US', { weekday: 'long', year: 'numer
 You can take these actions, always by confirming the specific thing first and waiting for a clear yes:
 - respond_to_booking: accept or decline a pending request.
 - cancel_booking: cancel a pending or confirmed booking.
+- propose_reschedule: message a customer about an existing booking with a few open alternative days/times to pick from, so they can reschedule themselves.
 - update_supply_stock: set a supply's on-hand quantity.
 For anything else - adding/editing services, adding/removing staff, changing hours or the multi-pet discount rule, reordering supplies with a vendor, sending a win-back reminder, connecting Stripe payouts - you have no tool for it. Tell the groomer which dashboard screen does it: Services, Staff, Hours, Discount, Vaccination requirement, Supplies, Payouts, or Reminders.
 
@@ -637,7 +767,8 @@ You also know how the PawBooker app works generally, and can answer "how do I...
 
 Rules:
 - Only act on bookings/supplies you've actually looked up via a tool in this conversation - never invent or guess an id or a current quantity.
-- Never call respond_to_booking, cancel_booking, or update_supply_stock until the groomer has explicitly confirmed, in their most recent message, the specific action on a specific item you already proposed.
+- Never call respond_to_booking, cancel_booking, propose_reschedule, or update_supply_stock until the groomer has explicitly confirmed, in their most recent message, the specific action on a specific item you already proposed.
+- propose_reschedule sends a real message to the customer and finds the open times itself - never tell the groomer what times are open before calling it, and never invent times yourself.
 - Keep answers short and to the point - a sentence or a few bullet points, not long reports. Use the tools to get real data; never guess numbers.`;
 
     let finalText = '';
