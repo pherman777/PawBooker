@@ -1,4 +1,5 @@
 import { customerSupabase } from '@/lib/customerSupabase';
+import type { ClosedRange } from '@/lib/availability';
 
 // Customer-facing port of services/notifications.ts / services/availability.ts,
 // using customerSupabase. A separate file from lib/notifications.ts (the
@@ -58,4 +59,22 @@ export async function fetchBusyIntervals(salonId: string, from: Date, to: Date):
     durationMinutes: row.duration_minutes,
     staffId: row.staff_id,
   }));
+}
+
+function dateOnly(date: Date): string {
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+}
+
+// One-off closed dates (holidays, vacation) for a salon overlapping the given
+// window - layered on top of its recurring weekly hours.
+export async function fetchClosures(salonId: string, from: Date, to: Date): Promise<ClosedRange[]> {
+  const { data, error } = await customerSupabase
+    .from('groomer_closures')
+    .select('start_date, end_date, note')
+    .eq('groomer_id', salonId)
+    .lte('start_date', dateOnly(to))
+    .gte('end_date', dateOnly(from));
+
+  if (error || !data) return [];
+  return data as ClosedRange[];
 }

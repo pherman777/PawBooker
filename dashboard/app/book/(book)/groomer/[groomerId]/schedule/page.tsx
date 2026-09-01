@@ -5,13 +5,13 @@ import { Suspense, useEffect, useMemo, useState } from 'react';
 
 import { Button } from '@/components/Button';
 import { PetCareNeedsFields } from '@/components/PetCareNeedsFields';
-import { computeAvailableTimes, type BusyInterval, type StaffSelection } from '@/lib/availability';
+import { closureForDate, computeAvailableTimes, type BusyInterval, type ClosedRange, type StaffSelection } from '@/lib/availability';
 import { careNeedsToRow, careNeedsValid, createGroupBooking, createSingleBooking, EMPTY_CARE_NEEDS, type CareNeeds, type PetBookingInput } from '@/lib/customerBookings';
 import { useCustomerAuth } from '@/lib/customerAuth';
 import { customerSupabase } from '@/lib/customerSupabase';
 import { computeGroupDiscountCents, describeMultiPetDiscount, parseMultiPetDiscount, type MultiPetDiscount } from '@/lib/discount';
 import { formatTime, type GroomerHours } from '@/lib/hours';
-import { fetchActiveStaff, fetchBusyIntervals, notifyGroomer, sendBookingEmail, type SalonStaff } from '@/lib/customerNotifications';
+import { fetchActiveStaff, fetchBusyIntervals, fetchClosures, notifyGroomer, sendBookingEmail, type SalonStaff } from '@/lib/customerNotifications';
 import { hasCurrentRabiesVaccination } from '@/lib/vaccination';
 
 import styles from './page.module.css';
@@ -75,6 +75,7 @@ function SchedulePageContent() {
   const [salonHours, setSalonHours] = useState<GroomerHours | null>(null);
   const [staff, setStaff] = useState<SalonStaff[]>([]);
   const [busy, setBusy] = useState<BusyInterval[]>([]);
+  const [closures, setClosures] = useState<ClosedRange[]>([]);
   const [staffSelection, setStaffSelection] = useState<string>('any');
   const [discountRule, setDiscountRule] = useState<MultiPetDiscount | null>(null);
   const [requiresVaccination, setRequiresVaccination] = useState(true);
@@ -115,8 +116,18 @@ function SchedulePageContent() {
   const availableTimes = useMemo(() => {
     if (!selectedDate || !service) return [];
     const selection: StaffSelection = staffSelection === 'any' ? { kind: 'any', capacity: Math.max(staff.length, 1) } : { kind: 'staff', staffId: staffSelection };
-    return computeAvailableTimes({ date: selectedDate, hours: salonHours, durationMinutes: totalDurationMinutes, busy, selection });
-  }, [selectedDate, service, staffSelection, staff.length, salonHours, busy, totalDurationMinutes]);
+    return computeAvailableTimes({ date: selectedDate, hours: salonHours, durationMinutes: totalDurationMinutes, busy, selection, closures });
+  }, [selectedDate, service, staffSelection, staff.length, salonHours, busy, closures, totalDurationMinutes]);
+
+  // A change to the date, staff, or which pets/services are selected can shift
+  // totalDurationMinutes and invalidate a previously chosen slot - but only
+  // clear it when that's actually true, not on every change, so picking a
+  // second pet doesn't blow away a time that still fits both.
+  useEffect(() => {
+    if (selectedTime && !availableTimes.includes(selectedTime)) {
+      setSelectedTime(null);
+    }
+  }, [availableTimes, selectedTime]);
 
   const subtotalCents = selectedPetServices.reduce((sum, row) => sum + row.service.priceCents, 0);
   const discountCents = computeGroupDiscountCents(subtotalCents, selectedPetIds.size, discountRule);
@@ -133,7 +144,7 @@ function SchedulePageContent() {
       const windowEnd = new Date(windowStart);
       windowEnd.setDate(windowEnd.getDate() + DAYS_AHEAD);
 
-      const [serviceResult, allServicesResult, petsResult, billingResult, hoursResult, staffResult, busyResult, profileResult] = await Promise.all([
+      const [serviceResult, allServicesResult, petsResult, billingResult, hoursResult, staffResult, busyResult, profileResult, closuresResult] = await Promise.all([
         customerSupabase.from('groomer_services').select('id, name, price_cents, duration_minutes, groomers(name)').eq('id', serviceId).single(),
         customerSupabase.from('groomer_services').select('id, name, price_cents, duration_minutes').eq('groomer_id', groomerId),
         customerSupabase.from('pets').select('id, owner_id, name, species, breed, pet_documents(document_type, expires_at)').eq('owner_id', session.user.id),
@@ -142,6 +153,7 @@ function SchedulePageContent() {
         fetchActiveStaff(groomerId),
         fetchBusyIntervals(groomerId, windowStart, windowEnd),
         customerSupabase.from('profiles').select('name').eq('user_id', session.user.id).maybeSingle(),
+        fetchClosures(groomerId, windowStart, windowEnd),
       ]);
 
       if (cancelled) return;
@@ -152,6 +164,7 @@ function SchedulePageContent() {
       setRequiresVaccination(hoursResult.data?.requires_rabies_vaccination ?? true);
       setStaff(staffResult);
       setBusy(busyResult);
+      setClosures(closuresResult);
       setCustomerName(profileResult.data?.name ?? undefined);
 
       if (serviceResult.error || !serviceResult.data) {
@@ -292,7 +305,7 @@ function SchedulePageContent() {
 
   const selectedCareNeedsValid = [...selectedPetIds].every((id) => {
     const pet = pets.find((p) => p.id === id);
-    if (pet?.species !== 'dog') return true;
+    if (pet?.species !== 'dog' && pet?.species !== 'cat') return true;
     return careNeedsValid(petCareNeeds[id] ?? EMPTY_CARE_NEEDS);
   });
 
@@ -323,7 +336,6 @@ function SchedulePageContent() {
       else if (service) next[pet.id] = service.id;
       return next;
     });
-    setSelectedTime(null);
   }
 
   return (
@@ -344,17 +356,16 @@ function SchedulePageContent() {
       <div className={styles.dayScroll}>
         {days.map((day) => {
           const isSelected = selectedDate?.toDateString() === day.toDateString();
+          const isClosed = closureForDate(closures, day) != null;
           return (
             <button
               key={day.toISOString()}
               type="button"
-              className={`${styles.chip} ${isSelected ? styles.chipSelected : ''}`}
-              onClick={() => {
-                setSelectedDate(day);
-                setSelectedTime(null);
-              }}>
+              className={`${styles.chip} ${isSelected ? styles.chipSelected : ''} ${isClosed ? styles.dayChipClosed : ''}`}
+              onClick={() => setSelectedDate(day)}>
               <div className={styles.dayChipWeekday}>{day.toLocaleDateString(undefined, { weekday: 'short' })}</div>
               <div className={styles.dayChipDate}>{day.toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}</div>
+              {isClosed && <div className={styles.dayChipClosedLabel}>Closed</div>}
             </button>
           );
         })}
@@ -366,10 +377,7 @@ function SchedulePageContent() {
           <select
             className={`field-input ${styles.select}`}
             value={staffSelection}
-            onChange={(e) => {
-              setStaffSelection(e.target.value);
-              setSelectedTime(null);
-            }}>
+            onChange={(e) => setStaffSelection(e.target.value)}>
             <option value="any">First available</option>
             {staff.map((member) => (
               <option key={member.id} value={member.id}>
@@ -378,21 +386,6 @@ function SchedulePageContent() {
             ))}
           </select>
         </>
-      )}
-
-      <p className={styles.sectionTitle}>Choose a time</p>
-      {!selectedDate ? (
-        <p className={styles.hint}>Pick a date to see available times.</p>
-      ) : availableTimes.length === 0 ? (
-        <p className={styles.hint}>No open times on this day{staffSelection === 'any' ? '' : ' for this groomer'}. Try another date.</p>
-      ) : (
-        <div className={styles.timeGrid}>
-          {availableTimes.map((slot) => (
-            <button key={slot} type="button" className={`${styles.timeChip} ${selectedTime === slot ? styles.chipSelected : ''}`} onClick={() => setSelectedTime(slot)}>
-              {formatTime(slot)}
-            </button>
-          ))}
-        </div>
       )}
 
       <p className={styles.sectionTitle}>Which pets?</p>
@@ -423,7 +416,7 @@ function SchedulePageContent() {
         .filter((pet) => selectedPetIds.has(pet.id))
         .map((pet) => {
           const showServicePicker = allServices.length > 1;
-          const showCareNeeds = pet.species === 'dog';
+          const showCareNeeds = pet.species === 'dog' || pet.species === 'cat';
           if (!showServicePicker && !showCareNeeds) return null;
           const chosenServiceId = petServiceIds[pet.id] ?? service?.id;
 
@@ -437,10 +430,7 @@ function SchedulePageContent() {
                   <select
                     className="field-input"
                     value={chosenServiceId ?? ''}
-                    onChange={(e) => {
-                      setPetServiceIds((prev) => ({ ...prev, [pet.id]: e.target.value }));
-                      setSelectedTime(null);
-                    }}>
+                    onChange={(e) => setPetServiceIds((prev) => ({ ...prev, [pet.id]: e.target.value }))}>
                     {allServices.map((svc) => (
                       <option key={svc.id} value={svc.id}>
                         {svc.name} · ${(svc.priceCents / 100).toFixed(0)}
@@ -450,7 +440,13 @@ function SchedulePageContent() {
                 </div>
               )}
 
-              {showCareNeeds && <PetCareNeedsFields value={petCareNeeds[pet.id] ?? EMPTY_CARE_NEEDS} onChange={(next) => setPetCareNeeds((prev) => ({ ...prev, [pet.id]: next }))} />}
+              {showCareNeeds && (
+                <PetCareNeedsFields
+                  value={petCareNeeds[pet.id] ?? EMPTY_CARE_NEEDS}
+                  onChange={(next) => setPetCareNeeds((prev) => ({ ...prev, [pet.id]: next }))}
+                  petType={pet.species as 'dog' | 'cat'}
+                />
+              )}
             </div>
           );
         })}
@@ -467,6 +463,31 @@ function SchedulePageContent() {
           </div>
           <Button label="Save pet" onClick={handleSavePet} disabled={!newPetName.trim()} loading={savingPet} />
         </div>
+      )}
+
+      {selectedPetIds.size > 0 && (
+        <>
+          <p className={styles.sectionTitle}>Choose a time</p>
+          {!selectedDate ? (
+            <p className={styles.hint}>Pick a date to see available times.</p>
+          ) : availableTimes.length === 0 ? (
+            <p className={styles.hint}>
+              {(() => {
+                const closure = closureForDate(closures, selectedDate);
+                if (closure) return `Closed that day${closure.note ? ` - ${closure.note}` : ''}. Try another date.`;
+                return `No open times on this day${staffSelection === 'any' ? '' : ' for this groomer'}. Try another date.`;
+              })()}
+            </p>
+          ) : (
+            <div className={styles.timeGrid}>
+              {availableTimes.map((slot) => (
+                <button key={slot} type="button" className={`${styles.timeChip} ${selectedTime === slot ? styles.chipSelected : ''}`} onClick={() => setSelectedTime(slot)}>
+                  {formatTime(slot)}
+                </button>
+              ))}
+            </div>
+          )}
+        </>
       )}
 
       {selectedPetIds.size > 0 && (
