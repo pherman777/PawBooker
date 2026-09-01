@@ -134,7 +134,7 @@
 .footerActions {
   margin-top: 32px;
   display: flex;
-  flex-direction: column;
+  flex-wrap: wrap;
   gap: 12px;
 }
 .deleteAccountButton {

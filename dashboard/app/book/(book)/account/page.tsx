@@ -385,13 +385,13 @@ export default function AccountPage() {
           </div>
         </div>
       ) : (
-        <Button label="Have an invite code?" variant="secondary" onClick={() => setShowInvite(true)} />
+        <Button label="Have an invite code?" variant="ghost" onClick={() => setShowInvite(true)} />
       )}
       {inviteMessage && <p className={styles.hint}>{inviteMessage}</p>}
 
       <div className={styles.footerActions}>
-        <Button label="Help & support" variant="secondary" onClick={() => router.push('/book/help')} />
-        <Button label="Sign out" variant="secondary" onClick={() => customerSupabase.auth.signOut()} />
+        <Button label="Help & support" variant="ghost" onClick={() => router.push('/book/help')} />
+        <Button label="Sign out" variant="ghost" onClick={() => customerSupabase.auth.signOut()} />
       </div>
 
       <button type="button" className={styles.deleteAccountButton} onClick={handleDeleteAccount} disabled={deletingAccount}>
