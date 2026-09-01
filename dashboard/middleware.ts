@@ -23,11 +23,18 @@ function isAppOnlyHost(host: string): boolean {
 // redirect is separate from this.
 const LAUNCHED = process.env.LAUNCHED === 'true';
 
-// Only gate the actual production deployment. Vercel sets VERCEL_ENV to
-// "preview" for every branch/PR deploy (unguessable URLs, not the real
-// domain) - those need to stay open regardless of LAUNCHED so a branch can
-// actually be QA'd before it's merged and goes live for real.
-const isProductionDeploy = process.env.VERCEL_ENV === 'production';
+// Preview deployments (this project's own *.vercel.app URL, one per
+// branch/PR) need to stay open regardless of LAUNCHED so a branch can
+// actually be QA'd before it's merged and goes live for real - nobody
+// reaches these by accident, they're not the marketed domain. Checked by
+// hostname rather than process.env.VERCEL_ENV === 'production': that
+// requires "Automatically expose System Environment Variables" to be on for
+// the project, which isn't guaranteed and silently gave the wrong answer on
+// a real QA preview (still redirecting to the waitlist) before this was
+// caught - hostname is directly verifiable and doesn't depend on that toggle.
+function isPreviewHost(host: string): boolean {
+  return host.endsWith('.vercel.app');
+}
 
 export function middleware(request: NextRequest) {
   const host = request.headers.get('host') ?? '';
@@ -48,11 +55,16 @@ export function middleware(request: NextRequest) {
     return NextResponse.next();
   }
 
-  // Every other host, production only: "/" is always the real marketing
-  // homepage. Sign-in/sign-up and all of /book (browsing is public, not just
-  // its own sign-in/sign-up) get gated pre-launch - once LAUNCHED is true
-  // they pass through to the real pages here too.
-  if (isProductionDeploy && !LAUNCHED && (pathname === '/dashboard/sign-in' || pathname === '/dashboard/sign-up' || pathname.startsWith('/book'))) {
+  if (isPreviewHost(host)) {
+    return NextResponse.next();
+  }
+
+  // Every other host (paw-booker.com, and any new/unknown host - gated by
+  // default so an unrecognized domain is safe, not open): "/" is always the
+  // real marketing homepage. Sign-in/sign-up and all of /book (browsing is
+  // public, not just its own sign-in/sign-up) get gated pre-launch - once
+  // LAUNCHED is true they pass through to the real pages here too.
+  if (!LAUNCHED && (pathname === '/dashboard/sign-in' || pathname === '/dashboard/sign-up' || pathname.startsWith('/book'))) {
     const url = request.nextUrl.clone();
     url.pathname = '/';
     url.search = pathname === '/dashboard/sign-up' ? '?notify=1&groomer=1' : '?notify=1';
