@@ -101,9 +101,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     init();
 
     const { data: subscription } = supabase.auth.onAuthStateChange((_event, newSession) => {
+      // Only block on re-resolving the profile for an actual sign-in/sign-out/
+      // account-switch (session's user changes) - a routine token refresh
+      // fires this same callback with the same user and shouldn't flash the
+      // full-screen spinner over whatever the user is already looking at.
+      const userChanged = newSession?.user.id !== sessionRef.current?.user.id;
       setSession(newSession);
+      if (userChanged) setLoading(true);
       resolveGroomerProfile(newSession).then((profile) => {
-        if (!cancelled) setGroomerProfile(profile);
+        if (cancelled) return;
+        setGroomerProfile(profile);
+        if (userChanged) setLoading(false);
       });
     });
 
