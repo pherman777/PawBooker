@@ -389,14 +389,23 @@ export default function AccountPage() {
       )}
       {inviteMessage && <p className={styles.hint}>{inviteMessage}</p>}
 
-      <div className={styles.footerActions}>
-        <Button label="Help & support" variant="ghost" onClick={() => router.push('/book/help')} />
-        <Button label="Sign out" variant="ghost" onClick={() => customerSupabase.auth.signOut()} />
+      <div className={styles.footerLinks}>
+        <button type="button" className={styles.footerLink} onClick={() => router.push('/book/help')}>
+          Help & support
+        </button>
+        <span className={styles.footerLinkDivider}>·</span>
+        <button type="button" className={styles.footerLink} onClick={() => customerSupabase.auth.signOut()}>
+          Sign out
+        </button>
+        <span className={styles.footerLinkDivider}>·</span>
+        <button
+          type="button"
+          className={`${styles.footerLink} ${styles.footerLinkDanger}`}
+          onClick={handleDeleteAccount}
+          disabled={deletingAccount}>
+          {deletingAccount ? 'Deleting…' : 'Delete account'}
+        </button>
       </div>
-
-      <button type="button" className={styles.deleteAccountButton} onClick={handleDeleteAccount} disabled={deletingAccount}>
-        {deletingAccount ? 'Deleting…' : 'Delete account'}
-      </button>
     </div>
   );
 }
