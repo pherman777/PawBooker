@@ -16,12 +16,16 @@ function isAppOnlyHost(host: string): boolean {
 // deployments, etc.) bounces sign-in/sign-up (and, once /book exists,
 // browsing/booking) to the homepage waitlist instead. Once both app store
 // reviews clear and paw-booker.com itself should start serving the real
-// thing too, set the LAUNCHED env var to "true" in Vercel and redeploy - no
-// code change needed, so launch day doesn't require an engineer on hand.
-// Stays unset/false until that's an intentional decision. Doesn't affect "/"
-// on any host - see isAppOnlyHost above for why app.paw-booker.com's "/"
-// redirect is separate from this.
-const LAUNCHED = process.env.LAUNCHED === 'true';
+// thing too, set the NEXT_PUBLIC_LAUNCHED env var to "true" in Vercel and
+// redeploy - no code change needed, so launch day doesn't require an
+// engineer on hand. NEXT_PUBLIC_ (not a plain server var) because the
+// marketing homepage's own CTAs (SiteHeader, app/page.tsx's NotifyButton)
+// need this same flag client-side, to stop opening the waitlist modal and
+// link to the real sign-up instead - one env var to flip, not two to keep in
+// sync. Stays unset/false until that's an intentional decision. Doesn't
+// affect "/" on any host - see isAppOnlyHost above for why
+// app.paw-booker.com's "/" redirect is separate from this.
+const LAUNCHED = process.env.NEXT_PUBLIC_LAUNCHED === 'true';
 
 // Preview deployments (this project's own *.vercel.app URL, one per
 // branch/PR) need to stay open regardless of LAUNCHED so a branch can

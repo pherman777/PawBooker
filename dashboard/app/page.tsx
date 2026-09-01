@@ -11,6 +11,12 @@ import { SiteHeader } from '@/components/SiteHeader';
 
 import styles from './marketing.module.css';
 
+const LAUNCHED = process.env.NEXT_PUBLIC_LAUNCHED === 'true';
+
+// Pre-launch, every CTA on this page opens the waitlist modal (real
+// sign-up isn't live on this domain yet - see dashboard/middleware.ts).
+// Once LAUNCHED flips, they link straight to the real sign-up instead -
+// groomer CTAs to the dashboard, everyone else to /book.
 function NotifyButton({
   className,
   children,
@@ -23,6 +29,15 @@ function NotifyButton({
   style?: React.CSSProperties;
 }) {
   const { openModal } = useNotifyModal();
+
+  if (LAUNCHED) {
+    return (
+      <Link className={className} style={style} href={groomer ? '/dashboard/sign-up' : '/book/sign-up'}>
+        {children}
+      </Link>
+    );
+  }
+
   return (
     <button className={className} style={style} onClick={() => openModal({ groomer })}>
       {children}
