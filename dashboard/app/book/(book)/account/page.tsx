@@ -267,7 +267,7 @@ export default function AccountPage() {
         {contactError && <p className="sign-in-error">{contactError}</p>}
         {contactMessage && <p className={styles.hint}>{contactMessage}</p>}
 
-        <Button label="Save contact info" type="submit" loading={savingContact} block />
+        <Button label="Save contact info" type="submit" loading={savingContact} />
       </form>
 
       <p className={styles.section}>Change password</p>
@@ -298,7 +298,7 @@ export default function AccountPage() {
           />
         </div>
         {passwordMessage && <p className={styles.hint}>{passwordMessage}</p>}
-        <Button label="Update password" type="submit" disabled={!canSavePassword} loading={savingPassword} block />
+        <Button label="Update password" type="submit" disabled={!canSavePassword} loading={savingPassword} />
       </form>
 
       <p className={styles.section}>Your pets</p>
@@ -390,8 +390,8 @@ export default function AccountPage() {
       {inviteMessage && <p className={styles.hint}>{inviteMessage}</p>}
 
       <div className={styles.footerActions}>
-        <Button label="Help & support" variant="secondary" onClick={() => router.push('/book/help')} block />
-        <Button label="Sign out" variant="secondary" onClick={() => customerSupabase.auth.signOut()} block />
+        <Button label="Help & support" variant="secondary" onClick={() => router.push('/book/help')} />
+        <Button label="Sign out" variant="secondary" onClick={() => customerSupabase.auth.signOut()} />
       </div>
 
       <button type="button" className={styles.deleteAccountButton} onClick={handleDeleteAccount} disabled={deletingAccount}>
