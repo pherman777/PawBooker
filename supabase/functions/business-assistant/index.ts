@@ -717,6 +717,14 @@ Deno.serve(async (req) => {
             .single();
           if (threadError || !createdThread) return { error: threadError?.message ?? 'Could not start a conversation with this customer.' };
           threadId = createdThread.id;
+
+          // The chat_threads_welcome_message trigger (migration 0020)
+          // auto-inserts a generic "Hi, I'm the booking assistant..."
+          // greeting on every new groomer thread, meant for a customer
+          // opening a blank chat themselves. Here the reschedule message
+          // below is itself the opening message, so drop the trigger's
+          // greeting instead of showing both.
+          await serviceRoleClient.from('chat_messages').delete().eq('thread_id', threadId).eq('sender_type', 'bot');
         }
 
         const oldWhen = new Date(booking.starts_at).toLocaleString('en-US', {
