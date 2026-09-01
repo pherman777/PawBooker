@@ -269,7 +269,7 @@ export default function PetDetailPage() {
       {loadError && <p className="sign-in-error">{loadError}</p>}
       {saveMessage && <p className="page-subtitle">{saveMessage}</p>}
 
-      <Button label="Save changes" onClick={handleSaveDetails} disabled={!canSaveDetails} loading={savingDetails} block />
+      <Button label="Save changes" onClick={handleSaveDetails} disabled={!canSaveDetails} loading={savingDetails} />
 
       <p className={styles.sectionTitle}>Documents</p>
 

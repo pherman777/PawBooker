@@ -133,6 +133,7 @@ textarea {
   display: inline-flex;
   align-items: center;
   justify-content: center;
+  align-self: flex-start;
   gap: 8px;
   font-family: var(--sans);
   font-weight: 700;
