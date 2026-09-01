@@ -1,6 +1,6 @@
 import { useRouter } from 'expo-router';
-import { useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { useEffect, useState } from 'react';
+import { Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { KeyboardAwareScrollView } from 'react-native-keyboard-controller';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
@@ -28,6 +28,22 @@ export default function GroomerSignupScreen() {
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [confirmSent, setConfirmSent] = useState(false);
+
+  // Apple's guideline 3.1.1 treats in-app business/organization account
+  // registration as access to an external (non-IAP) purchase mechanism,
+  // since a groomer account leads to the Pro subscription sold on the web
+  // (see (salon)/plan.tsx). Registration has to happen on paw-booker.com
+  // instead - this screen only exists for Android/web, so bounce iOS away
+  // regardless of how it was reached (link, deep link, or already signed in).
+  useEffect(() => {
+    if (Platform.OS === 'ios') {
+      router.replace('/(auth)/sign-in');
+    }
+  }, [router]);
+
+  if (Platform.OS === 'ios') {
+    return null;
+  }
 
   function pendingFrom(): CreateGroomerInput {
     return {

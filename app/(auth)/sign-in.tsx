@@ -2,6 +2,8 @@ import { Link } from 'expo-router';
 import { useState } from 'react';
 import {
   ActivityIndicator,
+  Linking,
+  Platform,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -88,9 +90,17 @@ export default function SignInScreen() {
 
           <View style={styles.divider} />
 
-          <Link href="/groomer-signup" style={styles.link}>
-            <Text style={styles.linkText}>Are you a groomer? List your business</Text>
-          </Link>
+          {Platform.OS === 'ios' ? (
+            <Pressable
+              style={styles.link}
+              onPress={() => Linking.openURL('https://paw-booker.com/dashboard/sign-up')}>
+              <Text style={styles.linkText}>Are you a groomer? Get early access</Text>
+            </Pressable>
+          ) : (
+            <Link href="/groomer-signup" style={styles.link}>
+              <Text style={styles.linkText}>Are you a groomer? List your business</Text>
+            </Link>
+          )}
 
           <Text style={styles.copyright}>© 2026 PawBooker. All rights reserved.</Text>
         </ScrollView>
