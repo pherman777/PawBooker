@@ -298,7 +298,6 @@ export default function CompleteBookingPage() {
         onClick={handleChargeAndComplete}
         loading={charging}
         disabled={busy || totalCents <= 0}
-        block
       />
 
       {cashBlocked ? (
@@ -314,7 +313,6 @@ export default function CompleteBookingPage() {
             onClick={handleMarkPaidCash}
             loading={markingCash}
             disabled={busy || totalCents <= 0}
-            block
           />
           <p className={styles.cashNote}>Use this if your customer paid you directly in cash.</p>
         </>

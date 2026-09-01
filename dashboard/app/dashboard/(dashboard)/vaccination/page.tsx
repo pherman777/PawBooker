@@ -79,7 +79,7 @@ export default function VaccinationPage() {
             <Toggle checked={required} onChange={setRequired} />
           </div>
 
-          <Button label="Save" onClick={handleSave} loading={saving} block style={{ marginTop: 32 }} />
+          <Button label="Save" onClick={handleSave} loading={saving} style={{ marginTop: 32 }} />
         </>
       )}
     </div>

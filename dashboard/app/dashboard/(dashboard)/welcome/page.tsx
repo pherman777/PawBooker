@@ -181,7 +181,7 @@ export default function WelcomePage() {
         </>
       )}
 
-      <Button label="Go to dashboard" variant="primary" onClick={() => router.replace('/dashboard')} block style={{ marginTop: 12 }} />
+      <Button label="Go to dashboard" variant="primary" onClick={() => router.replace('/dashboard')} style={{ marginTop: 12 }} />
     </div>
   );
 }

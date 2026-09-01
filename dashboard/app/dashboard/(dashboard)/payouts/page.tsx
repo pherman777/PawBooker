@@ -134,7 +134,6 @@ export default function PayoutsPage() {
             label={isFullySetUp ? 'View payout details' : status?.accountId ? 'Continue setup' : 'Connect your bank account'}
             onClick={isFullySetUp ? handleViewDashboard : handleSetUpPayouts}
             loading={working}
-            block
             style={{ marginTop: 20 }}
           />
 

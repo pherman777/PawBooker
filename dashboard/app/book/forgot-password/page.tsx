@@ -104,7 +104,7 @@ export default function CustomerForgotPasswordPage() {
                 />
               </div>
               {error && <p className="sign-in-error">{error}</p>}
-              <Button label="Send code" type="submit" loading={submitting} disabled={!email.trim()} block />
+              <Button label="Send code" type="submit" loading={submitting} disabled={!email.trim()} />
             </form>
           </>
         ) : (
@@ -147,7 +147,7 @@ export default function CustomerForgotPasswordPage() {
                 />
               </div>
               {error && <p className="sign-in-error">{error}</p>}
-              <Button label="Reset password" type="submit" loading={submitting} block />
+              <Button label="Reset password" type="submit" loading={submitting} />
             </form>
           </>
         )}

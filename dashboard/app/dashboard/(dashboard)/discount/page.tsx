@@ -166,7 +166,7 @@ export default function DiscountPage() {
             </>
           )}
 
-          <Button label="Save" onClick={handleSave} loading={saving} block style={{ marginTop: 32 }} />
+          <Button label="Save" onClick={handleSave} loading={saving} style={{ marginTop: 32 }} />
         </>
       )}
     </div>

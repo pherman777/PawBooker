@@ -70,7 +70,7 @@ export default function CustomerSignInPage() {
             />
           </div>
           {error && <p className="sign-in-error">{error}</p>}
-          <Button label="Sign in" type="submit" loading={submitting} block />
+          <Button label="Sign in" type="submit" loading={submitting} />
         </form>
         <button type="button" className="sign-in-footer-link sign-in-footer-link-center" onClick={() => router.push('/book/forgot-password')}>
           Forgot password?

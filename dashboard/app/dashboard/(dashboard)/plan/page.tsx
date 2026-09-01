@@ -142,7 +142,7 @@ export default function PlanPage() {
           </p>
         </div>
       ) : isPro && hasSubscription ? (
-        <Button label="Cancel subscription" variant="danger" onClick={handleCancel} loading={working} block style={{ marginTop: 20 }} />
+        <Button label="Cancel subscription" variant="danger" onClick={handleCancel} loading={working} style={{ marginTop: 20 }} />
       ) : isPro ? (
         <div className={`card ${styles.notice}`}>
           <Circle size={18} color="var(--muted)" />

@@ -136,7 +136,7 @@ export default function SignUpPage() {
               We sent a confirmation link to {email.trim()}. Confirm it, then sign in — we&apos;ll finish setting up{' '}
               {name.trim() || 'your salon'} automatically.
             </p>
-            <Button label="Go to sign in" onClick={() => router.replace('/dashboard/sign-in')} block />
+            <Button label="Go to sign in" onClick={() => router.replace('/dashboard/sign-in')} />
           </div>
         </div>
       </main>
@@ -246,7 +246,7 @@ export default function SignUpPage() {
 
         {error && <p className="sign-in-error">{error}</p>}
 
-        <Button label={loggedIn ? 'Create my salon' : 'Create account & salon'} type="submit" loading={submitting} block />
+        <Button label={loggedIn ? 'Create my salon' : 'Create account & salon'} type="submit" loading={submitting} />
         </form>
       </div>
     </main>

@@ -119,7 +119,6 @@ export default function InvitePage() {
             label={justCopied ? 'Copied!' : 'Share invite'}
             onClick={handleShare}
             disabled={!code}
-            block
             style={{ marginTop: 20 }}
           />
 

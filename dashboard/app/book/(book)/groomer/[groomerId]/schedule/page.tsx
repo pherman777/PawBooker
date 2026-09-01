@@ -531,7 +531,7 @@ function SchedulePageContent() {
       {submitError && <p className="sign-in-error">{submitError}</p>}
       {loadError && <p className="sign-in-error">{loadError}</p>}
 
-      <Button label="Confirm booking" onClick={handleConfirm} disabled={!canConfirm} loading={submitting} block />
+      <Button label="Confirm booking" onClick={handleConfirm} disabled={!canConfirm} loading={submitting} />
     </div>
   );
 }

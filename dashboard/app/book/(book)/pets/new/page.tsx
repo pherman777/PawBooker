@@ -82,7 +82,7 @@ export default function NewPetPage() {
 
         {error && <p className="sign-in-error">{error}</p>}
 
-        <Button label="Save pet" type="submit" disabled={!canSave} loading={saving} block />
+        <Button label="Save pet" type="submit" disabled={!canSave} loading={saving} />
       </form>
     </div>
   );

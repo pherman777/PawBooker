@@ -339,7 +339,6 @@ export default function CompleteGroupPage() {
         onClick={handleChargeAll}
         loading={charging}
         disabled={busy || grandTotalCents <= 0}
-        block
       />
 
       {cashBlocked ? (
@@ -352,7 +351,6 @@ export default function CompleteGroupPage() {
             onClick={handleMarkAllCash}
             loading={markingCash}
             disabled={busy || grandTotalCents <= 0}
-            block
           />
           <p className={styles.cashNote}>Use this if your customer paid you directly in cash.</p>
         </>

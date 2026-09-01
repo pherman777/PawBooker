@@ -69,7 +69,7 @@ export default function SignInPage() {
             />
           </div>
           {error && <p className="sign-in-error">{error}</p>}
-          <Button label="Sign in" type="submit" loading={submitting} block />
+          <Button label="Sign in" type="submit" loading={submitting} />
         </form>
         <button type="button" className="sign-in-footer-link sign-in-footer-link-center" onClick={() => router.push('/dashboard/sign-up')}>
           Don&apos;t have an account? List your business

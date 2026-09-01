@@ -140,7 +140,7 @@ export default function HoursPage() {
             );
           })}
 
-          <Button label="Save" onClick={handleSave} loading={saving} block style={{ marginTop: 28 }} />
+          <Button label="Save" onClick={handleSave} loading={saving} style={{ marginTop: 28 }} />
         </>
       )}
     </div>

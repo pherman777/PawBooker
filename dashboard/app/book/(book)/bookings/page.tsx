@@ -170,7 +170,6 @@ export default function BookingsPage() {
               <div style={{ marginTop: 12 }}>
                 <Button
                   label="Rebook a different time"
-                  block
                   onClick={() => router.push(`/book/groomer/${lead.groomerId}/schedule?serviceId=${lead.serviceId}&petId=${lead.petId}&note=${encodeURIComponent(lead.cancellationReason ?? '')}`)}
                 />
               </div>

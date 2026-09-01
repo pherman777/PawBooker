@@ -62,7 +62,7 @@ export default function ContactSupportPage() {
 
         {error && <p className="sign-in-error">{error}</p>}
 
-        <Button label="Send" type="submit" disabled={!canSend} loading={sending} block />
+        <Button label="Send" type="submit" disabled={!canSend} loading={sending} />
       </form>
     </div>
   );

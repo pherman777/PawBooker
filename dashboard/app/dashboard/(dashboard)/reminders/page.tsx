@@ -181,14 +181,12 @@ export default function RemindersPage() {
                   variant="danger"
                   onClick={() => handleDismiss(reminder)}
                   disabled={busyId === reminder.id}
-                  block
                 />
                 <Button
                   label="Send"
                   onClick={() => handleSend(reminder)}
                   loading={busyId === reminder.id}
                   disabled={busyId === reminder.id}
-                  block
                 />
               </div>
             </div>
