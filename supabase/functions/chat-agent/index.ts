@@ -1,6 +1,6 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 
-import { pushTokensForUser, sendExpoPushToTokens } from '../_shared/push.ts';
+import { groomerBadgeCount, pushTokensForUser, sendExpoPushToTokens } from '../_shared/push.ts';
 import { checkRateLimit } from '../_shared/rate-limit.ts';
 import {
   DAY_KEYS,
@@ -187,7 +187,8 @@ Deno.serve(async (req) => {
     // auto-reply, so this push is the only heads-up the groomer gets.
     if (!isAppSupport && groomer?.user_id) {
       const groomerTokens = await pushTokensForUser(serviceRoleClient, groomer.user_id);
-      await sendExpoPushToTokens(groomerTokens, 'New message', message, { threadId });
+      const badge = await groomerBadgeCount(serviceRoleClient, thread.groomer_id);
+      await sendExpoPushToTokens(groomerTokens, 'New message', message, { threadId }, badge);
     }
 
     if (thread.needs_human) {
@@ -505,9 +506,10 @@ Rules:
 
         if (groomer!.user_id) {
           const tokens = await pushTokensForUser(serviceRoleClient, groomer!.user_id);
+          const badge = await groomerBadgeCount(serviceRoleClient, thread.groomer_id);
           await sendExpoPushToTokens(tokens, 'New booking request', `${pet.name} - ${service.name} on ${startsAt.toLocaleString('en-US', { weekday: 'short', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit', timeZone: groomer!.timezone })}`, {
             bookingId: inserted.id,
-          });
+          }, badge);
         }
 
         return { success: true, bookingId: inserted.id, startsAt: startsAt.toISOString() };
@@ -575,6 +577,7 @@ Rules:
 
         if (groomer.user_id) {
           const tokens = await pushTokensForUser(serviceRoleClient, groomer.user_id);
+          const badge = await groomerBadgeCount(serviceRoleClient, thread.groomer_id);
           await sendExpoPushToTokens(
             tokens,
             'Booking rescheduled',
@@ -586,7 +589,8 @@ Rules:
               minute: '2-digit',
               timeZone: groomer.timezone,
             })}.`,
-            { bookingId: booking.id }
+            { bookingId: booking.id },
+            badge
           );
         }
 
@@ -633,11 +637,13 @@ Rules:
 
         if (groomer!.user_id) {
           const tokens = await pushTokensForUser(serviceRoleClient, groomer!.user_id);
+          const badge = await groomerBadgeCount(serviceRoleClient, thread.groomer_id);
           await sendExpoPushToTokens(
             tokens,
             'Customer needs your help',
             String(input.reason ?? 'A customer needs your attention in chat.'),
-            { threadId }
+            { threadId },
+            badge
           );
         }
 
