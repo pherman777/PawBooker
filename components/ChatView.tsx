@@ -10,6 +10,7 @@ import {
   TextInput,
   View,
 } from 'react-native';
+import { KeyboardAvoidingView } from 'react-native-keyboard-controller';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { Colors } from '@/constants/theme';
@@ -43,24 +44,28 @@ function bubbleLabel(senderType: ChatSenderType) {
 export function ChatView({ messages, ownSenderTypes, value, onChangeValue, onSend, sending, banner }: Props) {
   const listRef = useRef<FlatList<ChatMessage>>(null);
   const insets = useSafeAreaInsets();
-  const [keyboardHeight, setKeyboardHeight] = useState(0);
+  const [keyboardVisible, setKeyboardVisible] = useState(false);
+  const didInitialScroll = useRef(false);
+
+  useEffect(() => {
+    if (didInitialScroll.current || messages.length === 0) return;
+    didInitialScroll.current = true;
+    // onContentSizeChange (below) fires as soon as the FlatList's content
+    // height first changes, but at that exact instant some bubbles - long
+    // multi-line ones especially - haven't finished their own text layout
+    // yet, so that first scrollToEnd call can compute against a content
+    // height that's still short of the true end and land a message or two
+    // early. Re-issue it once more once layout has had a moment to settle.
+    const timer = setTimeout(() => listRef.current?.scrollToEnd({ animated: false }), 100);
+    return () => clearTimeout(timer);
+  }, [messages.length]);
 
   useEffect(() => {
     const showEvent = Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow';
     const hideEvent = Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide';
 
-    const showSub = Keyboard.addListener(showEvent, (e) => {
-      setKeyboardHeight(e.endCoordinates.height);
-      // The keyboard opening pushes this whole view up (paddingBottom below)
-      // without changing the FlatList's own scroll offset, so the last
-      // message - previously flush with the bottom - ends up hidden behind
-      // the keyboard until the user manually scrolls. Re-scroll to end once
-      // the keyboard has actually finished animating in.
-      setTimeout(() => listRef.current?.scrollToEnd({ animated: true }), Platform.OS === 'ios' ? 0 : 100);
-    });
-    const hideSub = Keyboard.addListener(hideEvent, () => {
-      setKeyboardHeight(0);
-    });
+    const showSub = Keyboard.addListener(showEvent, () => setKeyboardVisible(true));
+    const hideSub = Keyboard.addListener(hideEvent, () => setKeyboardVisible(false));
 
     return () => {
       showSub.remove();
@@ -69,7 +74,12 @@ export function ChatView({ messages, ownSenderTypes, value, onChangeValue, onSen
   }, []);
 
   return (
-    <View style={[styles.flex, { paddingBottom: keyboardHeight }]}>
+    // automaticOffset is required here (unlike sign-in.tsx's use of this
+    // same component) because this screen sits below a native-stack header -
+    // without it, KeyboardAvoidingView assumes it starts at the very top of
+    // the screen and under-computes the keyboard overlap by the header's
+    // height, so the padding never visibly shows.
+    <KeyboardAvoidingView style={styles.flex} behavior="padding" automaticOffset>
       {banner && (
         <View style={styles.banner}>
           <Text style={styles.bannerText}>{banner}</Text>
@@ -82,7 +92,21 @@ export function ChatView({ messages, ownSenderTypes, value, onChangeValue, onSen
         keyExtractor={(item) => item.id}
         style={styles.flex}
         contentContainerStyle={styles.list}
+        // FlatList only measures its default first 10 rows on mount, so a
+        // thread with more history than that reports a content size short of
+        // the true end - the scrollToEnd below then lands mid-conversation
+        // instead of at the last message. Rendering every row up front (chat
+        // bubbles are cheap) makes the initial content size accurate.
+        initialNumToRender={messages.length}
         onContentSizeChange={() => listRef.current?.scrollToEnd({ animated: true })}
+        // The outer KeyboardAvoidingView shrinks this FlatList's available
+        // height via a reanimated-driven paddingBottom that animates over
+        // several frames on the UI thread, independently of the JS-thread
+        // Keyboard show/hide events - a scrollToEnd() triggered directly by
+        // those events could fire before the shrink has actually finished,
+        // computing a stale target. Re-scrolling on the FlatList's own
+        // onLayout ties it to the real, current measured height instead.
+        onLayout={() => listRef.current?.scrollToEnd({ animated: true })}
         renderItem={({ item }) => {
           const isOwn = ownSenderTypes.includes(item.senderType);
           const isBot = item.senderType === 'bot';
@@ -103,7 +127,7 @@ export function ChatView({ messages, ownSenderTypes, value, onChangeValue, onSen
       <View
         style={[
           styles.inputRow,
-          { paddingBottom: keyboardHeight > 0 ? 12 : Math.max(insets.bottom, 12) },
+          { paddingBottom: keyboardVisible ? 12 : Math.max(insets.bottom, 12) },
         ]}>
         <TextInput
           style={styles.input}
@@ -124,7 +148,7 @@ export function ChatView({ messages, ownSenderTypes, value, onChangeValue, onSen
           {sending ? <ActivityIndicator color={Colors.light.text} size="small" /> : <Text style={styles.sendButtonText}>Send</Text>}
         </Pressable>
       </View>
-    </View>
+    </KeyboardAvoidingView>
   );
 }
 
