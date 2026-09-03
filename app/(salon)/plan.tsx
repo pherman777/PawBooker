@@ -179,8 +179,8 @@ export default function PlanScreen() {
         ) : (
           <View style={styles.upgradeNotice}>
             <Text style={styles.upgradeNoticeText}>
-              Upgrading to Pro is done on the PawBooker website, not in the app. Visit paw-booker.com/upgrade
-              from a browser to subscribe.
+              You&apos;re on the free plan. Pro unlocks insights and win-back reminders — if you&apos;ve
+              already subscribed elsewhere, sign in again here to sync your plan.
             </Text>
           </View>
         )}

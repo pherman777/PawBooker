@@ -2,7 +2,6 @@ import { Link } from 'expo-router';
 import { useState } from 'react';
 import {
   ActivityIndicator,
-  Linking,
   Platform,
   Pressable,
   ScrollView,
@@ -90,17 +89,14 @@ export default function SignInScreen() {
 
           <View style={styles.divider} />
 
-          {Platform.OS === 'ios' ? (
-            <Pressable
-              style={styles.link}
-              onPress={() => Linking.openURL('https://paw-booker.com/dashboard/sign-up')}>
-              <Text style={styles.linkText}>Are you a groomer? Get early access</Text>
-            </Pressable>
-          ) : (
+          {/* iOS: no groomer registration entry point here — 3.1.1 requires
+              business account creation to happen outside the app, with no
+              in-app link/button pointing to it. Android/web keep the in-app flow. */}
+          {Platform.select({ ios: null, default: (
             <Link href="/groomer-signup" style={styles.link}>
               <Text style={styles.linkText}>Are you a groomer? List your business</Text>
             </Link>
-          )}
+          ) })}
 
           <Text style={styles.copyright}>© 2026 PawBooker. All rights reserved.</Text>
         </ScrollView>
