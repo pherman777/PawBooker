@@ -20,15 +20,13 @@ export type AddToCalendarResult =
 // access) and finds a writable calendar to add to. iOS always has a
 // concrete "default" calendar; Android has no such concept, so the first
 // writable calendar returned by getCalendars is used instead.
-async function getWritableCalendarId(): Promise<string | null> {
+async function getWritableCalendar(): Promise<Calendar.ExpoCalendar | null> {
   if (Platform.OS === 'ios') {
-    const defaultCalendar = Calendar.getDefaultCalendarSync();
-    return defaultCalendar?.id ?? null;
+    return Calendar.getDefaultCalendarSync() ?? null;
   }
 
   const calendars = await Calendar.getCalendars(Calendar.EntityTypes.EVENT);
-  const writable = calendars.find((c) => c.allowsModifications);
-  return writable?.id ?? null;
+  return calendars.find((c) => c.allowsModifications) ?? null;
 }
 
 export async function addBookingToCalendar(event: CalendarEventInput): Promise<AddToCalendarResult> {
@@ -38,14 +36,14 @@ export async function addBookingToCalendar(event: CalendarEventInput): Promise<A
       return { status: 'permission_denied' };
     }
 
-    const calendarId = await getWritableCalendarId();
-    if (!calendarId) {
+    const calendar = await getWritableCalendar();
+    if (!calendar) {
       return { status: 'no_calendar' };
     }
 
     const endDate = new Date(event.startDate.getTime() + event.durationMinutes * 60000);
 
-    await Calendar.createEventAsync(calendarId, {
+    await calendar.createEvent({
       title: event.title,
       startDate: event.startDate,
       endDate,
