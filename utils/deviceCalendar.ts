@@ -15,11 +15,15 @@ export type AddToCalendarResult =
   | { status: 'no_calendar' }
   | { status: 'error'; message: string };
 
-// Requests write-only calendar access (this is a one-time "add this
-// appointment" action, not ongoing sync - no need for full read/write
-// access) and finds a writable calendar to add to. iOS always has a
-// concrete "default" calendar; Android has no such concept, so the first
-// writable calendar returned by getCalendars is used instead.
+// Finds a writable calendar to add to. iOS always has a concrete
+// "default" calendar; Android has no such concept, so the first writable
+// calendar returned by getCalendars is used instead.
+//
+// iOS 17+ offers a narrower "write-only" calendar access level, but
+// expo-calendar's getDefaultCalendarSync/getCalendars both still require
+// full access just to look a calendar up - write-only only unlocks
+// createEvent itself, not the lookup this needs first. So full access is
+// requested below rather than write-only.
 async function getWritableCalendar(): Promise<Calendar.ExpoCalendar | null> {
   if (Platform.OS === 'ios') {
     return Calendar.getDefaultCalendarSync() ?? null;
@@ -31,7 +35,7 @@ async function getWritableCalendar(): Promise<Calendar.ExpoCalendar | null> {
 
 export async function addBookingToCalendar(event: CalendarEventInput): Promise<AddToCalendarResult> {
   try {
-    const permission = await Calendar.requestCalendarPermissions(true);
+    const permission = await Calendar.requestCalendarPermissions();
     if (!permission.granted) {
       return { status: 'permission_denied' };
     }
