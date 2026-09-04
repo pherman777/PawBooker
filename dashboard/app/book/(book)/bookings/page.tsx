@@ -10,6 +10,7 @@ import { ReportModal } from '@/components/ReportModal';
 import { ReviewModal } from '@/components/ReviewModal';
 import { TipModal } from '@/components/TipModal';
 import { Modal } from '@/components/Modal';
+import { buildGoogleCalendarUrl, downloadIcsEvent } from '@/lib/calendarLinks';
 import { useCustomerAuth } from '@/lib/customerAuth';
 import {
   cancelBookings,
@@ -192,6 +193,38 @@ export default function BookingsPage() {
               Get directions
             </a>
           </p>
+        )}
+
+        {(status === 'pending' || status === 'confirmed') && (
+          <div className={styles.calendarLinks}>
+            <a
+              className={styles.calendarLink}
+              href={buildGoogleCalendarUrl({
+                title: `${lead.serviceName} - ${petNames} at ${lead.groomerName}`,
+                startDate: new Date(lead.startsAt),
+                durationMinutes: lead.serviceDurationMinutes,
+                location: lead.groomerAddress,
+              })}
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              Add to Google Calendar
+            </a>
+            <button
+              type="button"
+              className={styles.calendarLink}
+              onClick={() =>
+                downloadIcsEvent({
+                  title: `${lead.serviceName} - ${petNames} at ${lead.groomerName}`,
+                  startDate: new Date(lead.startsAt),
+                  durationMinutes: lead.serviceDurationMinutes,
+                  location: lead.groomerAddress,
+                })
+              }
+            >
+              Add to Apple/Outlook Calendar
+            </button>
+          </div>
         )}
 
         <div className={styles.actionsRow}>

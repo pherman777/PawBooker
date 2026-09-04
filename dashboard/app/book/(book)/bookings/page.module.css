@@ -50,6 +50,25 @@
 .directionsWrapper {
   margin-top: 10px;
 }
+.calendarLinks {
+  margin-top: 8px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+}
+.calendarLink {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--sage);
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  text-decoration: none;
+}
+.calendarLink:hover {
+  text-decoration: underline;
+}
 .reasonText {
   margin-top: 8px;
   font-size: 13px;

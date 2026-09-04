@@ -17,9 +17,11 @@ export type BookingRow = {
   startsAt: string;
   status: BookingStatus;
   groomerName: string;
+  groomerAddress?: string;
   groomerLatitude?: number;
   groomerLongitude?: number;
   serviceName: string;
+  serviceDurationMinutes: number;
   petName: string;
   cancellationReason?: string;
   review?: BookingReview;
@@ -73,7 +75,7 @@ export async function fetchCustomerBookings(customerId: string): Promise<Booking
     customerSupabase
       .from('bookings')
       .select(
-        'id, group_id, groomer_id, service_id, pet_id, starts_at, status, payment_status, cancellation_reason, invoice_total_cents, tax_amount_cents, tip_amount_cents, groomers(name, latitude, longitude), groomer_services(name), pets(name)'
+        'id, group_id, groomer_id, service_id, pet_id, starts_at, status, payment_status, cancellation_reason, invoice_total_cents, tax_amount_cents, tip_amount_cents, groomers(name, address, latitude, longitude), groomer_services(name, duration_minutes), pets(name)'
       )
       .eq('customer_id', customerId)
       .order('starts_at', { ascending: false }),
@@ -94,9 +96,11 @@ export async function fetchCustomerBookings(customerId: string): Promise<Booking
     status: row.status,
     cancellationReason: row.cancellation_reason ?? undefined,
     groomerName: (row.groomers as unknown as { name: string } | null)?.name ?? 'Unknown groomer',
+    groomerAddress: (row.groomers as unknown as { address: string | null } | null)?.address ?? undefined,
     groomerLatitude: (row.groomers as unknown as { latitude: number | null } | null)?.latitude ?? undefined,
     groomerLongitude: (row.groomers as unknown as { longitude: number | null } | null)?.longitude ?? undefined,
     serviceName: (row.groomer_services as unknown as { name: string } | null)?.name ?? 'Service',
+    serviceDurationMinutes: (row.groomer_services as unknown as { duration_minutes: number | null } | null)?.duration_minutes ?? 60,
     petName: (row.pets as unknown as { name: string } | null)?.name ?? 'Pet',
     review: reviewsByBooking.get(row.id),
     invoiceTotalCents: row.invoice_total_cents ?? undefined,
