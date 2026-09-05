@@ -6,7 +6,9 @@ export async function sendExpoPushToTokens(
 ) {
   if (tokens.length === 0) return;
 
-  const messages = tokens.map((to) => ({ to, title, body, data }));
+  // Without an explicit badge count, iOS/Android never show the red unread
+  // badge on the app icon - Expo doesn't default this from title/body.
+  const messages = tokens.map((to) => ({ to, title, body, data, badge: 1, sound: 'default' as const }));
 
   const response = await fetch('https://exp.host/--/api/v2/push/send', {
     method: 'POST',
