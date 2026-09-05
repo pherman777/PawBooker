@@ -4,6 +4,7 @@ import { encodeBase64 } from 'https://deno.land/std@0.224.0/encoding/base64.ts';
 import { generateInvoicePdf } from '../_shared/invoice-pdf.ts';
 import { pushTokensForUser, sendExpoPushToTokens } from '../_shared/push.ts';
 import { checkRateLimit } from '../_shared/rate-limit.ts';
+import { getLiveChargesEnabled } from '../_shared/stripe-connect-status.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -151,6 +152,22 @@ Deno.serve(async (req) => {
     // applies), taken before the remainder transfers to the groomer.
     // If a groomer hasn't connected payouts yet, the charge still succeeds
     // and stays on the platform account rather than blocking the booking.
+    //
+    // Whether it's enabled is checked live against Stripe rather than trusting
+    // the cached `stripe_connect_charges_enabled` column, which is only
+    // updated by a webhook and can briefly lag Stripe's real state - a charge
+    // fired in that lag window would otherwise silently stay on the platform
+    // balance instead of routing to the groomer.
+    const chargesEnabled = groomer.stripe_connect_account_id
+      ? await getLiveChargesEnabled(STRIPE_SECRET_KEY, groomer.stripe_connect_account_id)
+      : false;
+    if (chargesEnabled !== groomer.stripe_connect_charges_enabled) {
+      await serviceRoleClient
+        .from('groomers')
+        .update({ stripe_connect_charges_enabled: chargesEnabled })
+        .eq('id', booking.groomer_id);
+    }
+
     let paymentIntent: { id: string; status: string; error?: { message?: string } } | undefined;
     let lastErrorMessage = 'Charge failed';
 
@@ -165,7 +182,7 @@ Deno.serve(async (req) => {
         off_session: 'true',
         confirm: 'true',
       };
-      if (groomer.stripe_connect_account_id && groomer.stripe_connect_charges_enabled) {
+      if (groomer.stripe_connect_account_id && chargesEnabled) {
         paymentIntentParams['transfer_data[destination]'] = groomer.stripe_connect_account_id;
         paymentIntentParams['on_behalf_of'] = groomer.stripe_connect_account_id;
         // application_fee_amount only has meaning on a destination charge - it's

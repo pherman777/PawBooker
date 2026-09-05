@@ -2,6 +2,7 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 
 import { pushTokensForUser, sendExpoPushToTokens } from '../_shared/push.ts';
 import { checkRateLimit } from '../_shared/rate-limit.ts';
+import { getLiveChargesEnabled } from '../_shared/stripe-connect-status.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -163,6 +164,18 @@ Deno.serve(async (req) => {
 
     const petNames = billable.map((b) => (b.pets as unknown as { name: string })?.name ?? 'Pet');
 
+    // Check Stripe directly rather than trusting the cached DB column, which
+    // is only updated by a webhook and can briefly lag Stripe's real state.
+    const chargesEnabled = groomer.stripe_connect_account_id
+      ? await getLiveChargesEnabled(STRIPE_SECRET_KEY, groomer.stripe_connect_account_id)
+      : false;
+    if (chargesEnabled !== groomer.stripe_connect_charges_enabled) {
+      await serviceRoleClient
+        .from('groomers')
+        .update({ stripe_connect_charges_enabled: chargesEnabled })
+        .eq('id', groomerId);
+    }
+
     let paymentIntent: { id: string; status: string; error?: { message?: string } } | undefined;
     let lastErrorMessage = 'Charge failed';
 
@@ -177,7 +190,7 @@ Deno.serve(async (req) => {
         description: `Grooming for ${petNames.join(', ')}`,
         'metadata[group_id]': groupId,
       };
-      if (groomer.stripe_connect_account_id && groomer.stripe_connect_charges_enabled) {
+      if (groomer.stripe_connect_account_id && chargesEnabled) {
         params['transfer_data[destination]'] = groomer.stripe_connect_account_id;
         params['on_behalf_of'] = groomer.stripe_connect_account_id;
         if (acquisitionFeeCents > 0) {
