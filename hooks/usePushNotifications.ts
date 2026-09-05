@@ -6,12 +6,13 @@ import { useRouter } from 'expo-router';
 import { useEffect } from 'react';
 import { Platform } from 'react-native';
 
+import { refreshUnreadBadge } from '@/services/notifications';
 import { supabase } from '@/services/supabase';
 
 Notifications.setNotificationHandler({
   handleNotification: async () => ({
-    shouldPlaySound: false,
-    shouldSetBadge: false,
+    shouldPlaySound: true,
+    shouldSetBadge: true,
     shouldShowBanner: true,
     shouldShowList: true,
   }),
@@ -75,6 +76,11 @@ export function usePushNotifications(session: Session | null, isGroomer: boolean
         if (error) {
           console.warn('register_push_token failed', error);
         }
+
+        // Syncs the app icon badge to the real unread count on launch/sign-in,
+        // since it can otherwise go stale between pushes (e.g. after the OS
+        // restores a badge from before the app was last killed).
+        await refreshUnreadBadge(isGroomer);
       } catch (err) {
         console.warn('Push notification registration failed', err);
       }
@@ -84,5 +90,5 @@ export function usePushNotifications(session: Session | null, isGroomer: boolean
     return () => {
       cancelled = true;
     };
-  }, [session]);
+  }, [session, isGroomer]);
 }

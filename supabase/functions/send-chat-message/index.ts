@@ -1,6 +1,6 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 
-import { pushTokensForUser, sendExpoPushToTokens } from '../_shared/push.ts';
+import { getUnreadThreadCount, pushTokensForUser, sendExpoPushToTokens } from '../_shared/push.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -58,7 +58,8 @@ Deno.serve(async (req) => {
 
     const groomer = thread.groomers as unknown as { name: string } | null;
     const tokens = await pushTokensForUser(serviceRoleClient, thread.customer_id);
-    await sendExpoPushToTokens(tokens, groomer?.name ?? 'New message', body, { threadId });
+    const badge = await getUnreadThreadCount(serviceRoleClient, 'customer', thread.customer_id);
+    await sendExpoPushToTokens(tokens, groomer?.name ?? 'New message', body, { threadId }, badge);
 
     return jsonResponse({ sent: true });
   } catch (err) {

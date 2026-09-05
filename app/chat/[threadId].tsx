@@ -8,6 +8,7 @@ import { Colors } from '@/constants/theme';
 import { useLightStatusBar } from '@/hooks/useLightStatusBar';
 import { useAuth } from '@/services/auth-context';
 import { sendChatMessage, sendGroomerChatMessage } from '@/services/chat';
+import { refreshUnreadBadge } from '@/services/notifications';
 import { supabase } from '@/services/supabase';
 import type { ChatMessage } from '@/types';
 import { notify } from '@/utils/confirm';
@@ -78,6 +79,7 @@ export default function ChatScreen() {
         .from('chat_threads')
         .update({ [column]: new Date().toISOString() })
         .eq('id', threadId);
+      await refreshUnreadBadge(isGroomer && !threadIsAppSupport);
     }
   }, [threadId, session, isGroomer]);
 

@@ -1,6 +1,6 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 
-import { pushTokensForUser, sendExpoPushToTokens } from '../_shared/push.ts';
+import { getUnreadThreadCount, pushTokensForUser, sendExpoPushToTokens } from '../_shared/push.ts';
 import { checkRateLimit } from '../_shared/rate-limit.ts';
 import {
   DAY_KEYS,
@@ -187,7 +187,8 @@ Deno.serve(async (req) => {
     // auto-reply, so this push is the only heads-up the groomer gets.
     if (!isAppSupport && groomer?.user_id) {
       const groomerTokens = await pushTokensForUser(serviceRoleClient, groomer.user_id);
-      await sendExpoPushToTokens(groomerTokens, 'New message', message, { threadId });
+      const badge = await getUnreadThreadCount(serviceRoleClient, 'groomer', thread.groomer_id);
+      await sendExpoPushToTokens(groomerTokens, 'New message', message, { threadId }, badge);
     }
 
     if (thread.needs_human) {

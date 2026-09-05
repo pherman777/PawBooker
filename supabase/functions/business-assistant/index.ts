@@ -1,6 +1,6 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 
-import { pushTokensForUser, sendExpoPushToTokens } from '../_shared/push.ts';
+import { getUnreadThreadCount, pushTokensForUser, sendExpoPushToTokens } from '../_shared/push.ts';
 import { availableTimes, isDateClosed, weekdayKeyForDate, type BusyInterval, type ClosedRange } from '../_shared/availability.ts';
 
 const corsHeaders = {
@@ -741,7 +741,8 @@ Deno.serve(async (req) => {
         });
 
         const customerTokens = await pushTokensForUser(serviceRoleClient, booking.customer_id);
-        await sendExpoPushToTokens(customerTokens, groomer.name, messageBody, { threadId });
+        const badge = await getUnreadThreadCount(serviceRoleClient, 'customer', booking.customer_id);
+        await sendExpoPushToTokens(customerTokens, groomer.name, messageBody, { threadId }, badge);
 
         return { success: true, threadId, proposedOptions: options.map((o) => o.label) };
       }

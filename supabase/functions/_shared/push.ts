@@ -2,11 +2,12 @@ export async function sendExpoPushToTokens(
   tokens: string[],
   title: string,
   body: string,
-  data?: Record<string, unknown>
+  data?: Record<string, unknown>,
+  badge?: number
 ) {
   if (tokens.length === 0) return;
 
-  const messages = tokens.map((to) => ({ to, title, body, data }));
+  const messages = tokens.map((to) => ({ to, title, body, data, sound: 'default', ...(badge !== undefined ? { badge } : {}) }));
 
   const response = await fetch('https://exp.host/--/api/v2/push/send', {
     method: 'POST',
@@ -75,4 +76,42 @@ export async function sendExpoPushToTokens(
 export async function pushTokensForUser(supabase: any, userId: string): Promise<string[]> {
   const { data } = await supabase.from('push_tokens').select('token').eq('user_id', userId);
   return (data ?? []).map((row: { token: string }) => row.token);
+}
+
+// Number of chat threads with an unread message for this recipient, used as
+// the push notification's app-icon badge count - mirrors the same
+// last-message-vs-last-read-at check the Messages screens use client-side
+// (app/(tabs)/messages.tsx and app/(salon)/messages.tsx), so the badge always
+// matches what the in-app unread dots would show.
+// deno-lint-ignore no-explicit-any
+export async function getUnreadThreadCount(supabase: any, role: 'customer' | 'groomer', id: string): Promise<number> {
+  const idColumn = role === 'customer' ? 'customer_id' : 'groomer_id';
+  const lastReadColumn = role === 'customer' ? 'customer_last_read_at' : 'groomer_last_read_at';
+
+  const { data: threads } = await supabase.from('chat_threads').select(`id, ${lastReadColumn}`).eq(idColumn, id);
+  if (!threads || threads.length === 0) return 0;
+
+  const threadIds = threads.map((t: { id: string }) => t.id);
+  const { data: messages } = await supabase
+    .from('chat_messages')
+    .select('thread_id, sender_type, created_at')
+    .in('thread_id', threadIds)
+    .order('created_at', { ascending: false });
+
+  const lastByThread = new Map<string, { senderType: string; createdAt: string }>();
+  for (const m of messages ?? []) {
+    if (!lastByThread.has(m.thread_id)) {
+      lastByThread.set(m.thread_id, { senderType: m.sender_type, createdAt: m.created_at });
+    }
+  }
+
+  let unread = 0;
+  for (const t of threads as Record<string, unknown>[]) {
+    const last = lastByThread.get(t.id as string);
+    const lastReadAt = t[lastReadColumn] as string | null;
+    if (last && last.senderType !== role && (!lastReadAt || new Date(last.createdAt) > new Date(lastReadAt))) {
+      unread++;
+    }
+  }
+  return unread;
 }
