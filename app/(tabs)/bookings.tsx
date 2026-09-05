@@ -9,13 +9,11 @@ import { CancelBookingModal } from '@/components/CancelBookingModal';
 import { DirectionsButton } from '@/components/DirectionsButton';
 import { ReportModal } from '@/components/ReportModal';
 import { ReviewModal } from '@/components/ReviewModal';
-import { TipModal } from '@/components/TipModal';
 import { Colors } from '@/constants/theme';
 import { useAuth } from '@/services/auth-context';
 import { getOrCreateGroomerThread } from '@/services/chat';
 import { notifyGroomer, sendBookingEmail } from '@/services/notifications';
 import { submitReport } from '@/services/support';
-import { chargeTip } from '@/services/stripe';
 import { supabase } from '@/services/supabase';
 import type { BookingStatus, PaymentStatus } from '@/types';
 import { addBookingToCalendar } from '@/utils/deviceCalendar';
@@ -52,7 +50,6 @@ type BookingRow = {
   cancellationReason?: string;
   review?: BookingReview;
   invoiceTotalCents?: number;
-  taxAmountCents?: number;
   tipAmountCents?: number;
   paymentStatus?: PaymentStatus;
 };
@@ -125,8 +122,6 @@ export default function BookingsScreen() {
   const [cancelTarget, setCancelTarget] = useState<{ ids: string[]; groomerId: string } | null>(null);
   const [reviewTargetId, setReviewTargetId] = useState<string | null>(null);
   const [submittingReview, setSubmittingReview] = useState(false);
-  const [tipTarget, setTipTarget] = useState<{ bookingId: string; subtotalCents: number } | null>(null);
-  const [submittingTip, setSubmittingTip] = useState(false);
   const [reportTargetId, setReportTargetId] = useState<string | null>(null);
   const [submittingReport, setSubmittingReport] = useState(false);
 
@@ -138,7 +133,7 @@ export default function BookingsScreen() {
       supabase
         .from('bookings')
         .select(
-          'id, group_id, groomer_id, service_id, pet_id, starts_at, status, payment_status, cancellation_reason, invoice_total_cents, tax_amount_cents, tip_amount_cents, groomers(name, address, latitude, longitude), groomer_services(name, duration_minutes), pets(name)'
+          'id, group_id, groomer_id, service_id, pet_id, starts_at, status, payment_status, cancellation_reason, invoice_total_cents, tip_amount_cents, groomers(name, address, latitude, longitude), groomer_services(name, duration_minutes), pets(name)'
         )
         .eq('customer_id', session.user.id)
         .order('starts_at', { ascending: false }),
@@ -175,7 +170,6 @@ export default function BookingsScreen() {
           petName: (row.pets as unknown as { name: string })?.name ?? 'Pet',
           review: reviewsByBooking.get(row.id),
           invoiceTotalCents: row.invoice_total_cents ?? undefined,
-          taxAmountCents: row.tax_amount_cents ?? undefined,
           tipAmountCents: row.tip_amount_cents ?? undefined,
           paymentStatus: row.payment_status ?? undefined,
         }))
@@ -276,20 +270,6 @@ export default function BookingsScreen() {
     await load();
   }
 
-  async function handleSubmitTip(tipAmountCents: number) {
-    if (!tipTarget) return;
-
-    setSubmittingTip(true);
-    try {
-      await chargeTip(tipTarget.bookingId, tipAmountCents);
-      setTipTarget(null);
-      await load();
-    } catch (err) {
-      notify('Tip not sent', err instanceof Error ? err.message : 'Something went wrong.');
-    }
-    setSubmittingTip(false);
-  }
-
   async function handleSubmitReport(reason: string, details: string) {
     if (!reportTargetId) return;
 
@@ -335,12 +315,6 @@ export default function BookingsScreen() {
     const allCompleted = rows.every((b) => b.status === 'completed');
     const totalPaidCents = rows.reduce((sum, b) => sum + (b.invoiceTotalCents ?? 0), 0);
     const anyPaymentFailed = rows.some((b) => b.paymentStatus === 'failed');
-    // One tip for the whole visit, charged on the lead booking, sized to the
-    // combined pre-tax subtotal across all pets.
-    const tipSubtotalCents = rows.reduce(
-      (sum, b) => sum + ((b.invoiceTotalCents ?? 0) - (b.taxAmountCents ?? 0)),
-      0
-    );
 
     return (
       <View style={[styles.card, isHighlighted && styles.cardHighlighted]}>
@@ -433,17 +407,9 @@ export default function BookingsScreen() {
           </Pressable>
         )}
 
-        {allCompleted &&
-          totalPaidCents > 0 &&
-          (lead.tipAmountCents != null ? (
-            <Text style={styles.tippedText}>Tipped ${(lead.tipAmountCents / 100).toFixed(2)} for the visit</Text>
-          ) : (
-            <Pressable
-              style={styles.tipButton}
-              onPress={() => setTipTarget({ bookingId: lead.id, subtotalCents: tipSubtotalCents })}>
-              <Text style={styles.tipButtonText}>Leave a tip for the visit</Text>
-            </Pressable>
-          ))}
+        {allCompleted && totalPaidCents > 0 && lead.tipAmountCents != null && (
+          <Text style={styles.tippedText}>Tipped ${(lead.tipAmountCents / 100).toFixed(2)} for the visit</Text>
+        )}
 
         {(status === 'completed' || status === 'cancelled' || status === 'confirmed') && (
           <Pressable style={styles.reportLink} onPress={() => setReportTargetId(lead.id)}>
@@ -584,21 +550,8 @@ export default function BookingsScreen() {
                 </Pressable>
               )}
 
-              {item.status === 'completed' && item.invoiceTotalCents != null && (
-                item.tipAmountCents != null ? (
-                  <Text style={styles.tippedText}>Tipped ${(item.tipAmountCents / 100).toFixed(2)}</Text>
-                ) : (
-                  <Pressable
-                    style={styles.tipButton}
-                    onPress={() =>
-                      setTipTarget({
-                        bookingId: item.id,
-                        subtotalCents: (item.invoiceTotalCents ?? 0) - (item.taxAmountCents ?? 0),
-                      })
-                    }>
-                    <Text style={styles.tipButtonText}>Leave a tip</Text>
-                  </Pressable>
-                )
+              {item.status === 'completed' && item.tipAmountCents != null && (
+                <Text style={styles.tippedText}>Tipped ${(item.tipAmountCents / 100).toFixed(2)}</Text>
               )}
 
               {(item.status === 'completed' || item.status === 'cancelled' || item.status === 'confirmed') && (
@@ -644,14 +597,6 @@ export default function BookingsScreen() {
         initialComment={bookings.find((b) => b.id === reviewTargetId)?.review?.comment ?? ''}
         onDismiss={() => setReviewTargetId(null)}
         onSubmit={handleSubmitReview}
-      />
-
-      <TipModal
-        visible={tipTarget != null}
-        subtotalCents={tipTarget?.subtotalCents ?? 0}
-        submitting={submittingTip}
-        onDismiss={() => setTipTarget(null)}
-        onSubmit={handleSubmitTip}
       />
 
       <ReportModal
@@ -839,19 +784,6 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontWeight: '600',
     color: Colors.light.tint,
-  },
-  tipButton: {
-    marginTop: 8,
-    height: 38,
-    borderRadius: 8,
-    backgroundColor: Colors.light.tint,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  tipButtonText: {
-    fontSize: 13,
-    fontWeight: '600',
-    color: Colors.light.text,
   },
   tippedText: {
     marginTop: 8,

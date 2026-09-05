@@ -40,7 +40,12 @@ Deno.serve(async (req) => {
   }
 
   try {
-    const { bookingId } = (await req.json()) as { bookingId: string };
+    const { bookingId, tipAmountCents: rawTipAmountCents } = (await req.json()) as {
+      bookingId: string;
+      tipAmountCents?: number;
+    };
+    const tipAmountCents =
+      Number.isInteger(rawTipAmountCents) && (rawTipAmountCents as number) > 0 ? (rawTipAmountCents as number) : 0;
 
     const supabase = createClient(Deno.env.get('SUPABASE_URL')!, Deno.env.get('SUPABASE_ANON_KEY')!, {
       global: { headers: { Authorization: req.headers.get('Authorization')! } },
@@ -91,7 +96,11 @@ Deno.serve(async (req) => {
     // doesn't sell taxable retail goods), so nothing is calculated or added
     // here - the charge is exactly the service subtotal.
     const taxAmountCents = 0;
-    const grandTotalCents = subtotalCents;
+    // The tip rides on this same charge (one PaymentIntent, one Stripe fee)
+    // rather than a separate charge, but it's never part of the acquisition-fee
+    // base below (that's computed from subtotalCents alone) and it's tracked
+    // on its own tip_* columns rather than folded into invoice_total_cents.
+    const grandTotalCents = subtotalCents + taxAmountCents + tipAmountCents;
 
     const serviceRoleClient = createClient(
       Deno.env.get('SUPABASE_URL')!,
@@ -187,16 +196,20 @@ Deno.serve(async (req) => {
       return jsonResponse({ error: lastErrorMessage }, 402);
     }
 
+    const nowIso = new Date().toISOString();
     const { error: updateError } = await supabase
       .from('bookings')
       .update({
         status: 'completed',
         payment_status: 'paid',
         stripe_payment_intent_id: paymentIntent.id,
-        invoice_total_cents: grandTotalCents,
+        invoice_total_cents: subtotalCents + taxAmountCents,
         tax_amount_cents: taxAmountCents,
         platform_fee_cents: acquisitionFeeCents,
-        invoice_sent_at: new Date().toISOString(),
+        invoice_sent_at: nowIso,
+        ...(tipAmountCents > 0
+          ? { tip_amount_cents: tipAmountCents, tip_payment_intent_id: paymentIntent.id, tip_paid_at: nowIso }
+          : {}),
       })
       .eq('id', bookingId);
 
@@ -225,10 +238,11 @@ Deno.serve(async (req) => {
 
     if (booking.customer_email) {
       const taxLine = taxAmountCents > 0 ? `  Sales tax: $${(taxAmountCents / 100).toFixed(2)}\n` : '';
+      const tipLine = tipAmountCents > 0 ? `  Tip: $${(tipAmountCents / 100).toFixed(2)}\n` : '';
       const lines = lineItems
         .map((item) => `  ${item.description}: $${(item.amount_cents / 100).toFixed(2)}`)
         .join('\n');
-      const text = `Your ${service.name} appointment for ${pet.name} at ${groomer.name} is complete.\n\nInvoice:\n${lines}\n${taxLine}\nTotal charged: $${(grandTotalCents / 100).toFixed(2)}\n\nA detailed PDF invoice is attached.\n\nThank you for using PawBooker!`;
+      const text = `Your ${service.name} appointment for ${pet.name} at ${groomer.name} is complete.\n\nInvoice:\n${lines}\n${taxLine}${tipLine}\nTotal charged: $${(grandTotalCents / 100).toFixed(2)}\n\nA detailed PDF invoice is attached.\n\nThank you for using PawBooker!`;
 
       const pdfBytes = await generateInvoicePdf({
         groomerName: groomer.name,
@@ -238,6 +252,7 @@ Deno.serve(async (req) => {
         date: new Date(),
         lineItems,
         taxAmountCents,
+        tipAmountCents,
         totalCents: grandTotalCents,
       });
 

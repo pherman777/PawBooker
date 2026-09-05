@@ -7,6 +7,7 @@ import { Button } from '@/components/Button';
 import { Card } from '@/components/Card';
 import { PetCareBox } from '@/components/PetCareBox';
 import { PetNoteBox } from '@/components/PetNoteBox';
+import { TipAmountPicker } from '@/components/TipAmountPicker';
 import type { PetCareInfo } from '@/lib/bookings';
 import { perBookingDiscountCents, type GroupDiscountSnapshot } from '@/lib/discount';
 import { fetchPetNotes } from '@/lib/petNotes';
@@ -46,6 +47,7 @@ export default function CompleteGroupPage() {
   const [charging, setCharging] = useState(false);
   const [markingCash, setMarkingCash] = useState(false);
   const [cashBlocked, setCashBlocked] = useState(false);
+  const [tipAmountCents, setTipAmountCents] = useState(0);
 
   async function load() {
     setLoading(true);
@@ -204,7 +206,7 @@ export default function CompleteGroupPage() {
     setCharging(true);
     try {
       for (const pet of pets) await saveLineItems(pet);
-      await chargeBookingGroup(groupId);
+      await chargeBookingGroup(groupId, tipAmountCents);
       router.push('/dashboard');
     } catch (err) {
       window.alert(`Charge failed: ${err instanceof Error ? err.message : 'Something went wrong'}`);
@@ -323,6 +325,20 @@ export default function CompleteGroupPage() {
       <p className={styles.taxNote}>
         Charged as one payment for the whole visit. Sales tax (if applicable) is added at checkout.
       </p>
+
+      {grandTotalCents > 0 && (
+        <>
+          <h2 className={styles.sectionTitle}>Add a tip for the visit (optional)</h2>
+          <TipAmountPicker subtotalCents={grandTotalCents} onChange={setTipAmountCents} />
+        </>
+      )}
+
+      {tipAmountCents > 0 && (
+        <div className={styles.grandTotalRow}>
+          <span className={styles.grandTotalLabel}>Total to charge</span>
+          <span className={styles.grandTotalAmount}>${((grandTotalCents + tipAmountCents) / 100).toFixed(2)}</span>
+        </div>
+      )}
 
       {cashBlocked && (
         <Card className={styles.feeCard}>

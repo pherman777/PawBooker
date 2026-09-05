@@ -47,7 +47,12 @@ Deno.serve(async (req) => {
   }
 
   try {
-    const { groupId } = (await req.json()) as { groupId: string };
+    const { groupId, tipAmountCents: rawTipAmountCents } = (await req.json()) as {
+      groupId: string;
+      tipAmountCents?: number;
+    };
+    const tipAmountCents =
+      Number.isInteger(rawTipAmountCents) && (rawTipAmountCents as number) > 0 ? (rawTipAmountCents as number) : 0;
 
     const supabase = createClient(Deno.env.get('SUPABASE_URL')!, Deno.env.get('SUPABASE_ANON_KEY')!, {
       global: { headers: { Authorization: req.headers.get('Authorization')! } },
@@ -114,7 +119,11 @@ Deno.serve(async (req) => {
     // doesn't sell taxable retail goods), so nothing is calculated or added
     // here - the charge is exactly the combined service subtotal.
     const taxAmountCents = 0;
-    const grandTotalCents = combinedSubtotalCents;
+    // The visit-level tip rides on this same charge rather than a separate one,
+    // but never counts toward the acquisition-fee base below (computed from
+    // combinedSubtotalCents alone) and is attributed entirely to the lead
+    // booking further down, not distributed across pets like the subtotal/tax.
+    const grandTotalCents = combinedSubtotalCents + taxAmountCents + tipAmountCents;
 
     const serviceRoleClient = createClient(
       Deno.env.get('SUPABASE_URL')!,
@@ -222,6 +231,9 @@ Deno.serve(async (req) => {
           tax_amount_cents: petTax,
           platform_fee_cents: id === lead.id ? acquisitionFeeCents : 0,
           invoice_sent_at: nowIso,
+          ...(id === lead.id && tipAmountCents > 0
+            ? { tip_amount_cents: tipAmountCents, tip_payment_intent_id: paymentIntent.id, tip_paid_at: nowIso }
+            : {}),
         })
         .eq('id', id);
       if (updateError) {
@@ -257,7 +269,8 @@ Deno.serve(async (req) => {
         })
         .join('\n\n');
       const taxLine = taxAmountCents > 0 ? `\nSales tax: $${(taxAmountCents / 100).toFixed(2)}` : '';
-      const text = `Your visit at ${groomer.name} is complete.\n\nInvoice:\n\n${petSections}\n${taxLine}\n\nTotal charged: $${(grandTotalCents / 100).toFixed(2)}\n\nThank you for using PawBooker!`;
+      const tipLine = tipAmountCents > 0 ? `\nTip: $${(tipAmountCents / 100).toFixed(2)}` : '';
+      const text = `Your visit at ${groomer.name} is complete.\n\nInvoice:\n\n${petSections}\n${taxLine}${tipLine}\n\nTotal charged: $${(grandTotalCents / 100).toFixed(2)}\n\nThank you for using PawBooker!`;
 
       const emailResponse = await fetch('https://api.resend.com/emails', {
         method: 'POST',

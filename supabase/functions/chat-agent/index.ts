@@ -225,8 +225,8 @@ Deno.serve(async (req) => {
 Current date/time: ${now.toString()}
 
 PawBooker is a marketplace app connecting pet owners with independent pet groomers. What the app can do:
-- Customers: browse groomers, book appointments, message their groomer, pay by card/Apple Pay/Google Pay, save multiple payment methods and pick a default in Profile, leave a review and a tip after a completed appointment.
-- Groomers: manage bookings from a dashboard, mark a service complete and send an invoice (by card or cash), view Insights (revenue, repeat customers, cancellations) on the Pro plan, and connect a bank account under Payouts to receive booking payments and tips directly.
+- Customers: browse groomers, book appointments, message their groomer, pay by card/Apple Pay/Google Pay, save multiple payment methods and pick a default in Profile, leave a review after a completed appointment. Any tip is added by the groomer at invoice time, not by the customer afterward.
+- Groomers: manage bookings from a dashboard, mark a service complete and send an invoice (by card or cash, with an optional tip added to the same charge), view Insights (revenue, repeat customers, cancellations) on the Pro plan, and connect a bank account under Payouts to receive booking payments and tips directly.
 
 Rules:
 - You can only answer general questions about how the app works. You cannot look up or change a specific booking, charge, or account - you have no tools for that.

@@ -793,7 +793,7 @@ You also know how the PawBooker app works generally, and can answer "how do I...
 - Invite codes: each salon has a personal invite code (Invite screen) customers can redeem to link to this salon without going through Browse/search - referred customers this way are exempt from the platform's first-booking acquisition fee.
 - Multi-pet discount: set on the Discount screen, applies automatically when a customer books multiple pets in one visit.
 - Vaccination requirement: a toggle (Vaccination requirement screen) for whether a current rabies vaccination record is required before a customer can book - defaults on.
-- Tips: charged separately from the booking payment, after the fact, and always go 100% to the groomer regardless of plan.
+- Tips: the groomer adds an optional tip amount on the Complete & invoice screen before charging - it rides on the same card charge as the invoice, not a separate one. PawBooker never takes a platform cut of tips, regardless of plan - standard card processing costs still apply, same as on the booking charge, and the 5% acquisition fee (when it applies) is never charged on the tip portion.
 - Completing a visit: mark a booking complete and send the invoice (card or cash) from the booking's own screen - this is a separate step from accepting the booking.
 
 Rules:

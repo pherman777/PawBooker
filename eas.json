@@ -6,23 +6,28 @@
   "build": {
     "development": {
       "developmentClient": true,
-      "distribution": "internal"
+      "distribution": "internal",
+      "channel": "development"
     },
     "preview": {
-      "distribution": "internal"
+      "distribution": "internal",
+      "channel": "preview"
     },
     "preview-simulator": {
       "extends": "preview",
       "ios": {
         "simulator": true
-      }
+      },
+      "channel": "preview-simulator"
     },
     "production": {
-      "autoIncrement": true
+      "autoIncrement": true,
+      "channel": "production"
     },
     "beta": {
       "extends": "production",
-      "environment": "preview"
+      "environment": "preview",
+      "channel": "beta"
     }
   },
   "submit": {

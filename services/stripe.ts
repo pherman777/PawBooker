@@ -77,9 +77,11 @@ export type ChargeBookingResponse = {
   totalCents: number;
 };
 
-export async function chargeBooking(bookingId: string): Promise<ChargeBookingResponse> {
+// tipAmountCents rides on the same charge as the invoice - one PaymentIntent,
+// one Stripe processing fee - rather than a second charge afterward.
+export async function chargeBooking(bookingId: string, tipAmountCents = 0): Promise<ChargeBookingResponse> {
   const { data, error } = await supabase.functions.invoke<ChargeBookingResponse>('stripe-charge-booking', {
-    body: { bookingId },
+    body: { bookingId, tipAmountCents },
   });
   if (error) throw await unwrapFunctionError(error);
   if (!data) throw new Error('No response from stripe-charge-booking');
@@ -94,27 +96,15 @@ export type ChargeGroupResponse = {
 
 // Charges every ready-to-bill pet in a multi-pet group as ONE payment to the
 // customer's card, while still recording each pet's own itemized invoice. Line
-// items must already be saved per booking before calling.
-export async function chargeBookingGroup(groupId: string): Promise<ChargeGroupResponse> {
+// items must already be saved per booking before calling. tipAmountCents (one
+// lump tip for the whole visit) rides on this same charge and is attributed to
+// the group's lead booking.
+export async function chargeBookingGroup(groupId: string, tipAmountCents = 0): Promise<ChargeGroupResponse> {
   const { data, error } = await supabase.functions.invoke<ChargeGroupResponse>('stripe-charge-group', {
-    body: { groupId },
+    body: { groupId, tipAmountCents },
   });
   if (error) throw await unwrapFunctionError(error);
   if (!data) throw new Error('No response from stripe-charge-group');
-  return data;
-}
-
-export type ChargeTipResponse = {
-  success: boolean;
-  tipAmountCents: number;
-};
-
-export async function chargeTip(bookingId: string, tipAmountCents: number): Promise<ChargeTipResponse> {
-  const { data, error } = await supabase.functions.invoke<ChargeTipResponse>('stripe-charge-tip', {
-    body: { bookingId, tipAmountCents },
-  });
-  if (error) throw await unwrapFunctionError(error);
-  if (!data) throw new Error('No response from stripe-charge-tip');
   return data;
 }
 

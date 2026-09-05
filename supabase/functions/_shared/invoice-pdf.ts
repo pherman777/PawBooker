@@ -13,6 +13,7 @@ export type InvoiceDetails = {
   date: Date;
   lineItems: InvoiceLineItem[];
   taxAmountCents: number;
+  tipAmountCents: number;
   totalCents: number;
 };
 
@@ -89,14 +90,22 @@ export async function generateInvoicePdf(invoice: InvoiceDetails): Promise<Uint8
   });
   y -= 24;
 
-  if (invoice.taxAmountCents > 0) {
+  if (invoice.taxAmountCents > 0 || invoice.tipAmountCents > 0) {
     const subtotalCents = invoice.lineItems.reduce((sum, item) => sum + item.amount_cents, 0);
     text('Subtotal', { size: 12, color: muted });
     text(formatCurrency(subtotalCents), { size: 12, color: muted, x: pageWidth - marginX - 70 });
     y -= 20;
-    text('Sales tax', { size: 12, color: muted });
-    text(formatCurrency(invoice.taxAmountCents), { size: 12, color: muted, x: pageWidth - marginX - 70 });
-    y -= 26;
+    if (invoice.taxAmountCents > 0) {
+      text('Sales tax', { size: 12, color: muted });
+      text(formatCurrency(invoice.taxAmountCents), { size: 12, color: muted, x: pageWidth - marginX - 70 });
+      y -= 20;
+    }
+    if (invoice.tipAmountCents > 0) {
+      text('Tip', { size: 12, color: muted });
+      text(formatCurrency(invoice.tipAmountCents), { size: 12, color: muted, x: pageWidth - marginX - 70 });
+      y -= 20;
+    }
+    y -= 6;
   }
 
   text('Total', { size: 14, bold: true });

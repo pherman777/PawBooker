@@ -26,7 +26,14 @@
         "monochromeImage": "./assets/android-icon-monochrome.png"
       },
       "predictiveBackGestureEnabled": false,
-      "package": "com.professionalhomebody.PawBooker"
+      "package": "com.professionalhomebody.PawBooker",
+      "permissions": [
+        "android.permission.RECORD_AUDIO",
+        "android.permission.ACCESS_COARSE_LOCATION",
+        "android.permission.ACCESS_FINE_LOCATION",
+        "android.permission.READ_CALENDAR",
+        "android.permission.WRITE_CALENDAR"
+      ]
     },
     "web": {
       "favicon": "./assets/favicon.png"
@@ -87,6 +94,12 @@
         "projectId": "441d7057-71d7-4c65-82f6-d31d277c5ec9"
       }
     },
-    "owner": "pawbooker"
+    "owner": "pawbooker",
+    "runtimeVersion": {
+      "policy": "fingerprint"
+    },
+    "updates": {
+      "url": "https://u.expo.dev/441d7057-71d7-4c65-82f6-d31d277c5ec9"
+    }
   }
 }

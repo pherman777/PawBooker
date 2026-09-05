@@ -9,6 +9,7 @@ import { Logo } from '@/components/Logo';
 import { Button } from '@/components/ui/Button';
 import { PetCareSummary, type PetCareInfo } from '@/components/PetCareSummary';
 import { PetNoteBox } from '@/components/PetNoteBox';
+import { TipAmountPicker } from '@/components/TipAmountPicker';
 import { fetchPetNotes } from '@/services/petNotes';
 import { chargeBookingGroup, markBookingPaidCash } from '@/services/stripe';
 import { notify } from '@/utils/confirm';
@@ -48,6 +49,7 @@ export default function CompleteGroupScreen() {
   const [charging, setCharging] = useState(false);
   const [markingCash, setMarkingCash] = useState(false);
   const [cashBlocked, setCashBlocked] = useState(false);
+  const [tipAmountCents, setTipAmountCents] = useState(0);
 
   async function load() {
     setLoading(true);
@@ -202,8 +204,10 @@ export default function CompleteGroupScreen() {
     if (error) throw new Error(error.message);
   }
 
-  // Saves every pet's line items, then charges the whole visit as ONE payment.
-  // If the charge fails, nothing is marked paid - the groomer can just retry.
+  // Saves every pet's line items, then charges the whole visit as ONE payment
+  // (the optional visit-level tip rides on this same charge, attributed to the
+  // first/earliest pet's booking). If the charge fails, nothing is marked
+  // paid - the groomer can just retry.
   async function handleChargeAll() {
     for (const pet of pets) {
       if (petTotal(pet) <= 0) {
@@ -215,7 +219,7 @@ export default function CompleteGroupScreen() {
     setCharging(true);
     try {
       for (const pet of pets) await saveLineItems(pet);
-      await chargeBookingGroup(groupId);
+      await chargeBookingGroup(groupId, tipAmountCents);
       router.back();
     } catch (err) {
       notify('Charge failed', err instanceof Error ? err.message : 'Something went wrong');
@@ -352,6 +356,20 @@ export default function CompleteGroupScreen() {
         <Text style={styles.taxNote}>
           Charged as one payment for the whole visit. Sales tax (if applicable) is added at checkout.
         </Text>
+
+        {grandTotalCents > 0 && (
+          <View style={styles.tipSection}>
+            <Text style={styles.tipSectionTitle}>Add a tip for the visit (optional)</Text>
+            <TipAmountPicker subtotalCents={grandTotalCents} onChange={setTipAmountCents} />
+          </View>
+        )}
+
+        {tipAmountCents > 0 && (
+          <View style={styles.grandTotalRow}>
+            <Text style={styles.grandTotalLabel}>Total to charge</Text>
+            <Text style={styles.grandTotalAmount}>${((grandTotalCents + tipAmountCents) / 100).toFixed(2)}</Text>
+          </View>
+        )}
 
         {cashBlocked && (
           <View style={styles.feeCard}>
@@ -538,6 +556,15 @@ const styles = StyleSheet.create({
   grandTotalAmount: {
     fontSize: 18,
     fontWeight: '700',
+    color: Colors.light.text,
+  },
+  tipSection: {
+    marginTop: 20,
+  },
+  tipSectionTitle: {
+    marginBottom: 10,
+    fontSize: 15,
+    fontWeight: '600',
     color: Colors.light.text,
   },
   taxNote: {

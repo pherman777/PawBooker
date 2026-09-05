@@ -9,6 +9,7 @@ import { Logo } from '@/components/Logo';
 import { Button } from '@/components/ui/Button';
 import { PetCareSummary, type PetCareInfo } from '@/components/PetCareSummary';
 import { PetNoteBox } from '@/components/PetNoteBox';
+import { TipAmountPicker } from '@/components/TipAmountPicker';
 import { fetchPetNotes } from '@/services/petNotes';
 import { chargeBooking, markBookingPaidCash } from '@/services/stripe';
 import { notify } from '@/utils/confirm';
@@ -38,6 +39,7 @@ export default function CompleteBookingScreen() {
   const [charging, setCharging] = useState(false);
   const [markingCash, setMarkingCash] = useState(false);
   const [cashBlocked, setCashBlocked] = useState(false);
+  const [tipAmountCents, setTipAmountCents] = useState(0);
 
   useEffect(() => {
     let cancelled = false;
@@ -188,7 +190,7 @@ export default function CompleteBookingScreen() {
       );
       if (insertError) throw new Error(insertError.message);
 
-      await chargeBooking(bookingId);
+      await chargeBooking(bookingId, tipAmountCents);
       router.back();
     } catch (err) {
       notify('Charge failed', err instanceof Error ? err.message : 'Something went wrong');
@@ -297,6 +299,20 @@ export default function CompleteBookingScreen() {
           <Text style={styles.totalAmount}>${(totalCents / 100).toFixed(2)}</Text>
         </View>
         <Text style={styles.taxNote}>Sales tax (if applicable) is calculated and added at checkout.</Text>
+
+        {totalCents > 0 && (
+          <View style={styles.tipSection}>
+            <Text style={styles.sectionTitle}>Add a tip (optional)</Text>
+            <TipAmountPicker subtotalCents={totalCents} onChange={setTipAmountCents} />
+          </View>
+        )}
+
+        {tipAmountCents > 0 && (
+          <View style={styles.totalRow}>
+            <Text style={styles.totalLabel}>Total to charge</Text>
+            <Text style={styles.totalAmount}>${((totalCents + tipAmountCents) / 100).toFixed(2)}</Text>
+          </View>
+        )}
 
         {cashBlocked && totalCents > 0 && (
           <View style={styles.feeCard}>
@@ -446,6 +462,9 @@ const styles = StyleSheet.create({
   },
   amountInput: {
     flex: 1,
+  },
+  tipSection: {
+    marginTop: 8,
   },
   totalRow: {
     flexDirection: 'row',

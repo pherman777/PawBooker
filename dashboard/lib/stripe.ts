@@ -43,19 +43,23 @@ export async function cancelSubscription(): Promise<{ success: boolean; currentP
 
 // Charges the customer's already-saved payment method server-side - no card
 // entry UI needed here, same as the RN app's complete/[bookingId].tsx.
-export async function chargeBooking(bookingId: string): Promise<{ success: boolean }> {
+// tipAmountCents rides on this same charge (one PaymentIntent, one Stripe fee)
+// rather than a separate charge afterward.
+export async function chargeBooking(bookingId: string, tipAmountCents = 0): Promise<{ success: boolean }> {
   const { data, error } = await supabase.functions.invoke<{ success: boolean }>('stripe-charge-booking', {
-    body: { bookingId },
+    body: { bookingId, tipAmountCents },
   });
   if (error) throw await unwrapFunctionError(error);
   if (!data) throw new Error('No response from stripe-charge-booking');
   return data;
 }
 
-// Charges a whole multi-pet visit as one payment.
-export async function chargeBookingGroup(groupId: string): Promise<{ success: boolean }> {
+// Charges a whole multi-pet visit as one payment. tipAmountCents (one lump tip
+// for the whole visit) rides on this same charge, attributed to the group's
+// lead booking.
+export async function chargeBookingGroup(groupId: string, tipAmountCents = 0): Promise<{ success: boolean }> {
   const { data, error } = await supabase.functions.invoke<{ success: boolean }>('stripe-charge-group', {
-    body: { groupId },
+    body: { groupId, tipAmountCents },
   });
   if (error) throw await unwrapFunctionError(error);
   if (!data) throw new Error('No response from stripe-charge-group');
